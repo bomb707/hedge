@@ -22,6 +22,43 @@ representable; no `float()` exists on the order path; and no test constructs a r
 
 ---
 
+## P7 correction: concurrent dispatch
+
+Independent review found that the P7 report claimed "independent UP/DOWN actions may dispatch
+concurrently" while the implementation dispatched them **sequentially**. The claim was wrong,
+and the test that appeared to support it —
+`test_up_and_down_are_independent_so_they_may_dispatch_concurrently` — only proved the *plan*
+was independent of evaluation order. It said nothing about the network calls, and would have
+passed against a strictly sequential executor.
+
+The gap was real: `records = [self._dispatch(side, now_ns) for side in plan.sides]` over
+synchronous transport methods, with no async path in the codebase at all.
+
+**Corrected.** `Executor.run_cycle_async` dispatches independent outcome requests with
+`asyncio.gather` over `AsyncVenueAdapter`. The official SDK provides a genuine async client —
+`AsyncSecureClient` with coroutine `create_limit_order` / `post_order` / `cancel_order` over
+`httpx[http2]` — so this is real concurrency, not a blocking call wrapped in an executor.
+
+Reservation is deliberately separated from dispatch. `Executor.reserve` allocates client order
+ids, registers `PENDING_PLACE` / `PENDING_CANCEL`, and takes rate-limiter capacity
+**synchronously, before any await**. A structural test asserts `reserve()` contains no
+`Await` node: a suspension point in there would let a concurrent cycle observe no in-flight
+request and create a duplicate.
+
+Concurrency is across independent outcomes only. Within one side replacement remains
+`CANCEL_THEN_PLACE`, and completion order cannot influence replay — authenticated order and
+fill events re-enter through the P6 ingress merger and receive their ordinal there.
+
+**The proof is discriminating.** Temporarily replacing `asyncio.gather` with a sequential loop
+makes three barrier tests fail with `TimeoutError`; restoring it makes them pass. The barrier
+holds each request inside the transport until the other side enters, so a sequential
+implementation deadlocks rather than merely running slowly — no wall-clock timing is involved.
+
+The synchronous `run_cycle` is retained for unit tests and is documented as test support, not
+production.
+
+---
+
 ## Two different kinds of "done"
 
 | | |
@@ -42,6 +79,7 @@ representable; no `float()` exists on the order path; and no test constructs a r
 | Current branch | `feature/p7-execution` |
 | Venue-tick correction | `55977f4` — `fix: update current venue tick capabilities` |
 | P7 boundary commit | `de96681` — `feat: add post-only execution reconciler` |
+| P7 concurrency correction | recorded by the immediately following commit on `fix/p7-concurrent-dispatch` |
 | Last accepted milestone | P6 — read-only market-data adapters (`6a50794`, tip `d6851a4`) |
 | Next milestone | **P8 — Queue and latency instrumentation** |
 | `main` | `d6851a4` — fast-forwarded to the accepted P6 HEAD, pushed |
@@ -150,6 +188,7 @@ construction rather than by logic — the same effect measured in P4. P8 owns en
 | `ruff check` / `ruff format --check` | clean |
 | `mypy` (strict) | clean — `src/`, `tests/`, `tools/`; **zero `type: ignore` in `execution/`** |
 | Runtime dependencies | `websockets`, `polymarket-client==0.6.0` — both pinned or bounded |
+| Dev dependencies | `pytest`, `mypy`, `ruff`, `pytest-asyncio` |
 
 Two P6 guards were **rescoped, not relaxed**: they were written when the repository contained
 no write path at all. The market-data plane must still contain no credential material, and

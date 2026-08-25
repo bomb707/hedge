@@ -26,6 +26,9 @@ from maker5m.execution.adapter import (
     SDK_DISTRIBUTION,
     SDK_IMPORT_NAME,
     SDK_PINNED_VERSION,
+    AsyncRecordingTransport,
+    AsyncVenueAdapter,
+    AsyncVenueTransport,
     OrderPlacement,
     RecordingTransport,
     VenueAdapter,
@@ -42,6 +45,7 @@ from maker5m.execution.errors import (
 from maker5m.execution.executor import (
     ExecutionCycle,
     Executor,
+    ReservedRequest,
     prepare_both_sides,
 )
 from maker5m.execution.gate import live_trading_enabled, require_live_trading_enabled
@@ -93,6 +97,9 @@ __all__ = [
     "SDK_IMPORT_NAME",
     "SDK_PINNED_VERSION",
     "VENUE_STATUS_MAP",
+    "AsyncRecordingTransport",
+    "AsyncVenueAdapter",
+    "AsyncVenueTransport",
     "ExecutionCredentials",
     "ExecutionCycle",
     "ExecutionError",
@@ -116,6 +123,7 @@ __all__ = [
     "ReplacementPolicy",
     "ReplacementTracker",
     "RequestClass",
+    "ReservedRequest",
     "Secret",
     "SideAction",
     "SideReason",

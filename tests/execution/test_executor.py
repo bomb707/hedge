@@ -80,19 +80,6 @@ def test_placements_carry_no_float() -> None:
         assert isinstance(placement.size, Decimal)
 
 
-def test_up_and_down_are_independent_so_they_may_dispatch_concurrently() -> None:
-    """The plan does not depend on dispatch order; nothing serialises the two sides."""
-    executor, _ = build()
-    state = state_at()
-    plan = executor.plan_cycle(decision(desired(), state), state, rules())
-    assert plan.up.action is ReconcileAction.PLACE
-    assert plan.down.action is ReconcileAction.PLACE
-    assert plan.request_count == 2
-    # Reversing the order of evaluation cannot change either side.
-    again = executor.plan_cycle(decision(desired(), state), state, rules())
-    assert (again.down, again.up) == (plan.down, plan.up)
-
-
 def test_a_blocked_side_issues_no_request() -> None:
     executor, transport = build()
     state = state_at()

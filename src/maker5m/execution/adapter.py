@@ -57,10 +57,14 @@ __all__ = [
     "SDK_DISTRIBUTION",
     "SDK_IMPORT_NAME",
     "SDK_PINNED_VERSION",
+    "AsyncRecordingTransport",
+    "AsyncVenueAdapter",
+    "AsyncVenueTransport",
     "OrderPlacement",
     "RecordingTransport",
     "VenueAdapter",
     "VenueTransport",
+    "build_placement",
 ]
 
 SDK_DISTRIBUTION = "polymarket-client"
@@ -154,7 +158,13 @@ class RecordingTransport:
 
 @dataclass(slots=True)
 class VenueAdapter:
-    """Wraps a transport. Arming a **real** one requires live trading to be enabled."""
+    """Synchronous adapter. **Test support only** -- production dispatch is async.
+
+    Retained because the pure planning path is easier to exercise against a synchronous
+    double. :class:`AsyncVenueAdapter` is the production path; see
+    :meth:`maker5m.execution.executor.Executor.run_cycle` for why the sync cycle must not be
+    wired into production.
+    """
 
     transport: VenueTransport
 
@@ -178,3 +188,88 @@ class VenueAdapter:
 
     def cancel(self, venue_order_id: str) -> Any:
         return self.transport.cancel(venue_order_id)
+
+
+# -- the production async path ---------------------------------------------------------------
+#
+# The synchronous transport above is test support. Production dispatch is async, because two
+# independent outcome requests must be able to overlap on the wire: serialising UP behind DOWN
+# adds a full round trip to whichever side goes second, and queue position is decided in
+# exactly that window (Canonical §10.1).
+#
+# The official SDK provides a genuine async client -- ``AsyncSecureClient`` with coroutine
+# ``create_limit_order`` / ``post_order`` / ``cancel_order``, over ``httpx[http2]`` -- so this
+# is real concurrency, not a synchronous call wrapped in an executor and called concurrent.
+
+
+@runtime_checkable
+class AsyncVenueTransport(Protocol):
+    """The production transport surface. Implemented by the SDK and by test doubles."""
+
+    async def prewarm(self, token_ids: tuple[str, ...]) -> None: ...
+
+    async def place(self, placement: OrderPlacement) -> Any: ...
+
+    async def cancel(self, venue_order_id: str) -> Any: ...
+
+
+@dataclass(slots=True)
+class AsyncRecordingTransport:
+    """An async test double that records requests and performs no network I/O.
+
+    ``gate`` lets a test hold a request open inside the transport, which is how overlap is
+    proven without relying on wall-clock timing.
+    """
+
+    placements: list[OrderPlacement] = field(default_factory=list)
+    cancels: list[str] = field(default_factory=list)
+    prewarmed: list[tuple[str, ...]] = field(default_factory=list)
+    metadata_requests: int = 0
+    gate: Any = None
+    """Optional ``async def (kind: str, key: str) -> None`` awaited inside each request."""
+
+    async def prewarm(self, token_ids: tuple[str, ...]) -> None:
+        self.prewarmed.append(token_ids)
+        self.metadata_requests += 1
+
+    async def place(self, placement: OrderPlacement) -> OrderPlacement:
+        self.placements.append(placement)
+        if self.gate is not None:
+            await self.gate("place", placement.token_id)
+        return placement
+
+    async def cancel(self, venue_order_id: str) -> str:
+        self.cancels.append(venue_order_id)
+        if self.gate is not None:
+            await self.gate("cancel", venue_order_id)
+        return venue_order_id
+
+
+@dataclass(slots=True)
+class AsyncVenueAdapter:
+    """Production adapter. Arming a **real** transport still requires the live gate."""
+
+    transport: AsyncVenueTransport
+
+    @classmethod
+    def arm_live(
+        cls, credentials: ExecutionCredentials, build_transport: Any
+    ) -> "AsyncVenueAdapter":
+        """Construct a real authenticated async adapter, or refuse.
+
+        The gate is checked first, before the credential is read and before any client is
+        constructed, so a disabled build cannot open a connection or touch a key.
+        """
+        require_live_trading_enabled("the authenticated Polymarket async write adapter")
+        return cls(transport=build_transport(credentials))  # pragma: no cover - P14 only
+
+    async def prewarm(self, token_ids: tuple[str, ...]) -> None:
+        """Populate the SDK's metadata cache during pre-arm, off the hot path."""
+        await self.transport.prewarm(token_ids)
+
+    async def place(self, prepared: PreparedOrder) -> Any:
+        """Sign and POST one order. No metadata lookup, no settlement polling."""
+        return await self.transport.place(build_placement(prepared))
+
+    async def cancel(self, venue_order_id: str) -> Any:
+        return await self.transport.cancel(venue_order_id)

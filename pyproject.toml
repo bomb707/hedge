@@ -27,6 +27,9 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0",
+  # P7 correction: the production dispatch path is async, and proving that two requests
+  # actually overlap needs an async test runner. Dev-only; no runtime dependency.
+  "pytest-asyncio>=0.24",
   "mypy>=1.11",
   "ruff>=0.6",
 ]
@@ -44,6 +47,7 @@ testpaths = ["tests"]
 pythonpath = ["src", "."]
 addopts = "-q --strict-markers --strict-config"
 xfail_strict = true
+asyncio_mode = "strict"
 filterwarnings = ["error"]
 
 # ---------------------------------------------------------------------------

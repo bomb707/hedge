@@ -1,0 +1,337 @@
+{
+  "aggregate": {
+    "delta_ns": 454,
+    "delta_percent": 1.73,
+    "median_of_pair_delta_percents": 1.26,
+    "median_of_pair_deltas_ns": 336,
+    "off_p50_by_pair": [
+      25936,
+      26733,
+      26634,
+      26964,
+      26624,
+      26326,
+      26040,
+      26121,
+      26178,
+      26458,
+      26045,
+      25905
+    ],
+    "off_p50_median_ns": 26252,
+    "on_p50_by_pair": [
+      29135,
+      27175,
+      26255,
+      26723,
+      26456,
+      27148,
+      25996,
+      25890,
+      27292,
+      26689,
+      26535,
+      27042
+    ],
+    "on_p50_median_ns": 26706
+  },
+  "method": {
+    "alternating_launch_order": true,
+    "pairs": 12,
+    "passes_per_process": 60,
+    "process_isolated": true,
+    "python": "3.12.3",
+    "sample_every": 10,
+    "warmup_passes_per_process": 3
+  },
+  "pairs": [
+    {
+      "delta_p50_ns": 3199,
+      "delta_p50_percent": 12.33,
+      "off": {
+        "count": 2340,
+        "enabled": false,
+        "mean": 23992,
+        "p50": 25936,
+        "p90": 28434,
+        "p95": 29967,
+        "p99": 32212
+      },
+      "on": {
+        "count": 2340,
+        "enabled": true,
+        "mean": 35170,
+        "p50": 29135,
+        "p90": 57793,
+        "p95": 70702,
+        "p99": 105045
+      },
+      "order": "off_first",
+      "pair": 0
+    },
+    {
+      "delta_p50_ns": 442,
+      "delta_p50_percent": 1.65,
+      "off": {
+        "count": 2340,
+        "enabled": false,
+        "mean": 24949,
+        "p50": 26733,
+        "p90": 29350,
+        "p95": 31925,
+        "p99": 47203
+      },
+      "on": {
+        "count": 2340,
+        "enabled": true,
+        "mean": 26952,
+        "p50": 27175,
+        "p90": 31036,
+        "p95": 33232,
+        "p99": 71306
+      },
+      "order": "on_first",
+      "pair": 1
+    },
+    {
+      "delta_p50_ns": -379,
+      "delta_p50_percent": -1.42,
+      "off": {
+        "count": 2340,
+        "enabled": false,
+        "mean": 24955,
+        "p50": 26634,
+        "p90": 29681,
+        "p95": 32174,
+        "p99": 44777
+      },
+      "on": {
+        "count": 2340,
+        "enabled": true,
+        "mean": 25581,
+        "p50": 26255,
+        "p90": 29667,
+        "p95": 31474,
+        "p99": 67673
+      },
+      "order": "off_first",
+      "pair": 2
+    },
+    {
+      "delta_p50_ns": -241,
+      "delta_p50_percent": -0.89,
+      "off": {
+        "count": 2340,
+        "enabled": false,
+        "mean": 26996,
+        "p50": 26964,
+        "p90": 36155,
+        "p95": 43528,
+        "p99": 58484
+      },
+      "on": {
+        "count": 2340,
+        "enabled": true,
+        "mean": 26725,
+        "p50": 26723,
+        "p90": 30626,
+        "p95": 35972,
+        "p99": 70823
+      },
+      "order": "on_first",
+      "pair": 3
+    },
+    {
+      "delta_p50_ns": -168,
+      "delta_p50_percent": -0.63,
+      "off": {
+        "count": 2340,
+        "enabled": false,
+        "mean": 24953,
+        "p50": 26624,
+        "p90": 29445,
+        "p95": 31663,
+        "p99": 48887
+      },
+      "on": {
+        "count": 2340,
+        "enabled": true,
+        "mean": 25851,
+        "p50": 26456,
+        "p90": 29893,
+        "p95": 32098,
+        "p99": 70878
+      },
+      "order": "off_first",
+      "pair": 4
+    },
+    {
+      "delta_p50_ns": 822,
+      "delta_p50_percent": 3.12,
+      "off": {
+        "count": 2340,
+        "enabled": false,
+        "mean": 25968,
+        "p50": 26326,
+        "p90": 31673,
+        "p95": 43877,
+        "p99": 60348
+      },
+      "on": {
+        "count": 2340,
+        "enabled": true,
+        "mean": 28660,
+        "p50": 27148,
+        "p90": 33658,
+        "p95": 49308,
+        "p99": 79048
+      },
+      "order": "on_first",
+      "pair": 5
+    },
+    {
+      "delta_p50_ns": -44,
+      "delta_p50_percent": -0.17,
+      "off": {
+        "count": 2340,
+        "enabled": false,
+        "mean": 24305,
+        "p50": 26040,
+        "p90": 28776,
+        "p95": 30747,
+        "p99": 40384
+      },
+      "on": {
+        "count": 2340,
+        "enabled": true,
+        "mean": 25055,
+        "p50": 25996,
+        "p90": 29143,
+        "p95": 30519,
+        "p99": 62140
+      },
+      "order": "off_first",
+      "pair": 6
+    },
+    {
+      "delta_p50_ns": -231,
+      "delta_p50_percent": -0.88,
+      "off": {
+        "count": 2340,
+        "enabled": false,
+        "mean": 24409,
+        "p50": 26121,
+        "p90": 28876,
+        "p95": 31180,
+        "p99": 46738
+      },
+      "on": {
+        "count": 2340,
+        "enabled": true,
+        "mean": 25093,
+        "p50": 25890,
+        "p90": 29130,
+        "p95": 30707,
+        "p99": 64180
+      },
+      "order": "on_first",
+      "pair": 7
+    },
+    {
+      "delta_p50_ns": 1114,
+      "delta_p50_percent": 4.26,
+      "off": {
+        "count": 2340,
+        "enabled": false,
+        "mean": 26606,
+        "p50": 26178,
+        "p90": 38689,
+        "p95": 47614,
+        "p99": 64983
+      },
+      "on": {
+        "count": 2340,
+        "enabled": true,
+        "mean": 26688,
+        "p50": 27292,
+        "p90": 30780,
+        "p95": 32931,
+        "p99": 70946
+      },
+      "order": "off_first",
+      "pair": 8
+    },
+    {
+      "delta_p50_ns": 231,
+      "delta_p50_percent": 0.87,
+      "off": {
+        "count": 2340,
+        "enabled": false,
+        "mean": 24654,
+        "p50": 26458,
+        "p90": 29082,
+        "p95": 31187,
+        "p99": 47184
+      },
+      "on": {
+        "count": 2340,
+        "enabled": true,
+        "mean": 26507,
+        "p50": 26689,
+        "p90": 30146,
+        "p95": 32715,
+        "p99": 70951
+      },
+      "order": "on_first",
+      "pair": 9
+    },
+    {
+      "delta_p50_ns": 490,
+      "delta_p50_percent": 1.88,
+      "off": {
+        "count": 2340,
+        "enabled": false,
+        "mean": 24423,
+        "p50": 26045,
+        "p90": 29370,
+        "p95": 31622,
+        "p99": 44239
+      },
+      "on": {
+        "count": 2340,
+        "enabled": true,
+        "mean": 25965,
+        "p50": 26535,
+        "p90": 30167,
+        "p95": 32400,
+        "p99": 70149
+      },
+      "order": "off_first",
+      "pair": 10
+    },
+    {
+      "delta_p50_ns": 1137,
+      "delta_p50_percent": 4.39,
+      "off": {
+        "count": 2340,
+        "enabled": false,
+        "mean": 23959,
+        "p50": 25905,
+        "p90": 28589,
+        "p95": 30002,
+        "p99": 32312
+      },
+      "on": {
+        "count": 2340,
+        "enabled": true,
+        "mean": 26120,
+        "p50": 27042,
+        "p90": 30413,
+        "p95": 32379,
+        "p99": 62790
+      },
+      "order": "on_first",
+      "pair": 11
+    }
+  ]
+}

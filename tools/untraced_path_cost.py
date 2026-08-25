@@ -1,10 +1,14 @@
-"""Where does an *unsampled* cycle's telemetry cost actually go?
+"""What does an *unsampled* cycle's telemetry capture actually cost?
 
-The P8 performance limit is about the ordinary book update that sampling does not select. That
-cycle still has to maintain state — shadow queue slots and action counters — because an
-estimate that skipped unsampled depth changes would silently depend on the sampling rate.
+The P8 performance limit is about the ordinary book update that sampling does not select. After
+the telemetry offload, such a cycle no longer does any analysis at all — no slot mutation, no
+counting, no classification, no distributions. What it still does is read the displayed depth at
+our own price on each side, build one observation tuple, and append it to a bounded buffer.
 
-This measures each surviving component, so "irreducible" is a number rather than an assertion.
+The depth reads are the part that cannot be deferred. The book is mutable and moves continuously,
+so the size resting at our own price has to be sampled at the moment the cycle sees it; there is
+no later time at which the analyzer could recover it.
+
 Read-only. No venue, no credential, no order.
 """
 
@@ -12,26 +16,26 @@ import dataclasses
 import json
 import sys
 import time
+from collections.abc import Callable
 
 from tests.execution.builders import market, rules, state_at
 
 from maker5m.domain import Outcome
 from maker5m.execution import Executor, RecordingTransport, VenueAdapter, prepare_both_sides
-from maker5m.execution.reconciler import ReconcileAction, reconcile
+from maker5m.execution.reconciler import ReconcileAction, ReconcilePlan, reconcile
 from maker5m.feeds import BookTracker, IngressMerger, MarketDataPipeline
 from maker5m.market import MarketState
 from maker5m.market.events import HealthStatus
 from maker5m.numeric import parse_price, parse_share
 from maker5m.strategy import BaseLot, StrategyEngine, default_config
-from maker5m.strategy.decision import DesiredOrder, DesiredOrders
+from maker5m.strategy.decision import DecisionResult, DesiredOrder, DesiredOrders
 from maker5m.telemetry import InstrumentedRun, SamplingPolicy, perf_now_ns
-from maker5m.telemetry.instrumented import QUEUE_LOSS_ACTIONS
 
-REPEATS = 100_000
+REPEATS = 200_000
 ROUNDS = 7
 
 
-def steady_state_keep() -> tuple[InstrumentedRun, object, object]:
+def steady_state_keep() -> tuple[InstrumentedRun, ReconcilePlan, DecisionResult]:
     """A harness with one order resting per side and a KEEP plan ready to replay."""
     definition = market()
     engine = StrategyEngine(default_config(BaseLot.of(15)))
@@ -80,14 +84,12 @@ def steady_state_keep() -> tuple[InstrumentedRun, object, object]:
     return harness, plan, decision
 
 
-def best_ns(work: object) -> float:
-    callable_work = work
-    assert callable(callable_work)
+def best_ns(work: Callable[[], object]) -> float:
     best: float | None = None
     for _ in range(ROUNDS):
         start = time.perf_counter_ns()
         for _ in range(REPEATS):
-            callable_work()
+            work()
         elapsed = (time.perf_counter_ns() - start) / REPEATS
         best = elapsed if best is None else min(best, elapsed)
     assert best is not None
@@ -95,64 +97,74 @@ def best_ns(work: object) -> float:
 
 
 def main() -> None:
-    harness, plan, _decision = steady_state_keep()
-    assert hasattr(plan, "up")
-    up, down = plan.up, plan.down  # type: ignore[attr-defined]
-    counters = harness.counters
-    shadow = harness.shadow
+    harness, plan, decision = steady_state_keep()
+    up, down = plan.up, plan.down
+    assert up.live is not None and down.live is not None
+    up_price, down_price = up.live.price, down.live.price
     books = harness.pipeline.books
+    up_bids, down_bids = books.up.bids, books.down.bids
+    buffer = harness.buffer
     sampling = harness.sampling
     health = harness.pipeline.clob_health
+    eligibility = decision.telemetry.eligibility
 
-    def state_loop() -> None:
-        for side in (up, down):
-            action = side.action
-            counters.count_action(action.value)
-            resting = side.live
-            if resting is not None:
-                counters.cycles_with_live_order += 1
-                if action is ReconcileAction.KEEP:
-                    counters.keeps_with_live_order += 1
-                    shadow.on_keep(
-                        resting.client_order_id,
-                        books.bid_size_at(side.outcome, resting.price),
-                    )
-                elif action in QUEUE_LOSS_ACTIONS:
-                    counters.count_execution_queue_loss(side.reason.value)
+    def depth_reads() -> object:
+        return up_bids.get(up_price, 0) + down_bids.get(down_price, 0)
 
-    def count_action_twice() -> None:
-        counters.count_action("KEEP")
-        counters.count_action("KEEP")
+    def observation() -> tuple[object, ...]:
+        return (
+            0,
+            1,
+            "BookUpdate",
+            True,
+            100,
+            0,
+            0,
+            0,
+            0,
+            0,
+            plan,
+            40_000_000,
+            25_000_000,
+            None,
+            None,
+            eligibility,
+            None,
+        )
+
+    def build_and_capture() -> object:
+        buffer.capture(observation())
+        return None
 
     components = {
-        "three_perf_counter_reads": best_ns(lambda: (perf_now_ns(), perf_now_ns(), perf_now_ns())),
         "sampling_decision": best_ns(lambda: sampling.selects(7, "BookUpdate")),
         "continuity_health_check": best_ns(lambda: health.status is HealthStatus.HEALTHY),
-        "two_side_state_loop_total": best_ns(state_loop),
-        "  of_which_count_action_x2": best_ns(count_action_twice),
-        "  of_which_bid_size_at_x2": best_ns(
-            lambda: (
-                books.bid_size_at(Outcome.UP, up.live.price),
-                books.bid_size_at(Outcome.DOWN, down.live.price),
-            )
+        "same_price_depth_reads_x2": best_ns(depth_reads),
+        "observation_tuple_construction": best_ns(observation),
+        "observation_build_and_buffer_insert": best_ns(build_and_capture),
+        "three_perf_counter_reads_SAMPLED_ONLY": best_ns(
+            lambda: (perf_now_ns(), perf_now_ns(), perf_now_ns())
         ),
     }
+    unsampled = round(
+        components["continuity_health_check"]
+        + components["same_price_depth_reads_x2"]
+        + components["observation_build_and_buffer_insert"],
+        1,
+    )
     report = {
         "note": (
-            "Best-of-rounds nanoseconds per call. Components of the work an UNSAMPLED cycle "
-            "still performs in a measuring run. The state loop cannot be sampled away without "
-            "making the queue estimate depend on the sampling rate."
+            "Best-of-rounds nanoseconds per call, for work an UNSAMPLED cycle performs after "
+            "the telemetry offload. No analysis remains on this path: no slot mutation, no "
+            "counting, no classification, no distributions. The depth reads cannot be "
+            "deferred because the book is mutable and will have moved by the time the "
+            "analyzer runs. The perf-counter reads happen only on SAMPLED cycles and are "
+            "excluded from the unsampled sum."
         ),
         "repeats": REPEATS,
         "rounds": ROUNDS,
         "components_ns": components,
-        "sum_of_top_level_ns": round(
-            components["three_perf_counter_reads"]
-            + components["sampling_decision"]
-            + components["continuity_health_check"]
-            + components["two_side_state_loop_total"],
-            1,
-        ),
+        "sum_unsampled_ns": unsampled,
     }
     json.dump(report, sys.stdout, indent=2, sort_keys=True)
     print()

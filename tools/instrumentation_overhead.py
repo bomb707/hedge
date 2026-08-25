@@ -44,6 +44,7 @@ from tests.replay.corpus import SYNTHETIC_EVENTS, market
 
 from maker5m.domain import Outcome
 from maker5m.execution import Executor, RecordingTransport, VenueAdapter
+from maker5m.execution.reconciler import ReconcilePlan
 from maker5m.feeds import BookTracker, IngressMerger, MarketDataPipeline
 from maker5m.feeds.venue import VenueMarketRules
 from maker5m.market import MarketState, reduce_event
@@ -52,6 +53,7 @@ from maker5m.strategy import BaseLot, StrategyEngine, default_config
 from maker5m.strategy.decision import DesiredOrder, DesiredOrders
 from maker5m.telemetry import InstrumentedRun, SamplingPolicy, perf_now_ns
 from maker5m.telemetry.metrics import quantile
+from maker5m.telemetry.observation import OBS_EVENT_KIND, OBS_INGRESS_ORDINAL, OBS_PLAN
 
 Stats = dict[str, int]
 
@@ -121,17 +123,13 @@ def steady_state_pass(enabled: bool) -> tuple[list[int], list[str]]:
     pipeline.books.up.snapshot_seen = True
     pipeline.books.down.snapshot_seen = True
 
-    tiers: list[str] = []
-    harness.cycle_observer = lambda _kind, acting, traced: tiers.append(
-        ACTION if acting else (SAMPLED if traced else UNSAMPLED)
-    )
-
     cycle_ns: list[int] = []
     for index in range(STEADY_CYCLES):
         # Depth at our own price moves every cycle; the price we want does not.
         pipeline.books.up.bids[620_000] = 40_000_000 - (index % 30) * 1_000_000
         pipeline.books.down.bids[350_000] = 25_000_000 - (index % 17) * 1_000_000
         merger.advance_ordinal()
+        merger.stages_measured = harness.sampling.selects(merger.ordinal, "BookUpdate")
         start = perf_now_ns()
         # A real decide() every cycle, so the denominator is a genuine full cycle rather than
         # observe() alone. The pinned desired orders keep the stream in steady state; building
@@ -140,14 +138,11 @@ def steady_state_pass(enabled: bool) -> tuple[list[int], list[str]]:
         harness.observe("BookUpdate", start, decision)
         cycle_ns.append(perf_now_ns() - start)
 
-    if not enabled:
-        # The off configuration has no observer, so label from the on-run pattern instead.
-        tiers = []
-    return cycle_ns, tiers
+    return cycle_ns, tiers_from(harness)
 
 
-def one_pass(enabled: bool, passes: int = PASSES) -> tuple[list[int], list[int]]:
-    """Return (decide_ns, cycle_ns) per cycle, in cycle order."""
+def one_pass(enabled: bool, passes: int = PASSES) -> tuple[list[int], list[int], InstrumentedRun]:
+    """Return (decide_ns, cycle_ns) per cycle, in cycle order, plus the harness."""
     harness, engine, merger, initial = build(enabled)
     decide_ns: list[int] = []
     cycle_ns: list[int] = []
@@ -158,40 +153,35 @@ def one_pass(enabled: bool, passes: int = PASSES) -> tuple[list[int], list[int]]
             state = reduce_event(state, event)
             merger.state = state
             merger.advance_ordinal()
+            merger.stages_measured = harness.sampling.selects(merger.ordinal, type(event).__name__)
             decision = engine.decide(state)
             decided = perf_now_ns()
             harness.observe(type(event).__name__, start, decision)
             done = perf_now_ns()
             decide_ns.append(decided - start)
             cycle_ns.append(done - start)
-    return decide_ns, cycle_ns
+    return decide_ns, cycle_ns, harness
 
 
-def tier_labels() -> list[str]:
-    """Label each cycle by sampling tier, from a separate fully-enabled pass.
+def tiers_from(harness: InstrumentedRun) -> list[str]:
+    """Label each captured cycle by sampling tier, read back off the observation stream.
 
-    The corpus and the state trajectory are deterministic, so cycle *i* is the same cycle in
-    every pass and the labels apply to both configurations.
+    Derived from the observations themselves rather than from a hook on the hot path: the tier
+    is a property of the cycle, and reading it back afterwards keeps the measured path free of
+    benchmark scaffolding.
     """
     labels: list[str] = []
-
-    def record(event_kind: str, acting: bool, traced: bool) -> None:
-        if acting:
+    for observation in harness.buffer:
+        plan = observation[OBS_PLAN]
+        ordinal = observation[OBS_INGRESS_ORDINAL]
+        kind = observation[OBS_EVENT_KIND]
+        assert isinstance(ordinal, int) and isinstance(kind, str)
+        if isinstance(plan, ReconcilePlan) and plan.request_count > 0:
             labels.append(ACTION)
-        elif traced:
+        elif harness.sampling.selects(ordinal, kind):
             labels.append(SAMPLED)
         else:
             labels.append(UNSAMPLED)
-
-    harness, engine, merger, initial = build(enabled=True)
-    harness.cycle_observer = record
-    for _ in range(PASSES):
-        state = initial
-        for event in SYNTHETIC_EVENTS:
-            state = reduce_event(state, event)
-            merger.state = state
-            merger.advance_ordinal()
-            harness.observe(type(event).__name__, perf_now_ns(), engine.decide(state))
     return labels
 
 
@@ -224,8 +214,6 @@ def delta(off: Stats, on: Stats) -> dict[str, dict[str, float | int | None]]:
 
 
 def main() -> None:
-    labels = tier_labels()
-
     for _ in range(WARMUP_PASSES):
         one_pass(enabled=False, passes=4)
         one_pass(enabled=True, passes=4)
@@ -246,6 +234,7 @@ def main() -> None:
             on = one_pass(enabled=True)
             off = one_pass(enabled=False)
             order = "on_first"
+        labels = tiers_from(on[2])
         off_decide += off[0]
         off_cycle += off[1]
         on_decide += on[0]

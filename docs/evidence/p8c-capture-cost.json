@@ -1,0 +1,14 @@
+{
+  "components_ns": {
+    "continuity_health_check": 51.6,
+    "observation_build_and_buffer_insert": 178.6,
+    "observation_tuple_construction": 80.0,
+    "same_price_depth_reads_x2": 117.2,
+    "sampling_decision": 98.4,
+    "three_perf_counter_reads_SAMPLED_ONLY": 251.1
+  },
+  "note": "Best-of-rounds nanoseconds per call, for work an UNSAMPLED cycle performs after the telemetry offload. No analysis remains on this path: no slot mutation, no counting, no classification, no distributions. The depth reads cannot be deferred because the book is mutable and will have moved by the time the analyzer runs. The perf-counter reads happen only on SAMPLED cycles and are excluded from the unsampled sum.",
+  "repeats": 200000,
+  "rounds": 7,
+  "sum_unsampled_ns": 347.4
+}

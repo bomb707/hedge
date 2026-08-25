@@ -1,0 +1,431 @@
+{
+  "cycle_counts_by_tier": {
+    "always_traced_action": 800,
+    "sampled_ordinary": 472,
+    "unsampled_ordinary": 288
+  },
+  "cycle_ns": {
+    "delta": {
+      "p50": {
+        "absolute_ns": 1055,
+        "percent": 2.5
+      },
+      "p90": {
+        "absolute_ns": 1768,
+        "percent": 3.6
+      },
+      "p95": {
+        "absolute_ns": 2900,
+        "percent": 5.6
+      },
+      "p99": {
+        "absolute_ns": 14024,
+        "percent": 18.3
+      }
+    },
+    "off": {
+      "count": 12480,
+      "max": 152559,
+      "mean": 39968,
+      "p50": 41513,
+      "p90": 49078,
+      "p95": 51575,
+      "p99": 76522
+    },
+    "on": {
+      "count": 12480,
+      "max": 5329650,
+      "mean": 42586,
+      "p50": 42568,
+      "p90": 50846,
+      "p95": 54475,
+      "p99": 90546
+    }
+  },
+  "cycle_ns_by_tier_replay_corpus": {
+    "always_traced_action": {
+      "delta": {
+        "p50": {
+          "absolute_ns": 1278,
+          "percent": 2.8
+        },
+        "p90": {
+          "absolute_ns": 2025,
+          "percent": 4.0
+        },
+        "p95": {
+          "absolute_ns": 3301,
+          "percent": 6.1
+        },
+        "p99": {
+          "absolute_ns": 18277,
+          "percent": 22.5
+        }
+      },
+      "off": {
+        "count": 6400,
+        "max": 133152,
+        "mean": 46220,
+        "p50": 45746,
+        "p90": 50375,
+        "p95": 54091,
+        "p99": 81176
+      },
+      "on": {
+        "count": 6400,
+        "max": 5329650,
+        "mean": 49645,
+        "p50": 47024,
+        "p90": 52400,
+        "p95": 57392,
+        "p99": 99453
+      }
+    },
+    "sampled_ordinary": {
+      "delta": {
+        "p50": {
+          "absolute_ns": 841,
+          "percent": 2.1
+        },
+        "p90": {
+          "absolute_ns": 1469,
+          "percent": 3.5
+        },
+        "p95": {
+          "absolute_ns": 2566,
+          "percent": 5.7
+        },
+        "p99": {
+          "absolute_ns": 14481,
+          "percent": 20.5
+        }
+      },
+      "off": {
+        "count": 3776,
+        "max": 152559,
+        "mean": 35738,
+        "p50": 39881,
+        "p90": 42289,
+        "p95": 44950,
+        "p99": 70808
+      },
+      "on": {
+        "count": 3776,
+        "max": 1035884,
+        "mean": 37638,
+        "p50": 40722,
+        "p90": 43758,
+        "p95": 47516,
+        "p99": 85289
+      }
+    },
+    "unsampled_ordinary": {
+      "delta": {
+        "p50": {
+          "absolute_ns": 984,
+          "percent": 2.8
+        },
+        "p90": {
+          "absolute_ns": 1306,
+          "percent": 3.4
+        },
+        "p95": {
+          "absolute_ns": 2454,
+          "percent": 6.1
+        },
+        "p99": {
+          "absolute_ns": 13134,
+          "percent": 20.6
+        }
+      },
+      "off": {
+        "count": 2304,
+        "max": 121391,
+        "mean": 29536,
+        "p50": 34590,
+        "p90": 38864,
+        "p95": 40408,
+        "p99": 63893
+      },
+      "on": {
+        "count": 2304,
+        "max": 173852,
+        "mean": 31091,
+        "p50": 35574,
+        "p90": 40170,
+        "p95": 42862,
+        "p99": 77027
+      }
+    }
+  },
+  "decide_ns": {
+    "delta": {
+      "p50": {
+        "absolute_ns": 169,
+        "percent": 0.6
+      },
+      "p90": {
+        "absolute_ns": 526,
+        "percent": 1.8
+      },
+      "p95": {
+        "absolute_ns": 631,
+        "percent": 2.0
+      },
+      "p99": {
+        "absolute_ns": 17743,
+        "percent": 36.3
+      }
+    },
+    "off": {
+      "count": 12480,
+      "max": 105793,
+      "mean": 24659,
+      "p50": 26098,
+      "p90": 29357,
+      "p95": 31826,
+      "p99": 48904
+    },
+    "on": {
+      "count": 12480,
+      "max": 5293480,
+      "mean": 26277,
+      "p50": 26267,
+      "p90": 29883,
+      "p95": 32457,
+      "p99": 66647
+    }
+  },
+  "method": {
+    "identical_simulated_work_both_sides": true,
+    "interleaved": true,
+    "passes_per_run": 40,
+    "repeats": 8,
+    "sample_every": 10,
+    "warmup_passes": 2
+  },
+  "per_repeat": [
+    {
+      "cycle_p50": {
+        "off": 41483,
+        "on": 42263
+      },
+      "decide_p50": {
+        "off": 25969,
+        "on": 26172
+      },
+      "order": "off_first",
+      "repeat": 0
+    },
+    {
+      "cycle_p50": {
+        "off": 40606,
+        "on": 42164
+      },
+      "decide_p50": {
+        "off": 25520,
+        "on": 26075
+      },
+      "order": "on_first",
+      "repeat": 1
+    },
+    {
+      "cycle_p50": {
+        "off": 40704,
+        "on": 41892
+      },
+      "decide_p50": {
+        "off": 25630,
+        "on": 25713
+      },
+      "order": "off_first",
+      "repeat": 2
+    },
+    {
+      "cycle_p50": {
+        "off": 43863,
+        "on": 41903
+      },
+      "decide_p50": {
+        "off": 26757,
+        "on": 26029
+      },
+      "order": "on_first",
+      "repeat": 3
+    },
+    {
+      "cycle_p50": {
+        "off": 42388,
+        "on": 44353
+      },
+      "decide_p50": {
+        "off": 26802,
+        "on": 27485
+      },
+      "order": "off_first",
+      "repeat": 4
+    },
+    {
+      "cycle_p50": {
+        "off": 41489,
+        "on": 42729
+      },
+      "decide_p50": {
+        "off": 26063,
+        "on": 26257
+      },
+      "order": "on_first",
+      "repeat": 5
+    },
+    {
+      "cycle_p50": {
+        "off": 41547,
+        "on": 42627
+      },
+      "decide_p50": {
+        "off": 25870,
+        "on": 26182
+      },
+      "order": "off_first",
+      "repeat": 6
+    },
+    {
+      "cycle_p50": {
+        "off": 41563,
+        "on": 42459
+      },
+      "decide_p50": {
+        "off": 26178,
+        "on": 26398
+      },
+      "order": "on_first",
+      "repeat": 7
+    }
+  ],
+  "steady_state": {
+    "cycle_counts_by_tier": {
+      "always_traced_action": 1,
+      "sampled_ordinary": 400,
+      "unsampled_ordinary": 3599
+    },
+    "cycle_ns_by_tier": {
+      "always_traced_action": {
+        "delta": {
+          "p50": {
+            "absolute_ns": -5918,
+            "percent": -8.3
+          },
+          "p90": {
+            "absolute_ns": -17123,
+            "percent": -19.1
+          },
+          "p95": {
+            "absolute_ns": -17123,
+            "percent": -19.1
+          },
+          "p99": {
+            "absolute_ns": -17123,
+            "percent": -19.1
+          }
+        },
+        "off": {
+          "count": 4,
+          "max": 89549,
+          "mean": 74579,
+          "p50": 70947,
+          "p90": 89549,
+          "p95": 89549,
+          "p99": 89549
+        },
+        "on": {
+          "count": 4,
+          "max": 72426,
+          "mean": 67461,
+          "p50": 65029,
+          "p90": 72426,
+          "p95": 72426,
+          "p99": 72426
+        }
+      },
+      "sampled_ordinary": {
+        "delta": {
+          "p50": {
+            "absolute_ns": 1360,
+            "percent": 4.1
+          },
+          "p90": {
+            "absolute_ns": 1919,
+            "percent": 5.7
+          },
+          "p95": {
+            "absolute_ns": 2783,
+            "percent": 8.1
+          },
+          "p99": {
+            "absolute_ns": 19600,
+            "percent": 35.6
+          }
+        },
+        "off": {
+          "count": 1600,
+          "max": 94919,
+          "mean": 33408,
+          "p50": 32887,
+          "p90": 33501,
+          "p95": 34545,
+          "p99": 55030
+        },
+        "on": {
+          "count": 1600,
+          "max": 879673,
+          "mean": 35897,
+          "p50": 34247,
+          "p90": 35420,
+          "p95": 37328,
+          "p99": 74630
+        }
+      },
+      "unsampled_ordinary": {
+        "delta": {
+          "p50": {
+            "absolute_ns": 955,
+            "percent": 2.9
+          },
+          "p90": {
+            "absolute_ns": 1452,
+            "percent": 4.3
+          },
+          "p95": {
+            "absolute_ns": 1748,
+            "percent": 5.0
+          },
+          "p99": {
+            "absolute_ns": 14045,
+            "percent": 23.0
+          }
+        },
+        "off": {
+          "count": 14396,
+          "max": 111735,
+          "mean": 33466,
+          "p50": 32874,
+          "p90": 33534,
+          "p95": 34987,
+          "p99": 61144
+        },
+        "on": {
+          "count": 14396,
+          "max": 7397374,
+          "mean": 35832,
+          "p50": 33829,
+          "p90": 34986,
+          "p95": 36735,
+          "p99": 75189
+        }
+      }
+    },
+    "cycles_per_pass": 4000,
+    "note": "One order resting per side, desired price unchanged, depth churning. This is the production-shaped stream; the P8 performance limit is read here.",
+    "repeats": 4
+  }
+}

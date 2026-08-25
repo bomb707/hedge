@@ -58,6 +58,15 @@ class IngressMerger:
     clock: Callable[[], TimestampNs]
     market_id: str
     steps: list[ReplayStep] = field(default_factory=list)
+    perf_clock: Callable[[], int] | None = None
+    """Optional high-resolution clock. When set, ``submit`` records its own stage timings.
+
+    Opt-in so the hot path costs one ``is None`` check when measurement is off. These readings
+    are on the *latency* clock and never enter Plane 2 state.
+    """
+
+    last_reduce_ns: int = 0
+    last_decide_ns: int = 0
     _ordinal: int = 0
     _event_seq: int = 0
 
@@ -75,8 +84,13 @@ class IngressMerger:
 
     def submit(self, event: Event) -> DecisionResult:
         """Reduce, decide, and record. The whole hot path in three lines."""
+        perf = self.perf_clock
         self.state = reduce_event(self.state, event)
+        if perf is not None:
+            self.last_reduce_ns = perf()
         decision = self.engine.decide(self.state)
+        if perf is not None:
+            self.last_decide_ns = perf()
         self.steps.append(ReplayStep(event=event, decision=decision))
         return decision
 

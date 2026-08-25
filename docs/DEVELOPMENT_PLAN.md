@@ -224,7 +224,13 @@ plus `INVARIANTS.md` and `STATUS.md`.
   blocking work to the hot path — asserted by a benchmark, not by inspection.
 - **Acceptance gate:** a latency budget attributable stage-by-stage, and evidence that
   enabling instrumentation does not measurably slow `decide()`.
-- **Out of scope:** closing O08/O09 (that is P15, and needs live-paper data).
+- **Contracts established here** (see `ARCHITECTURE_SSOT` §4.3): two clock domains kept apart,
+  instrumentation excluded from deterministic state, a non-blocking bounded sink, mutable trace
+  builders, and queue values that are always estimates with a stated bias.
+- **Measured, not asserted:** the OFF/ON overhead comparison is executed and both the initial
+  mis-scoped result and the corrected one are recorded.
+- **Out of scope:** closing O08/O09 (that is P15, and needs live-paper data); any strategy
+  change prompted by what the measurements show.
 
 ---
 

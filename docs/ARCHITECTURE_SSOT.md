@@ -441,6 +441,46 @@ above that line. Its metadata cache is prewarmed during pre-arm so the hot path 
 `sign → POST`; `post_order` returns `AcceptedOrder | RejectedOrder` immediately and
 `wait_for_order_fill_settlement` is deliberately never called.
 
+### §4.3 Measurement contracts  *(established P8)*
+
+**Two clock domains, never mixed.** ``EventMeta.timestamp`` is the synchronized wall-aligned
+*ingress* clock and drives the market lifecycle. Latency uses ``time.perf_counter_ns()`` — a
+monotonic high-resolution clock with **no epoch**, only ever subtracted from itself.
+Subtracting a venue timestamp from a ``perf_counter`` reading would produce a number that
+looks like a latency and means nothing; venue stamps stay in feed diagnostics.
+
+**Instrumentation is never deterministic state.** No latency value, queue estimate, or
+performance counter enters ``MarketState``, ``DecisionResult``, ``LedgerState``, or a P5
+journal. A measurement describes *this run on this machine*; putting one into a replayed
+decision would make replay depend on the machine that recorded it (I20). Enforced by a static
+test that also forbids Plane 2 from importing ``maker5m.telemetry`` or reading a performance
+counter.
+
+**Instrumentation never blocks trading.** The sink is a bounded in-memory ring that drops
+oldest and counts drops. A lost observation is an observability incident; a stalled hot loop is
+a trading incident (I19). Authoritative market events and execution actions are never dropped —
+they are not telemetry.
+
+**Traces are mutable and slotted, deliberately.** P4 and P7 profiling measured frozen dataclass
+construction at ~99 ns per field. A trace is filled in place and snapshotted only when
+published, because measurement scaffolding must not cost more than the thing it measures.
+
+**Queue position is always an estimate.** Polymarket publishes no per-order queue index. Every
+value carries a :class:`QueueConfidence` whose ceiling is ``ESTIMATED``; there is no ``EXACT``
+member. Displayed depth at our exact price is the initial estimate; decreases reduce it,
+increases do not raise it (new same-price orders join behind), a fill sets it to zero, and any
+continuity loss invalidates it rather than being reconstructed from a fresh snapshot.
+
+The model has a **documented optimistic bias**: the decrease is measured against the last
+observation, which may include size added after we arrived, so consumption behind us can be
+credited as progress. It is bounded by ``ahead <= displayed`` and by zero, and it is recorded
+in the evidence rather than hidden — an optimistic queue estimate inflates ``AT_FRONT``, which
+is the direction that would flatter the strategy.
+
+**No numeric "deep" threshold is invented.** Any positive estimated queue-ahead classifies as
+``PRICE_OK_BUT_DEEP`` with the quantity visible alongside. Choosing a threshold is what O08
+exists to answer.
+
 ---
 
 ## §5 Concurrency and ownership

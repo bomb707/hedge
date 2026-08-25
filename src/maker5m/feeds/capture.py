@@ -20,7 +20,9 @@ stream is marked unhealthy, the book is dropped, and a fresh snapshot re-establi
 import asyncio
 import json
 import random
+from collections.abc import Callable
 from dataclasses import dataclass
+from time import perf_counter_ns
 from typing import Any, Final
 
 import websockets
@@ -53,6 +55,7 @@ from maker5m.market.timebase import NANOS_PER_SECOND, TimestampNs
 from maker5m.replay.journal import Journal, JournalHeader
 from maker5m.replay.schema import JournalProvenance
 from maker5m.strategy.config import StrategyConfig
+from maker5m.strategy.decision import DecisionResult
 from maker5m.strategy.engine import StrategyEngine
 
 __all__ = ["CaptureResult", "capture_market"]
@@ -240,8 +243,17 @@ async def capture_market(
     next_market: DiscoveredMarket | None = None,
     prearm_ready_ns: TimestampNs | None = None,
     description: str = "",
+    observer: Callable[[str, int, DecisionResult], None] | None = None,
+    on_pipeline: Callable[[MarketDataPipeline], None] | None = None,
 ) -> CaptureResult:
-    """Capture one full 5-minute market, read-only, through the production core."""
+    """Capture one full 5-minute market, read-only, through the production core.
+
+    ``on_pipeline`` is called once with the live pipeline, before any event is consumed, so a
+    measurement harness can attach without this function knowing anything about it.
+    ``observer`` then receives ``(event_kind, raw_receive_ns, decision)`` after each decision,
+    on the high-resolution latency clock. Both are optional, so the identical code path runs
+    with instrumentation off for a like-for-like comparison.
+    """
     definition = market.definition
     clock = IngressClock()
     merger = IngressMerger(
@@ -255,6 +267,8 @@ async def capture_market(
         books=BookTracker(definition.up_token_id, definition.down_token_id),
     )
     pipeline.venue_rules.observe_rules(market.venue_rules)
+    if on_pipeline is not None:
+        on_pipeline(pipeline)
     clock_health = ClockHealth()
 
     queue: asyncio.Queue[_Payload] = asyncio.Queue()
@@ -305,6 +319,8 @@ async def capture_market(
                 _warm(payload, pipeline)
                 continue
 
+            raw_receive_ns = perf_counter_ns() if observer is not None else 0
+
             if payload.kind == "clob":
                 try:
                     decoded = json.loads(payload.data)
@@ -324,7 +340,9 @@ async def capture_market(
                         continue
                     if parsed.source_timestamp_ms is not None:
                         clock_health.observe(parsed.source_timestamp_ms * 1_000_000 - clock.now())
-                    pipeline.on_clob_message(parsed)
+                    decision = pipeline.on_clob_message(parsed)
+                    if observer is not None and decision is not None:
+                        observer("BookUpdate", raw_receive_ns, decision)
 
             elif payload.kind == "spot":
                 try:
@@ -334,10 +352,14 @@ async def capture_market(
                     continue
                 if spot.source_timestamp_ms is not None:
                     clock_health.observe(spot.source_timestamp_ms * 1_000_000 - clock.now())
-                pipeline.on_spot(spot.price)
+                spot_decision = pipeline.on_spot(spot.price)
+                if observer is not None:
+                    observer("SpotTick", raw_receive_ns, spot_decision)
 
             elif payload.kind == "phase":
-                pipeline.emit_phase(payload.data)
+                phase_decision = pipeline.emit_phase(payload.data)
+                if observer is not None:
+                    observer("PhaseEvent", raw_receive_ns, phase_decision)
 
             elif payload.kind == "clob_disconnect":
                 pipeline.on_disconnect(HealthComponent.CLOB_BOOK)

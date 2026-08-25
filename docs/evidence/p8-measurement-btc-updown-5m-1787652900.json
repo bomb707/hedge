@@ -1,0 +1,172 @@
+{
+  "feed_counters": {
+    "clob_best_bid_ask": 0,
+    "clob_books": 3772,
+    "clob_last_trade_price": 1744,
+    "clob_messages": 135440,
+    "clob_price_changes": 128751,
+    "clob_tick_size_changes": 4,
+    "clob_unhandled": 0,
+    "malformed": 0,
+    "pongs": 33,
+    "reconnects": 0,
+    "spot_messages": 5225,
+    "telemetry_dropped": 0,
+    "unhandled_kinds": {}
+  },
+  "journal_steps": 141526,
+  "kind": "INSTRUMENTED_SHADOW_MEASUREMENT",
+  "live_trading_enabled": false,
+  "market_id": "0x302cba040fc6534c04ea3720e3be3510eb80184b99bb440f2b0d34f54329b70b",
+  "measurement": {
+    "counters": {
+      "actions": {
+        "BLOCKED": 118739,
+        "CANCEL": 377,
+        "KEEP": 133400,
+        "NOTHING": 21591,
+        "PLACE": 887,
+        "REPLACE": 510
+      },
+      "cycles_with_live_order": 134287,
+      "keep_ratio": 0.9933947440928758,
+      "keeps_with_live_order": 133400,
+      "quality": {
+        "AT_FRONT": 97655,
+        "NOT_QUOTING": 140707,
+        "PRICE_OK_BUT_DEEP": 37142
+      },
+      "queue_loss_reasons": {
+        "PRICE_CHANGED": 510,
+        "UNSAFE_REPLACEMENT": 377
+      },
+      "queue_slots_acquired": 1049,
+      "queue_slots_kept": 252864,
+      "queue_slots_lost": 887,
+      "reasons": {
+        "CENTRE_UNAVAILABLE": 10390,
+        "ENDGAME_GATE": 1989,
+        "PHASE_NOT_QUOTING": 9212,
+        "POST_ONLY_BLOCK": 119116,
+        "QUOTING": 134797
+      }
+    },
+    "cycles": 137752,
+    "instrumentation_enabled": true,
+    "latency_ns": {
+      "acting_cycle": {
+        "count": 1269,
+        "label": "acting_cycle",
+        "max": 3829865,
+        "p50": 303389,
+        "p90": 728355,
+        "p95": 970432,
+        "p99": 2044884
+      },
+      "clob_receive_to_decide": {
+        "count": 132523,
+        "label": "clob_receive_to_decide",
+        "max": 211933215,
+        "p50": 133564,
+        "p90": 503796,
+        "p95": 580845,
+        "p99": 937830
+      },
+      "decide_duration": {
+        "count": 137752,
+        "label": "decide_duration",
+        "max": 160663638,
+        "p50": 40218,
+        "p90": 149407,
+        "p95": 170223,
+        "p99": 221203
+      },
+      "fill_receive_to_decide": {
+        "count": 0,
+        "label": "fill_receive_to_decide"
+      },
+      "keep_cycle": {
+        "count": 6795,
+        "label": "keep_cycle",
+        "max": 160893525,
+        "p50": 287056,
+        "p90": 658854,
+        "p95": 876886,
+        "p99": 1620708
+      },
+      "phase_receive_to_decide": {
+        "count": 4,
+        "label": "phase_receive_to_decide",
+        "max": 163423,
+        "p50": 50616,
+        "p90": 163423,
+        "p95": 163423,
+        "p99": 163423
+      },
+      "prepare_duration": {
+        "count": 137752,
+        "label": "prepare_duration",
+        "max": 148799575,
+        "p50": 12350,
+        "p90": 51528,
+        "p95": 58284,
+        "p99": 83966
+      },
+      "queue_ahead": {
+        "count": 134797,
+        "label": "queue_ahead",
+        "max": 529430000,
+        "p50": 0,
+        "p90": 82000000,
+        "p95": 128420000,
+        "p99": 248760000
+      },
+      "receive_to_reconcile": {
+        "count": 137752,
+        "label": "receive_to_reconcile",
+        "max": 212132016,
+        "p50": 323138,
+        "p90": 1031208,
+        "p95": 1423458,
+        "p99": 2243373
+      },
+      "reconcile_duration": {
+        "count": 137752,
+        "label": "reconcile_duration",
+        "max": 3068209,
+        "p50": 171659,
+        "p90": 519893,
+        "p95": 833462,
+        "p99": 1563535
+      },
+      "spot_receive_to_decide": {
+        "count": 5225,
+        "label": "spot_receive_to_decide",
+        "max": 933030,
+        "p50": 74215,
+        "p90": 248606,
+        "p95": 341138,
+        "p99": 467759
+      }
+    },
+    "real_order_rtt": "UNRUN / P14",
+    "sampling_every": 10,
+    "shadow": {
+      "acquired": 1049,
+      "kept": 252864,
+      "label": "SHADOW_ESTIMATE",
+      "lost": 1049
+    },
+    "telemetry": {
+      "accepted": 14920,
+      "buffered": 14920,
+      "dropped": 0
+    }
+  },
+  "note": "Shadow execution against real market data. No order was sent and no credential was used. Queue figures are SHADOW_ESTIMATE, not venue queue positions.",
+  "orders_sent": 0,
+  "phase": "P8",
+  "run_utc": "2026-08-25T10:20:13Z",
+  "slug": "btc-updown-5m-1787652900",
+  "t0_ns": 1787652900000000000
+}

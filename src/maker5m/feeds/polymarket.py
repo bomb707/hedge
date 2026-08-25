@@ -34,6 +34,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Final
 
+from maker5m.domain import Outcome
 from maker5m.feeds.errors import FeedConformanceError
 from maker5m.feeds.exactness import PrecisionObserver, parse_venue_price, parse_venue_size
 from maker5m.market.events import BookLevel
@@ -317,6 +318,15 @@ class TokenBook:
         price = min(self.asks)
         return BookLevel(PriceUnits(price), ShareUnits(self.asks[price]))
 
+    def size_at(self, side: str, price: PriceUnits) -> ShareUnits:
+        """Displayed resting size at an exact price, or zero if the level is empty.
+
+        Zero is the meaningful answer for an absent level: it is what makes "we would arrive
+        at a fresh level" measurable (Canonical §10).
+        """
+        ladder = self.bids if side == "bid" else self.asks
+        return ShareUnits(ladder.get(int(price), 0))
+
     def clear(self) -> None:
         self.bids.clear()
         self.asks.clear()
@@ -369,6 +379,17 @@ class BookTracker:
     def ready(self) -> bool:
         """Both sides have an authoritative snapshot. Required before trusting the book."""
         return self.up.snapshot_seen and self.down.snapshot_seen
+
+    def size_at(self, outcome: Outcome, side: str, price: PriceUnits) -> ShareUnits:
+        """Displayed size at an exact price on **this outcome's own** ladder.
+
+        The DOWN book is never derived from UP: Canonical §5.2's mirror identity is
+        conditional, and a queue estimate built on an inferred ladder would be fiction.
+        """
+        if side not in ("bid", "ask"):
+            raise FeedConformanceError(f"side must be 'bid' or 'ask', got {side!r}")
+        book = self.up if outcome is Outcome.UP else self.down
+        return book.size_at(side, price)
 
     def clear(self) -> None:
         """Drop all state. Used when continuity is uncertain and a resnapshot is required."""

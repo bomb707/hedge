@@ -237,9 +237,19 @@ GridTargetPolicy.OBSERVED    Detailed §12 / d3_grid.png       (alternative, not
   (`feed receive → decode → state update → decide → diff → submit → venue ack`) must be
   separately timestamped at high resolution so the budget can be attributed, not just
   totalled.
+- **P8 status — measurable now, still OPEN.** The instrumentation exists and has been run
+  against one real market: per-stage timings on a monotonic high-resolution clock, with
+  SpotTick and CLOB paths kept in separate distributions, and a shadow queue estimator feeding
+  the `AT_FRONT` / `PRICE_OK_BUT_DEEP` classifier. What is now available is the *measurement*;
+  what is still missing is the *answer*.
+- **Why one market does not close it.** A single window is one market regime, one time of day,
+  one machine, and — critically — a **shadow** estimate rather than a real queue position, since
+  no order was sent. The queue model also carries a known optimistic bias (see
+  `ARCHITECTURE_SSOT` §4.3) that a real-order comparison would need to quantify.
 - **Closing experiment:** in live paper, correlate measured end-to-end latency against
   achieved `queue_ahead` and against the `AT_FRONT` rate. The closing artefact is a
-  latency-to-queue-position curve plus the threshold beyond which `AT_FRONT` degrades.
+  latency-to-queue-position curve plus the threshold beyond which `AT_FRONT` degrades. Real
+  venue order round-trip time remains **unmeasured** until P14.
 
 ---
 
@@ -255,6 +265,11 @@ GridTargetPolicy.OBSERVED    Detailed §12 / d3_grid.png       (alternative, not
 - **Must remain configurable:** the mapping from spot move → predicted next level, the
   reaction threshold that decides a move is worth acting on, and whether the bot rests at
   the predicted level before the CLOB confirms it.
+- **P8 status — timeline available, model not attempted.** Spot and CLOB events now carry
+  synchronized latency-clock readings in the same trace stream, which is the raw material the
+  closing experiment needs. **No causal claim is made**: nothing in P8 asserts that a given
+  SpotTick caused a given CLOB change, because no causal matching rule has been established.
+  Building and fitting that model is P15.
 - **Closing experiment:** from recorded joint spot/CLOB journals, measure the distribution
   of lag between a qualifying spot move and the corresponding CLOB touch change, and the
   hit rate of level prediction. Depends on O01 and interacts with O08.
@@ -549,6 +564,51 @@ option 2, O02).
 
 ---
 
+## O15 — `LiveOrderTable.current()` is linear in orders ever placed
+
+**Status: OPEN — measured in P8, deliberately not fixed in P8.**
+
+`LiveOrderTable.current(outcome)` delegates to `occupying(outcome)`, which filters and sorts
+**every order the table has ever held** — terminal orders included — on every call. The
+reconciler calls it once per side, so twice per cycle.
+
+### Evidence (P8, direct measurement)
+
+One live order plus N retained terminal orders, nanoseconds per cycle for two `current()` calls:
+
+| Retained terminal orders | ns per cycle |
+| ---: | ---: |
+| 0 | 1,212 |
+| 200 | 52,401 |
+| 1,049 | 265,267 |
+| 2,000 | 516,257 |
+
+Linear, ~258 ns per retained order per cycle. The instrumented market run
+`btc-updown-5m-1787652900` placed **1,049** orders in a single 5-minute market, so late-market
+cycles spend on the order of **265 µs** re-scanning dead orders. That is larger than the whole
+measured `receive_to_reconcile` p50 of 323 µs and explains why `reconcile_duration` (p50
+171 µs) dominates the critical path.
+
+This is a production hot-path cost, not an instrumentation artefact: the shadow run exercises
+exactly the reconciler production uses.
+
+### Why it is not fixed here
+
+P8's mandate is to measure, not to optimize. Fixing it changes an execution-layer data
+structure accepted at P7, which deserves its own boundary with its own tests rather than being
+folded into a measurement phase.
+
+### Closing experiment
+
+Retire terminal orders from the scanned set — an open-orders index per outcome, or eviction on
+transition to a terminal lifecycle — while preserving `occupying()`'s existing ordering and its
+transient multi-order replacement-race semantics exactly. Re-run
+`tools/instrumentation_overhead.py` and the table above; the per-cycle cost must become
+independent of orders ever placed. The P7 reconciler test suite must pass unchanged, since this
+is a performance change and must not alter a single decision.
+
+---
+
 ## Summary table
 
 | ID | Item | Status | Blocking |
@@ -567,3 +627,4 @@ option 2, O02).
 | O12 | BTC spot fixed-point scale | **CLOSED** — self-describing representation retained | — |
 | O13 | Quote-centre tick tie-breaking | OPEN | — (reference policy in use) |
 | O14 | Strike chaining unverified / no strike published | OPEN | strike-dependent models |
+| O15 | `LiveOrderTable.current()` linear in orders ever placed | OPEN | latency (measured P8) |

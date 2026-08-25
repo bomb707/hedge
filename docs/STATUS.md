@@ -11,6 +11,10 @@ commit is the audit trail.
 including a real authenticated write adapter, and **it cannot be armed**: `VenueAdapter.arm_live`
 raises before any credential is read or any socket is opened.
 
+P8 adds measurement only. The instrumented market run placed **zero** orders: no credential was
+requested, no authenticated socket was opened, and the order side is a shadow simulation whose
+figures are labelled `SHADOW_ESTIMATE`.
+
 There is deliberately no `--live` flag, no `LIVE=true` environment variable, and no config key
 that bypasses the constant. Every one of those would be a way to enable real trading without
 the P14 review that is supposed to gate it. Unlocking requires a source edit and code review.
@@ -59,6 +63,70 @@ production.
 
 ---
 
+## P8: what measurement found
+
+Instrumentation only. **No strategy parameter was changed to improve any number below.**
+Full evidence: [`evidence/P8-MEASUREMENT.md`](evidence/P8-MEASUREMENT.md).
+
+Measured against one real market, `btc-updown-5m-1787652900`, 137,752 cycles,
+`live_trading_enabled: false`, **0 orders sent**, 0 telemetry drops.
+
+### The queue-preservation property holds
+
+**`keep_ratio` = 0.99339** — 133,400 KEEPs across 134,287 cycles that had a live order. A
+resting order survives unmodified through better than 99.3% of the cycles in which it exists.
+That is the single most important behaviour in the system, and it is now measured on real data
+rather than asserted. 1,049 slots acquired, 887 lost (510 `PRICE_CHANGED`, 377
+`UNSAFE_REPLACEMENT`).
+
+### Critical path
+
+`receive_to_reconcile` p50 **323 µs**, p99 2.24 ms. The dominant stage is not the strategy:
+`decide_duration` is p50 40 µs and `prepare_duration` p50 12 µs, while `reconcile_duration` is
+p50 **172 µs**. See O15 — that is mostly an execution-layer data-structure cost, now quantified.
+
+`real_order_rtt` is **UNRUN and deferred to P14**, not estimated. Every latency figure comes from
+`time.perf_counter_ns()` alone; no exchange timestamp is ever subtracted from a local one.
+
+### Finding: `POST_ONLY_BLOCK` on 119,116 sides
+
+Of ~140,707 `NOT_QUOTING` sides, **119,116** were suppressed because the desired price would have
+crossed or equalled the same-outcome ask. With zero synthetic spread this happens constantly.
+
+**Reported, not acted on.** It may mean the zero-spread reading is wrong, or that the strategy
+genuinely quotes only in the minority of moments when the book leaves room. Deciding between
+those is a strategy question with an unresolved source conflict behind it (O01, O04); inventing a
+spread to raise the quoting rate would be exactly the kind of optimization P8 forbids.
+
+### Queue estimates are `SHADOW_ESTIMATE`, and biased
+
+The order side is modelled, not real. `queue_ahead` p50 is 0 shares, p90 82, p99 249. Confidence
+is `ESTIMATED`, `STALE`, or `UNKNOWN` — there is **no `EXACT`**, because the venue publishes no
+queue index. The estimate is knowingly **optimistic**: a decrease in displayed size may include
+size that joined after we did. Clamped to displayed size, otherwise uncorrected and documented.
+
+None of this is evidence about the target wallet. It describes our strategy against real books.
+
+### Instrumentation overhead
+
+Deterministic benchmark, 1,560 cycles per configuration: `decide_ns` p50 **+1,761 ns (+6.4%)**,
+`cycle_ns` p50 **+20,346 ns (+21.3%)**. Sampling is every 10th event, with fills, order states,
+phase changes, and health events always traced — sampling reduces telemetry volume and is never
+used to hide a latency figure.
+
+Three earlier overhead numbers were wrong (+133%, +49%, +217%) and all three are retained in the
+evidence manifest with the reason each was wrong. Two came from charging production work to
+instrumentation; one from profiling that found per-call dict literals. None was visible by
+reading the source.
+
+### O08 / O09 remain OPEN
+
+The latency distribution is now *measurable*, which is what P8 owed. It does not by itself
+establish whether latency or queue position dominates fill probability — that needs real resting
+orders, which P8 does not place. Both stay OPEN.
+
+---
+
 ## Two different kinds of "done"
 
 | | |
@@ -72,17 +140,20 @@ production.
 
 | | |
 |---|---|
-| **Current phase** | **P7 — Execution state + post-only order reconciler** |
-| P7 implementation gate | **PASSED** |
+| **Current phase** | **P8 — Queue and latency instrumentation** |
+| P8 implementation gate | **PASSED** |
+| P7 implementation gate | **PASSED** (with the concurrency correction below) |
 | Live execution | **NOT ARMED and not armable** — P14 owns that |
 | Target-wallet empirical replay | **UNRUN / BLOCKED** |
-| Current branch | `feature/p7-execution` |
+| Real order round-trip latency | **UNRUN — P14** (measuring it requires sending an order) |
+| Current branch | `feature/p8-queue-latency` |
 | Venue-tick correction | `55977f4` — `fix: update current venue tick capabilities` |
 | P7 boundary commit | `de96681` — `feat: add post-only execution reconciler` |
 | P7 concurrency correction | `d333aeb` — `fix: dispatch independent outcome orders concurrently` |
-| Last accepted milestone | P6 — read-only market-data adapters (`6a50794`, tip `d6851a4`) |
-| Next milestone | **P8 — Queue and latency instrumentation** |
-| `main` | `d6851a4` — fast-forwarded to the accepted P6 HEAD, pushed |
+| P8 boundary commit | `PENDING` — recorded in the follow-up commit |
+| Last accepted milestone | P7 — execution state + reconciler, corrected (`0f17bd2`) |
+| Next milestone | P9 — awaiting acceptance of P8; not started |
+| `main` | `0f17bd2` — fast-forwarded through P7 and its correction, pushed |
 | Remote | `origin` → `https://github.com/bomb707/hedge.git` |
 
 Nothing merged by merge commit, rebased, squashed, or force-pushed. `main` advances by
@@ -184,7 +255,7 @@ construction rather than by logic — the same effect measured in P4. P8 owns en
 | | |
 |---|---|
 | Status | **green** |
-| Suite | 1 065 passed (896 at the P6 boundary; +169 in P7) |
+| Suite | 1 176 passed (1 065 at the P7 boundary; +111 in P8) |
 | `ruff check` / `ruff format --check` | clean |
 | `mypy` (strict) | clean — `src/`, `tests/`, `tools/`; **zero `type: ignore` in `execution/`** |
 | Runtime dependencies | `websockets`, `polymarket-client==0.6.0` — both pinned or bounded |
@@ -204,7 +275,8 @@ its own documentation.
 
 ## Open strategy items
 
-Full detail in [`OPEN_ITEMS.md`](OPEN_ITEMS.md). **P7 closed none and added none.**
+Full detail in [`OPEN_ITEMS.md`](OPEN_ITEMS.md). **P8 closed none and added one: O15**, a
+measured execution-layer latency defect. O08 and O09 are now *measurable* but remain OPEN.
 
 ```text
 O01 quote-centre source            OPEN      O08 latency for queue dominance OPEN
@@ -214,6 +286,7 @@ O04 grid-target selection          OPEN      O11 resolution source           OPE
 O05 endgame tilt magnitude         FITTED    O12 BTC spot scale              CLOSED
 O06 endgame gate magnitude         FITTED    O13 tick tie-breaking           OPEN
 O07 fee/rebate calibration         OPEN      O14 strike chaining unverified  OPEN
+                                             O15 current() linear in orders  OPEN
 ```
 
 Replacement sequencing and the rate budget are labelled `OPERATIONAL`, not strategy OPEN

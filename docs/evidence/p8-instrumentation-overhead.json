@@ -1,0 +1,88 @@
+{
+  "cycle_ns": {
+    "delta": {
+      "max": {
+        "absolute_ns": 656446,
+        "percent": 204.9
+      },
+      "p50": {
+        "absolute_ns": 20346,
+        "percent": 21.3
+      },
+      "p90": {
+        "absolute_ns": 24767,
+        "percent": 17.8
+      },
+      "p95": {
+        "absolute_ns": 24352,
+        "percent": 16.5
+      },
+      "p99": {
+        "absolute_ns": 20270,
+        "percent": 11.1
+      }
+    },
+    "off": {
+      "count": 1560,
+      "max": 320395,
+      "mean": 96028,
+      "p50": 95393,
+      "p90": 138937,
+      "p95": 147834,
+      "p99": 182070
+    },
+    "on": {
+      "count": 1560,
+      "max": 976841,
+      "mean": 117019,
+      "p50": 115739,
+      "p90": 163704,
+      "p95": 172186,
+      "p99": 202340
+    }
+  },
+  "decide_ns": {
+    "delta": {
+      "max": {
+        "absolute_ns": 716109,
+        "percent": 644.7
+      },
+      "p50": {
+        "absolute_ns": 1761,
+        "percent": 6.4
+      },
+      "p90": {
+        "absolute_ns": 1935,
+        "percent": 6.2
+      },
+      "p95": {
+        "absolute_ns": 1541,
+        "percent": 4.6
+      },
+      "p99": {
+        "absolute_ns": 10190,
+        "percent": 20.9
+      }
+    },
+    "off": {
+      "count": 1560,
+      "max": 111075,
+      "mean": 25998,
+      "p50": 27581,
+      "p90": 31193,
+      "p95": 33848,
+      "p99": 48730
+    },
+    "on": {
+      "count": 1560,
+      "max": 827184,
+      "mean": 28420,
+      "p50": 29342,
+      "p90": 33128,
+      "p95": 35389,
+      "p99": 58920
+    }
+  },
+  "events_per_repeat": 39,
+  "repeats": 40
+}

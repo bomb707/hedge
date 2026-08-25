@@ -8,7 +8,8 @@ status label, and the CLOB-mid implementation is labelled ``OPEN`` rather than b
 to become "the strategy truth" by being the only one present.
 
 ``BINANCE_FV`` and ``BLEND`` are declared in :class:`CentreSource` but deliberately not
-implemented: they need the TWAP model and sigma, which are P4 and O02.
+implemented: they need a settlement-aware fair-value model and a volatility input, which are
+O01 and O02 research work and are not scheduled into any phase before P15.
 
 An unavailable centre is a **normal** condition, not corruption — early in a market the book
 may have no resting ask — so it is reported as an explicit result with a reason rather than

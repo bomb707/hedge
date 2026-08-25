@@ -223,6 +223,40 @@ elapsed <  300 s  SETTLING
 otherwise         DONE
 ```
 
+### §3.7 Decision-layer contract  *(established P4)*
+
+`StrategyEngine.decide(state) -> DecisionResult` produces **intent plus the record explaining
+it**, and nothing else. It never emits a cancel: "no desired order on this side" is strategy
+intent, and translating desired-none against a live order into a CANCEL is the reconciler's
+job at P7 (I09).
+
+```text
+phase not QUOTE/ENDGAME  ->  no orders, PHASE_NOT_QUOTING      (fast path: no centre,
+centre unavailable       ->  no orders, CENTRE_UNAVAILABLE      no base lot, no grid)
+otherwise                ->  candidate quote, then eligibility
+```
+
+**Eligibility is an intersection with typed reasons.** A side is live only if
+`phase_allows AND endgame_gate_allows (ENDGAME only) AND hard_band_allows`. Reasons are an
+enum, never free text, because they feed Detailed §35's `NOT_QUOTING` classification — "the
+bot did not quote" is only useful if the *why* is machine-readable.
+
+**Favourite direction comes from the raw centre, before quantization.** Canonical §32
+evaluates `centre > 0.5` on the unrounded value. With `tick = 0.01` a raw centre of `0.504`
+quantizes to `0.50`; comparing the quantized price would call the favourite DOWN while the
+strategy's own value says UP, letting a rounding artefact decide a 30-share terminal
+residual. The comparison is exact rational integer arithmetic:
+`2 * numerator > denominator * PRICE_SCALE`.
+
+**The candidate quote is built identically in QUOTE and ENDGAME** — same centre, tick
+rounding, zero-spread prices, base lot, and grid plan — and only then is the endgame gate
+applied. A5 is therefore structural: there is no branch in which the endgame could resize or
+reprice, because sizing happens before the regime is consulted. Candidates are recorded in
+telemetry whether or not they were emitted, so the invariant is checkable from the record.
+
+**Economics are mandatory on every decision, and are never an eligibility input** — see §10,
+A10.
+
 ---
 
 ## §4 Component catalogue
@@ -551,7 +585,7 @@ src/maker5m/
     domain.py       Outcome - shared leaf primitive, imports nothing          [P2 DONE]
     market/         events, MarketState, reducer, phase machine, snapshot     [P2 DONE]
     strategy/       up-space, centre, quantization, prices, base lot, grid   [P3 DONE]
-                    endgame controller, eligibility, decide()                 [P4]
+                    config, endgame, eligibility, decision, engine.decide()   [P4 DONE]
     accounting/     LedgerState, Fill, settlement, Term1/Term2 decomposition  [P1 DONE]
     replay/         journal format, replay harness, parameter sweeps          [P5]
     feeds/          Polymarket book feed, Binance spot feed, clock            [P6]
@@ -643,6 +677,8 @@ they are in `OPEN_ITEMS.md`.
 | A8 | Where does the hard band live, Plane 1 or 2? | Plane 2 — it is a pure eligibility input in Canonical §32's decision function, so replay must reproduce it. Environmental risk checks stay in Plane 1. |
 
 | A9 | Canonical §4's `Term2 = R * (1 - a_W)` with `R = n_W - n_L` | **Incorrect when `n_W < n_L`**, i.e. whenever the bot ends holding more of the *loser* — which is exactly what happens when the endgame favourite does not win. Worked from the document's own example with the outcome reversed (120 UP @ 0.60, 100 DOWN @ 0.50, DOWN wins), the literal formula gives `-10 + -10 = -20` against a true settlement result of `-22`. The residual is a loser residual there: it pays nothing and cost `a_L` per share. The general form implemented is `Term1 = M*(1 - a_W - a_L)`, `Term2 = (n_W - M)*(1 - a_W) - (n_L - M)*a_L`, which reduces to Canonical's expression for `n_W >= n_L`. This is not a strategy change: Canonical §35 makes "Term 1 + Term 2 reproduces settlement PnL" a mandatory acceptance criterion, and §4 asserts the decomposition "is algebraically equivalent to the exact settlement accounting" — the correction is what makes both statements true. Both branches are regression-tested. |
+
+| A10 | Does Canonical §17 imply an economic eligibility gate? | **No.** §17 says the endgame engine "should monitor" the settlement edges and the incremental cost of acquiring favourite shares; Detailed §28 says the dual-token cost "must always be visible". Both are descriptive objectives. Canonical §32's decision function computes `settlement_edge_up` / `settlement_edge_down` and **returns them without using them in eligibility** — its gates are phase, the endgame band, and `band_hard`, nothing more. Neither source states a threshold such as "block the favourite side when `pnl_if_favourite < 0`". Converting a descriptive objective into an invented threshold would be a strategy change of exactly the kind Canonical §37 forbids. So economics are **mandatory decision telemetry** and eligibility remains `phase + endgame gate + band_hard`. Both rebate views are recorded because O07 is open (A6). |
 
 Anything not listed here and not in `OPEN_ITEMS.md` must be resolved by reading the frozen
 source, not by assumption.

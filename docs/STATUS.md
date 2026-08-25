@@ -19,16 +19,13 @@ an agent.
 
 ## Two different kinds of "done"
 
-These are tracked separately for the rest of the project, and P3 is the first phase where
-they visibly diverge.
-
 | | |
 |---|---|
 | **Implementation gate** | The code does what this phase specified, and it is proven by tests. |
 | **Empirical replication correctness** | The code does what the *target wallet* did. Only replay or live evidence can establish this. |
 
-A green suite is evidence of the first and **no evidence at all** of the second. Nothing in
-this repository may be described as "confirmed strategy behaviour" merely because tests pass.
+A green suite is evidence of the first and **no evidence at all** of the second. P4 makes
+this sharpest: `decide()` now composes six unresolved or fitted choices at once.
 
 ---
 
@@ -36,14 +33,14 @@ this repository may be described as "confirmed strategy behaviour" merely becaus
 
 | | |
 |---|---|
-| **Current phase** | **P3 — Strategy core: Up-space + grid sizing** |
-| P3 implementation gate | **PASSED** |
-| P3 empirical replication | **UNPROVEN** — O04 open, O01 open, O13 open |
-| Current branch | `feature/p3-strategy-core` |
-| P3 boundary commit | `32703aa` — `feat: add deterministic strategy pricing and grid core` |
-| Last accepted milestone | P2 — MarketState + events + phase machine (`fcd8ddf`, tip `c322ce5`) |
-| Next milestone | **P4 — ENDGAME controller + strategy decision engine** |
-| `main` | `c322ce5` — fast-forwarded to the accepted P2 HEAD, pushed |
+| **Current phase** | **P4 — ENDGAME controller + strategy decision engine** |
+| P4 implementation gate | **PASSED** |
+| P4 empirical replication | **UNPROVEN** — composes O01, O03, O04, O05, O06, O13 at reference/fitted settings |
+| Current branch | `feature/p4-endgame-decision` |
+| P4 boundary commit | recorded by the immediately following commit on this branch |
+| Last accepted milestone | P3 — strategy pricing and grid core (`32703aa`, tip `1e5f549`) |
+| Next milestone | **P5 — Deterministic replay engine** |
+| `main` | `1e5f549` — fast-forwarded to the accepted P3 HEAD, pushed |
 | Remote | `origin` → `https://github.com/bomb707/hedge.git` |
 
 ### Branch policy
@@ -54,6 +51,7 @@ feature/<phase>                 active phase development
 bootstrap/phase-0               retained P0 boundary
 feature/p1-numeric-accounting   retained P1 boundary
 feature/p2-market-state-events  retained P2 boundary
+feature/p3-strategy-core        retained P3 boundary
 ```
 
 Nothing merged, rebased, squashed, or force-pushed. `main` advances by fast-forward only.
@@ -64,77 +62,94 @@ Nothing merged, rebased, squashed, or force-pushed. `main` advances by fast-forw
 
 | Blocker | Blocks | Detail |
 |---|---|---|
-| **O04** — the two sources give different DOWN-side grid targets | **P3 empirical correctness** | Both readings are now implemented as named policies and both reproduce their documented worked examples. Which one the wallet used is still unknown, and the modular fingerprint provably cannot arbitrate — now regression-tested over 100 000 inventories. Closes only on replay evidence. |
-| **O12** — BTC spot fixed-point scale unknown | **P6** | No authoritative evidence for external-feed precision. `BtcPrice` is self-describing so nothing is frozen. |
+| **O04** — the two sources give different DOWN-side grid targets | P3/P4 empirical correctness | Both readings run through `decide()` and produce different DOWN sizes (`16.37` vs `1.37` at the worked example). The fingerprint provably cannot arbitrate. Closes only on replay evidence. |
+| **O12** — BTC spot fixed-point scale unknown | **P6** | No authoritative evidence for external-feed precision. `BtcPrice` is self-describing, so nothing is frozen. |
 | **O11** — authoritative resolution source unnamed | P10 | Both sources say "prefer on-chain" without naming a source, depth, or timeout. |
 
-O01 and O13 do not block P4 from being built, but they do bound what P4's output can be
-claimed to mean.
+Nothing blocks P5. Replay is in fact the phase that starts making O01/O04/O05/O06/O13
+closable.
 
 ---
 
 ## Open strategy items
 
-Full detail in [`OPEN_ITEMS.md`](OPEN_ITEMS.md). **P3 closed none of them and added one.**
+Full detail in [`OPEN_ITEMS.md`](OPEN_ITEMS.md). **P4 closed none and added none.**
 
 ```text
 O01 quote-centre source            OPEN      O08 latency for queue dominance OPEN
 O02 volatility sigma               OPEN      O09 spot-to-CLOB timing model   OPEN
 O03 base-lot L selection rule      OPEN      O10 venue precision / scales    CLOSED for kernel
 O04 grid-target selection          OPEN *    O11 resolution source           OPEN
-O05 endgame tilt magnitude         FITTED    O12 BTC spot scale              OPEN * (P2)
-O06 endgame gate magnitude         FITTED    O13 tick tie-breaking           OPEN   (new, P3)
+O05 endgame tilt magnitude         FITTED    O12 BTC spot scale              OPEN *
+O06 endgame gate magnitude         FITTED    O13 tick tie-breaking           OPEN
 O07 fee/rebate calibration         OPEN
 
-* blocking
+* blocking a specific later phase
 ```
 
-### O13 — quote-centre tick tie-breaking (new)
-
-The sources say `round_tick(C)` and give one example, `0.6274 -> 0.63`. That excludes FLOOR
-and says **nothing** about a tie: at `tick = 0.01` a raw centre of `0.625` can legitimately
-quote `0.62` or `0.63`. Since the quoted tick determines queue position, and queue position
-is where the edge lives, adopting a tie rule by reaching for Python's `round` would have been
-an unexamined strategy decision. Three named policies are implemented; `HALF_EVEN` is the
-reference default for a stated structural reason, and stays labelled `OPEN`.
+`endgame_tilt = 30` and `endgame_band = 5` are now live defaults in `StrategyConfig` and
+carry `ParameterStatus.FITTED` in every decision record. Being wired in is not evidence.
 
 ---
 
-## What P3 delivered
+## What P4 delivered
 
-- **Up-space** — `complement(p) = PRICE_SCALE - p`, exact integer, involutive, endpoint-
-  correct, and tick-alignment preserving; venue ↔ synthetic translation both ways.
-- **Zero synthetic spread** — built by complementing the *quantized* centre, so the property
-  holds under every tie policy. Asserted at construction.
-- **Quote centre (O01)** — `QuoteCentre` protocol; `ClobMidCentre` computes an exact rational
-  midpoint from the UP top of book, reports an explicit reason when unavailable, and never
-  invents a midpoint from one side or from the DOWN book.
-- **Tick quantization (O13)** — three named tie policies, no built-in `round`.
-- **Base lot (O03)** — `BaseLotSelector` protocol; `ConfiguredBaseLotSelector` validates
-  `15 / 20 / 25` and is deliberately inert.
-- **Grid (O04)** — `GRID = 5 shares` exactly; both target-selection readings as named
-  policies, plus named grid tie rules.
-- Every replaceable component exposes a `ParameterStatus` at runtime (I18).
+`StrategyEngine.decide(state) -> DecisionResult`, pure and deterministic, composed from the
+P1-P3 components.
+
+- **Lifecycle** — PREARM / SETTLING / DONE emit nothing via a fast path that skips centre,
+  base-lot, and grid work entirely. QUOTE builds the candidate quote. ENDGAME builds the
+  **same** candidate quote and applies its gate on top.
+- **No cancels.** P4 emits intent only; desired-none against a live order becomes a CANCEL
+  in P7's reconciler (I09).
+- **Favourite from the raw centre**, before quantization, by exact rational comparison.
+  `centre == 0.50` → DOWN (A1).
+- **Endgame gate** with strict inequalities, boundaries tested at one unit either side in
+  both favourite directions.
+- **One-sided `band_hard`** — the inward side always stays live, and it never touches a
+  price (I17, A4).
+- **Eligibility by intersection** with a typed `EligibilityReason` enum, feeding Detailed
+  §35's `NOT_QUOTING` classification.
+- **Economics on every decision** — both rebate views, straight from the P1 ledger.
+
+### A5 is structural, not just tested
+
+The candidate quote is built before the regime is consulted, so no branch exists in which
+ENDGAME could resize or reprice. Candidates are recorded in telemetry whether or not they
+were emitted, making the invariant checkable from the record.
+
+### No invented economic gate
+
+Canonical §17 says "monitor"; Detailed §28 says "must be visible"; Canonical §32 computes
+the settlement edges and **returns them without gating on them**. No threshold rule exists in
+either source, so none was invented. Recorded as `ARCHITECTURE_SSOT` §10 A10 and asserted by
+a test: a market where both settlement branches are deeply negative still quotes both sides.
 
 ### Not present, by design
 
-No `gamma`, no `band_skew`, no endgame, no favourite, no `endgame_tilt`, no `endgame_band`,
-no `band_hard`, no eligibility gate, no `decide()`. The soft `0.11-0.89` band is **not**
-enforced anywhere and is regression-tested as such. `MarketState` is read but never mutated,
-and no strategy field was added to it.
+No `gamma`, no `band_skew`, no skew field of any kind, no flattening path, no SELL / HEDGE /
+MERGE / SPLIT / CONVERT intent — `DesiredOrder` has exactly `{outcome, price, size}` and no
+side field, because there is no other kind of order. No venue, transport, queue, or timing
+data anywhere in the decision record.
 
 ### Measured
 
-Full pricing + sizing pass (centre → quantize → prices → grid): **~4.7 µs**.
-
 ```text
-complement              122 ns      ClobMidCentre.compute   1 332 ns
-quantize_centre         315 ns      plan_grid CANONICAL     2 117 ns
-build_quote_prices      943 ns      plan_grid OBSERVED      1 861 ns
+decide() case                median
+QUOTE                        16.6 us
+ENDGAME                      20.3 us
+non-quoting (fast path)       9.1 us
+centre unavailable            9.8 us
 ```
 
-Dominated by dataclass validation, which is worth keeping at these event rates (a few
-thousand book updates per 300 s market). No pathological design; P8 owns real latency work.
+**Investigated, as the P4 brief requires.** That is ~3.5× the P3 pricing+sizing pass
+(~4.7 µs), and the fast path is floored at ~9 µs despite doing almost no work. The cause is
+not logic: a frozen+slots dataclass assigns every field through `object.__setattr__`, costing
+**~99 ns/field against ~11 ns/field mutable** (measured). The decision record is ~43 field
+assignments across four frozen objects, so ~4-5 µs of every call *is* the immutable record
+itself. Immutability is a hard requirement (I20, single-owner state), and the brief forbids
+weakening validation for benchmark numbers, so nothing was changed. At realistic event rates
+(≤100 Hz) 20 µs is under 0.3 % of one core. Formal latency work remains P8.
 
 ---
 
@@ -143,29 +158,31 @@ thousand book updates per 300 s market). No pathological design; P8 owns real la
 | | |
 |---|---|
 | Status | **green** |
-| Suite | 472 passed (325 at the P2 boundary; +147 in P3) |
+| Suite | 608 passed (472 at the P3 boundary; +136 in P4) |
 | `ruff check` | clean |
-| `ruff format --check` | clean, 71 files |
-| `mypy` (strict) | clean, 64 files — `src/` and `tests/` |
-| Fingerprint corpus | **100 000 inventories × both O04 policies** (99 951 fractional) |
+| `ruff format --check` | clean, 80 files |
+| `mypy` (strict) | clean, 73 files — `src/` and `tests/` |
 
-P3 coverage highlights:
+P4 coverage highlights:
 
-- **fingerprint at scale** — the congruence itself (`up_size ≡ -I`, `down_size ≡ +I`, mod 5
-  shares) asserted for 100 000 deterministic inventories under both policies, plus a
-  cross-product sweep over all base lots and grid tie rules;
-- **the O04 divergence is pinned** — both worked examples asserted exactly, and a test
-  requires the policies to keep disagreeing on most inventories, so the conflict cannot
-  vanish behind a green suite;
-- **the fingerprint's blindness is asserted** — both policies pass it for every inventory,
-  which is the reason O04 cannot be closed from the documents;
-- **tie behaviour** — every tick and grid tie policy tested at exact half points, including
-  the demonstration that independently rounding both sides breaks zero spread for `HALF_UP`
-  and `HALF_DOWN` at all 100 tie points and never for `HALF_EVEN`;
-- **zero spread** — asserted at every price on every supported tick grid, and a hand-built
-  spread is rejected at construction;
-- **purity** — the P0/P2 static guard extends unchanged over the new `strategy/` modules; no
-  exemption was added.
+- **raw-vs-quantized favourite** — the mandatory `0.504 → quantized 0.50 → favourite UP`
+  case, plus its mirror, plus below/at/above a half;
+- **gate boundaries** — every boundary at one unit inside, exactly on, and one unit outside,
+  for both favourite directions, both at the gate function and through `decide()`;
+- **`band_hard`** — one-sided at and beyond the wall in both directions, with a test that the
+  wall never changes a price;
+- **A5** — candidate prices and sizes identical between QUOTE and ENDGAME across seven
+  inventories;
+- **economic regression** — `120 UP / $72`, `100 DOWN / $50` reaches decision telemetry as
+  `−$2` / `−$22` with inventory `+20`, in every phase;
+- **no invented gate** — both branches negative still quotes both sides;
+- **configurability** — the engine runs under both O04 policies (and they still diverge
+  through `decide()`), all three O13 tick policies (which genuinely change the quoted price
+  at a tie), and all three base lots;
+- **determinism** — a full-lifecycle stream decided at every event, asserted reproducible as
+  a whole trajectory, plus an 18-way config cross-product;
+- **structural absences** — no skew field on `StrategyConfig`, no side/action field on
+  `DesiredOrder`, at most two intents.
 
 ---
 
@@ -182,10 +199,8 @@ L4  minimum-size live          not started  (P14)
 ```
 
 **L1 remains UNRUN and is not relabelled.** No reconstructed fill-level target-wallet ledger
-exists in this repository, so that half of the P1 gate has never been executed. It is not
-passed and it is not waived.
-
-L1 is also what would close O04. The same missing artefact blocks both.
+exists in this repository. It is not passed and it is not waived. The same missing artefact
+is what would close O04.
 
 ---
 

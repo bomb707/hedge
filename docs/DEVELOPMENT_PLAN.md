@@ -125,6 +125,13 @@ plus `INVARIANTS.md` and `STATUS.md`.
   QUOTE for the same state (A5); no flattening path exists.
 - **Acceptance gate:** `decide()` is pure — same input, same output, no clock, no I/O —
   proven by test, and reproduces every worked example in Canonical §32 and Detailed §47.
+- **Contracts established here** (see `ARCHITECTURE_SSOT` §3.7 and §10 A10): eligibility as
+  an intersection with typed reasons, favourite direction from the **raw** centre, and the
+  absence of any economic eligibility gate. P5 onwards must not re-litigate them.
+- **Passing this gate is an implementation result, not an empirical one.** `decide()`
+  composes O01, O03, O04, O05, O06, and O13 at their reference or fitted settings. Green
+  tests say the composition is correct; they say nothing about whether those settings match
+  the target wallet.
 - **Out of scope:** execution, order placement, closing O05/O06.
 
 ---

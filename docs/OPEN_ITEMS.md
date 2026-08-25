@@ -177,6 +177,9 @@ GridTargetPolicy.OBSERVED    Detailed §12 / d3_grid.png       (alternative, not
   magnitude is fitted.
 - **Must remain configurable:** `endgame_tilt`, labelled FITTED, with the direction rule
   (`favourite = UP if centre > 0.5`) separate from the magnitude.
+- **P4 status:** implemented as `StrategyConfig.endgame_tilt`, defaulting to 30 shares and
+  carrying `ParameterStatus.FITTED` in every decision record. The direction rule is separate
+  from the magnitude, so a sweep changes only the number.
 - **Closing experiment:** sweep tilt across replayed markets, scoring on **full-cost
   settlement PnL** (I01), never on residual size. Cross-check the fitted value against the
   observed terminal-residual distribution (~25-40 shares, Canonical §14.1).
@@ -192,6 +195,10 @@ GridTargetPolicy.OBSERVED    Detailed §12 / d3_grid.png       (alternative, not
   favourite target, and therefore how much late flow it forgoes.
 - **Must remain configurable:** `endgame_band`, labelled FITTED, gate evaluated as
   `d = I - target_I; up_allowed = d < +band; down_allowed = d > -band`.
+- **P4 status:** implemented as `StrategyConfig.endgame_band`, defaulting to 5 shares and
+  carrying `ParameterStatus.FITTED`. Both gate inequalities are **strict**, so a side is
+  blocked exactly at its boundary; the boundaries are regression-tested at one unit either
+  side in both favourite directions.
 - **Closing experiment:** sweep gate width jointly with O05 — they interact, so a
   one-dimensional sweep of either is not sufficient. Score on full-cost settlement PnL and
   on how often the gate actually binds; a gate that never binds is not a gate.

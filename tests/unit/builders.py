@@ -134,3 +134,56 @@ def health(
     status: HealthStatus = HealthStatus.HEALTHY,
 ) -> HealthEvent:
     return HealthEvent(meta=meta(ordinal, offset_s), component=component, status=status)
+
+
+# -- P4 decision-layer builders ------------------------------------------------------------
+
+
+def quoting_state(
+    *,
+    offset_s: int = 60,
+    bid: str = "0.62",
+    ask: str = "0.64",
+    ordinal: int = 0,
+    with_book: bool = True,
+) -> MarketState:
+    """A market at ``offset_s`` with a two-sided UP book, ready to be priced."""
+    from maker5m.market import reduce_event
+    from maker5m.numeric import parse_price as _pp
+
+    state = initial_state()
+    if not with_book:
+        return MarketState(definition=state.definition, last_event_timestamp=at(offset_s))
+    update = BookUpdate(
+        meta=meta(ordinal, offset_s),
+        up_bid=BookLevel(_pp(bid), parse_share("100")),
+        up_ask=BookLevel(_pp(ask), parse_share("100")),
+        down_bid=BookLevel(_pp("0.36"), parse_share("100")),
+        down_ask=BookLevel(_pp("0.38"), parse_share("100")),
+        sequence=ordinal,
+    )
+    return reduce_event(state, update)
+
+
+def state_with_inventory(
+    inventory: str, *, offset_s: int = 60, bid: str = "0.62", ask: str = "0.64"
+) -> MarketState:
+    """A quoting state whose ledger carries a given net inventory, exactly.
+
+    Built from real fills so the ledger stays authoritative - no hand-constructed
+    LedgerState, and therefore no way for the test to disagree with P1.
+    """
+    import dataclasses
+
+    from maker5m.accounting import Fill, LedgerState
+
+    target = parse_share(inventory)
+    ledger = LedgerState()
+    if target > 0:
+        ledger = ledger.apply_fill(Fill(Outcome.UP, target, parse_money("0"), parse_money("0")))
+    elif target < 0:
+        ledger = ledger.apply_fill(
+            Fill(Outcome.DOWN, parse_share(inventory.lstrip("-")), parse_money("0"))
+        )
+    base = quoting_state(offset_s=offset_s, bid=bid, ask=ask)
+    return dataclasses.replace(base, ledger=ledger)

@@ -101,6 +101,12 @@ plus `INVARIANTS.md` and `STATUS.md`.
 - **Acceptance gate:** fingerprint property test green over ≥10⁵ random inventories; both
   O04 policies present, selectable, and logged when they disagree; no `gamma`/skew term
   exists anywhere in the module.
+- **Contracts established here** (see `ARCHITECTURE_SSOT` §6.8): named tick and grid tie
+  policies, and the zero-spread construction by complementing the quantized centre rather
+  than rounding both sides independently. P4 onwards must not re-litigate them.
+- **Passing this gate is an implementation result, not an empirical one.** Both O04 policies
+  reproducing their documented examples says nothing about which the target wallet used;
+  that stays OPEN until replay evidence decides.
 - **Out of scope:** endgame, execution, feeds, closing O01/O03/O04.
 
 ---

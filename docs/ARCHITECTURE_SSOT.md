@@ -255,9 +255,13 @@ Owns the market lifecycle and is the top-level event pump.
 - Sub-parts: `QuoteCentre`, `TWAPFairValue`, `GridSizer`, `BaseLotSelector`,
   `EndgameController`, `EligibilityGate`.
 - `QuoteCentre` is a **replaceable strategy component** behind one interface, because the
-  centre source is OPEN (O01). Initial: `clob_mid`.
+  centre source is OPEN (O01). Initial: `clob_mid`, computed from the UP top of book only.
 - `BaseLotSelector` is likewise replaceable — `choose_base_lot(market_state)`, never a
   frozen `L = 15` (I18, O03).
+- `GridSizer` carries **both** O04 target-selection readings as named policies; neither is
+  called correct, and the fingerprint provably cannot arbitrate between them (§6.8).
+- Every replaceable component exposes a `ParameterStatus` at runtime, so telemetry and the
+  UI can show which numbers are not established (I18).
 - Produces zero synthetic spread (I05), grid-fingerprint sizes (I04), endgame eligibility
   (I14), and hard-band suppression (I17).
 - Must never: read a clock, perform I/O, log, or know that a venue exists.
@@ -446,6 +450,41 @@ notional_cost(shares, price, mode) -> MoneyUnits    explicit rounding mode, no d
 6. `float` appears only at presentation boundaries, through the single explicitly-named
    `to_display_float`. It is never converted back into state.
 
+### §6.8 Quote construction and tick quantization  *(established P3)*
+
+Two quantization decisions sit on the strategy path, and both are named policies rather than
+inherited language defaults. The built-in `round` decides nothing in this codebase.
+
+**Tick quantization of the centre (O13).** The sources give one worked example
+(`0.6274 -> 0.63`), which excludes FLOOR and says nothing about a tie. `TickRounding` names
+`HALF_EVEN` / `HALF_UP` / `HALF_DOWN`.
+
+**The zero-spread construction is deliberately not Canonical §32's.** §32 writes
+
+```text
+px_up   = round_to_tick(centre)
+px_down = round_to_tick(1.0 - centre)
+```
+
+Rounding both sides independently is tie-policy dependent: at an exact half tick it breaks
+the complement identity — and therefore I05's zero spread — for `HALF_UP` and `HALF_DOWN` at
+every tie point on the grid. `maker5m.strategy.prices` instead complements the
+**already-quantized** centre:
+
+```text
+up_buy_price   = quantize(C)
+down_buy_price = 1 - up_buy_price          (exact integer complement)
+```
+
+which is exact under every policy. The open O13 default therefore cannot leak into the
+CONFIRMED zero-spread property. `QuotePrices` asserts the invariant at construction, so a
+future edit that reintroduces a spread fails immediately.
+
+**Grid rounding (inside O04).** `GridRounding` names the same three tie rules for snapping an
+offset inventory to the 5-share lattice. Canonical §12.1's `round(I/grid + L/grid)` would be
+banker's rounding in Python; whether that is intended is unstated, so it is selected
+explicitly rather than inherited.
+
 ### §6.6 Where floats remain legitimate
 
 The quote-centre model (TWAP fair value, `normal_cdf`, `log`, `sqrt` — Canonical §7) is
@@ -511,7 +550,8 @@ src/maker5m/
     numeric/        ShareUnits / MoneyUnits / PriceUnits, parsing, ticks     [P1 DONE]
     domain.py       Outcome - shared leaf primitive, imports nothing          [P2 DONE]
     market/         events, MarketState, reducer, phase machine, snapshot     [P2 DONE]
-    strategy/       QuoteCentre, GridSizer, BaseLotSelector, Endgame, decide  [P3,P4]
+    strategy/       up-space, centre, quantization, prices, base lot, grid   [P3 DONE]
+                    endgame controller, eligibility, decide()                 [P4]
     accounting/     LedgerState, Fill, settlement, Term1/Term2 decomposition  [P1 DONE]
     replay/         journal format, replay harness, parameter sweeps          [P5]
     feeds/          Polymarket book feed, Binance spot feed, clock            [P6]

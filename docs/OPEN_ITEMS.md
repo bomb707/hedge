@@ -30,6 +30,12 @@ answered before the named phase can be considered correct.
 - **Must remain configurable:** `centre_source`, `blend_weight`, the reaction threshold,
   and the whole `QuoteCentre` component behind one interface. Swapping the centre model
   must not touch execution or accounting code.
+- **P3 status:** the `QuoteCentre` protocol exists with `ClobMidCentre` as the reference
+  candidate, labelled `ParameterStatus.OPEN` at runtime. `BINANCE_FV` and `BLEND` are
+  declared in `CentreSource` but deliberately unimplemented — they need the TWAP model and
+  O02's sigma. The CLOB midpoint is computed from the **UP** top of book only; deriving it
+  from the DOWN book would fold Canonical §5.2's conditional mirror identity into the centre
+  as an assumption.
 - **Closing experiment:** ≥200 live-paper markets (Canonical §36 OPEN-1). For each
   candidate, compare predicted quote level against the level the CLOB actually moved to,
   and compare realised queue position. Classify every quote as `AT_FRONT` /
@@ -69,6 +75,10 @@ answered before the named phase can be considered correct.
 - **Must remain configurable:** `choose_base_lot(market_state)` as a replaceable strategy
   component. Canonical §13 is explicit: *do not permanently hard-code `L = 15`.* A safe
   default is acceptable for early phases; a frozen constant is not.
+- **P3 status:** the `BaseLotSelector` protocol exists with `ConfiguredBaseLotSelector`,
+  which returns an explicitly configured lot and carries `ParameterStatus.OPEN`. It is
+  deliberately inert — it does not consult market state at all, because inferring `L` from
+  any candidate driver would close this item by assumption. Only `15 / 20 / 25` validate.
 - **Closing experiment:** label historical markets by their apparent `L`, then test each
   candidate driver for separation across the three classes. Confirm by replaying with the
   fitted selector and comparing per-market size sequences against the target's.
@@ -139,6 +149,19 @@ GridTargetPolicy.OBSERVED    Detailed §12 / d3_grid.png       (alternative, not
 - **P1 did not touch this.** The numeric kernel contains no lattice logic of any kind. Its
   `quantize_order_size` helper is venue submission quantisation (2 decimals) and is
   explicitly not the 5-share grid.
+- **P3 implemented both, and closed nothing.** `maker5m.strategy.grid` ships
+  `GridPolicy.CANONICAL_OFFSET` and `GridPolicy.OBSERVED_ADJACENT`. Each reproduces its
+  documented worked example exactly, and the divergence is pinned by a regression test so it
+  cannot quietly disappear. A further test asserts that **both policies satisfy the modular
+  fingerprint for all 100 000 generated inventories** — direct confirmation that the
+  fingerprint is not evidence for either reading. Two sub-behaviours remain inferred rather
+  than evidenced, and are marked as such in the code: the Canonical policy's downward
+  boundary correction (the sources give only the upward one), and the Observed policy's
+  behaviour when inventory already sits exactly on the lattice (neither source shows it).
+- **The grid-rounding tie rule is now explicit too.** `GridRounding` names `HALF_EVEN` /
+  `HALF_UP` / `HALF_DOWN`; the built-in `round` is used nowhere. `HALF_EVEN` is the reference
+  default because it matches what Canonical §12.1's literal `round(...)` would do in Python,
+  which is a reading of the text, not evidence of intent.
 
 ---
 
@@ -360,6 +383,79 @@ Promoting it is a contract change that requires a replay-journal version bump.
 
 ---
 
+## O13 — Quote-centre tick quantization / tie-breaking
+
+- **Status:** OPEN · raised in P3 · reference policy in use, labelled OPEN
+- **Source:** Canonical §8.1 (`bid_price = ask_price = round_tick(C)`), §32
+  (`px_up = round_to_tick(centre)`); Detailed §10 ("Apply Exact Tick Rounding")
+
+### Why it exists
+
+The sources say "round" and give exactly one worked example:
+
+```text
+C_raw = 0.6274   ->   C_quote = 0.63
+```
+
+That example **rules out FLOOR/TRUNCATE** (which would have quoted `0.62`). It says nothing
+whatsoever about a tie. At `tick = 0.01` a raw centre of `0.625` can legitimately quote
+`0.62` or `0.63` depending on the rule.
+
+This is not a formatting detail. Which tick the bot rests at determines its place in a
+price-time queue, and fill rate collapses as queue depth ahead grows (Canonical §10.1) —
+queue position is where this strategy's edge lives. A tie rule adopted by accident, in
+particular by reaching for Python's `round` and inheriting banker's rounding, would be an
+unexamined strategy decision.
+
+### Candidate policies
+
+```text
+HALF_EVEN   tie to the even tick     implemented - reference default
+HALF_UP     tie to the higher tick   implemented
+HALF_DOWN   tie to the lower tick    implemented
+FLOOR       excluded by the worked example; not offered
+CEILING     not formally excluded by that one example, but excluded by the
+            sources' own wording ("round"); not offered
+```
+
+### Why HALF_EVEN is the reference default
+
+Canonical §32 rounds *both* sides independently from the raw centre:
+
+```text
+px_up   = round_to_tick(centre)
+px_down = round_to_tick(1.0 - centre)
+```
+
+Under that construction a tie breaks the zero-spread property (I05) for `HALF_UP` and
+`HALF_DOWN` at **every one** of the 100 tie points on the `0.01` grid — the two rounded
+prices stop complementing each other and a one-tick synthetic spread appears. Under
+`HALF_EVEN` it holds at every tie, because the two integer parts always have opposite parity
+so exactly one of them rounds up. This is regression-tested.
+
+That is a **consistency argument, not evidence about the target wallet**, so the policy stays
+labelled `OPEN`.
+
+Independently, `maker5m.strategy.prices` builds the DOWN price by complementing the
+*already-quantized* centre rather than rounding `1 - C_raw` separately. That construction is
+exact under **every** tie policy, so the unresolved default cannot silently become
+load-bearing for zero spread.
+
+### What must remain configurable
+
+`TickRounding` as a named policy on every quantization call. No code path may use the
+built-in `round` to decide a strategy price.
+
+### Closing experiment
+
+Recover raw centres and the quoted tick for reconstructed target-wallet markets and look for
+a case where the raw centre lands exactly on a half tick. A single such observation settles
+it. Failing that, live-paper A/B: run the candidate policies over the same recorded journals
+and compare realised queue position and `AT_FRONT` rate (Detailed §35). Interacts with O01 —
+a different centre source changes how often ties even occur.
+
+---
+
 ## Summary table
 
 | ID | Item | Status | Blocking |
@@ -376,3 +472,4 @@ Promoting it is a contract change that requires a replay-journal version bump.
 | O10 | Venue precision / numeric scale | **CLOSED for kernel** (P6 traffic check open) | — |
 | O11 | Authoritative resolution source | OPEN | P10 |
 | O12 | BTC spot fixed-point scale | OPEN | **P6** |
+| O13 | Quote-centre tick tie-breaking | OPEN | — (reference policy in use) |

@@ -13,7 +13,7 @@ call sites are unaffected. See ``docs/ARCHITECTURE_SSOT.md`` section 8.
 
 from enum import Enum
 
-__all__ = ["Outcome"]
+__all__ = ["Outcome", "ParameterStatus"]
 
 
 class Outcome(Enum):
@@ -26,3 +26,24 @@ class Outcome(Enum):
     def other(self) -> "Outcome":
         """The complementary outcome. One UP plus one DOWN settles to exactly $1.00."""
         return Outcome.DOWN if self is Outcome.UP else Outcome.UP
+
+
+class ParameterStatus(Enum):
+    """Confidence label every strategy parameter and component must carry (Canonical §1.2).
+
+    Invariant I18: a value that is FITTED, OPEN, or OPERATIONAL must expose that label at
+    runtime, so telemetry and the UI can show which numbers are not established. A component
+    labelled ``OPEN`` must have a matching entry in ``docs/OPEN_ITEMS.md``.
+    """
+
+    CONFIRMED = "CONFIRMED"
+    """Supported by the reconstructed evidence. May be encoded as a fixed rule."""
+
+    FITTED = "FITTED"
+    """Chosen by replay or small-sample fitting. Likely, not established."""
+
+    OPEN = "OPEN"
+    """Unresolved. Must stay configurable and must never become a silent assumption."""
+
+    OPERATIONAL = "OPERATIONAL"
+    """Engineering control, not proven target-wallet logic."""

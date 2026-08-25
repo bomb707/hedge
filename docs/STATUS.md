@@ -17,16 +17,33 @@ an agent.
 
 ---
 
+## Two different kinds of "done"
+
+These are tracked separately for the rest of the project, and P3 is the first phase where
+they visibly diverge.
+
+| | |
+|---|---|
+| **Implementation gate** | The code does what this phase specified, and it is proven by tests. |
+| **Empirical replication correctness** | The code does what the *target wallet* did. Only replay or live evidence can establish this. |
+
+A green suite is evidence of the first and **no evidence at all** of the second. Nothing in
+this repository may be described as "confirmed strategy behaviour" merely because tests pass.
+
+---
+
 ## Current position
 
 | | |
 |---|---|
-| **Current phase** | **P2 — MarketState + event contracts + phase machine** |
-| Current branch | `feature/p2-market-state-events` |
-| P2 boundary commit | `fcd8ddf` — `feat: add deterministic market state and event model` |
-| Last accepted milestone | P1 — fixed-point numeric kernel + exact accounting (`89f7178`, tip `3966978`) |
-| Next milestone | **P3 — Strategy core: Up-space + grid sizing** (blocked on O04, see below) |
-| `main` | `3966978` — fast-forwarded to the accepted P1 HEAD, pushed. No history rewritten |
+| **Current phase** | **P3 — Strategy core: Up-space + grid sizing** |
+| P3 implementation gate | **PASSED** |
+| P3 empirical replication | **UNPROVEN** — O04 open, O01 open, O13 open |
+| Current branch | `feature/p3-strategy-core` |
+| P3 boundary commit | recorded by the immediately following commit on this branch |
+| Last accepted milestone | P2 — MarketState + events + phase machine (`fcd8ddf`, tip `c322ce5`) |
+| Next milestone | **P4 — ENDGAME controller + strategy decision engine** |
+| `main` | `c322ce5` — fast-forwarded to the accepted P2 HEAD, pushed |
 | Remote | `origin` → `https://github.com/bomb707/hedge.git` |
 
 ### Branch policy
@@ -36,10 +53,10 @@ main                            latest ACCEPTED milestone
 feature/<phase>                 active phase development
 bootstrap/phase-0               retained P0 boundary
 feature/p1-numeric-accounting   retained P1 boundary
+feature/p2-market-state-events  retained P2 boundary
 ```
 
-Nothing has been merged, rebased, squashed, or force-pushed. `main` reached P1 by
-fast-forward only.
+Nothing merged, rebased, squashed, or force-pushed. `main` advances by fast-forward only.
 
 ---
 
@@ -47,65 +64,77 @@ fast-forward only.
 
 | Blocker | Blocks | Detail |
 |---|---|---|
-| **O04** — the two frozen sources give different DOWN-side grid targets | **P3** | Canonical §12.1 yields `-45` (size `16.37`); Detailed §12 and `d3_grid.png` show `-30` (size `1.37`) for the same worked example. The modular fingerprint passes either way, so it cannot arbitrate. **Precedence is not empirical proof** — P3 carries both as named policies and claims correctness for neither until replay evidence decides. Untouched by P1 and P2. |
-| **O12** — BTC spot fixed-point scale unknown | **P6** | New, raised in P2. No authoritative evidence for external-feed precision exists here. P2 avoided guessing by making `BtcPrice` self-describing; the scale is chosen from observed traffic at P6. |
-| **O11** — authoritative resolution source unnamed | P10 | Both sources say "prefer on-chain" without naming a source, confirmation depth, or timeout. |
+| **O04** — the two sources give different DOWN-side grid targets | **P3 empirical correctness** | Both readings are now implemented as named policies and both reproduce their documented worked examples. Which one the wallet used is still unknown, and the modular fingerprint provably cannot arbitrate — now regression-tested over 100 000 inventories. Closes only on replay evidence. |
+| **O12** — BTC spot fixed-point scale unknown | **P6** | No authoritative evidence for external-feed precision. `BtcPrice` is self-describing so nothing is frozen. |
+| **O11** — authoritative resolution source unnamed | P10 | Both sources say "prefer on-chain" without naming a source, depth, or timeout. |
 
-Nothing blocks P3 from *starting*; O04 blocks P3 from claiming correctness.
+O01 and O13 do not block P4 from being built, but they do bound what P4's output can be
+claimed to mean.
 
 ---
 
 ## Open strategy items
 
-Full detail in [`OPEN_ITEMS.md`](OPEN_ITEMS.md). **P2 resolved none of them.**
+Full detail in [`OPEN_ITEMS.md`](OPEN_ITEMS.md). **P3 closed none of them and added one.**
 
 ```text
-O01 quote-centre source            OPEN      O07 fee/rebate calibration      OPEN
-O02 volatility sigma               OPEN      O08 latency for queue dominance OPEN
-O03 base-lot L selection rule      OPEN      O09 spot-to-CLOB timing model   OPEN
-O04 grid-target selection          OPEN *    O10 venue precision / scales    CLOSED for kernel
-O05 endgame tilt magnitude         FITTED    O11 resolution source           OPEN
-O06 endgame gate magnitude         FITTED    O12 BTC spot scale              OPEN * (new)
+O01 quote-centre source            OPEN      O08 latency for queue dominance OPEN
+O02 volatility sigma               OPEN      O09 spot-to-CLOB timing model   OPEN
+O03 base-lot L selection rule      OPEN      O10 venue precision / scales    CLOSED for kernel
+O04 grid-target selection          OPEN *    O11 resolution source           OPEN
+O05 endgame tilt magnitude         FITTED    O12 BTC spot scale              OPEN * (P2)
+O06 endgame gate magnitude         FITTED    O13 tick tie-breaking           OPEN   (new, P3)
+O07 fee/rebate calibration         OPEN
 
 * blocking
 ```
 
-Nothing here may be hard-coded as an assumption (I18). The P1 A9 Term2 correction remains
-accepted; O10 remains closed for the numeric kernel with its P6 traffic-check note.
+### O13 — quote-centre tick tie-breaking (new)
+
+The sources say `round_tick(C)` and give one example, `0.6274 -> 0.63`. That excludes FLOOR
+and says **nothing** about a tie: at `tick = 0.01` a raw centre of `0.625` can legitimately
+quote `0.62` or `0.63`. Since the quoted tick determines queue position, and queue position
+is where the edge lives, adopting a tie rule by reaching for Python's `round` would have been
+an unexamined strategy decision. Three named policies are implemented; `HALF_EVEN` is the
+reference default for a stated structural reason, and stays labelled `OPEN`.
 
 ---
 
-## What P2 delivered
+## What P3 delivered
 
-- **Time as data.** `TimestampNs` / `DurationNs`, integer nanoseconds. No Plane 2 module
-  imports a clock — enforced statically, not by convention.
-- **Phase machine.** `PREARM → QUOTE → ENDGAME → SETTLING → DONE`, half-open integer
-  boundaries at `T0+3 / +240 / +280 / +300`. **The phase is derived, never stored**, so it
-  cannot drift out of agreement with the event stream. `PhaseEvent` journals a boundary and
-  is validated against the derived phase.
-- **Six normalized event contracts** — `SpotTick`, `BookUpdate`, `OwnFill`,
-  `OrderStateEvent`, `PhaseEvent`, `HealthEvent` — all `frozen=True, slots=True`.
-- **Explicit ordering.** `ingress_ordinal` is the total order; timestamps are data. Both are
-  enforced and fail closed. See `ARCHITECTURE_SSOT.md` §3.4.
-- **Fill idempotency.** A repeated fill raises rather than double-accounting (§3.5).
-- **`MarketState`** — single-owner, frozen, embedding the accepted P1 `LedgerState`.
-- **`MarketSnapshot`** — immutable Plane 3 view, deterministically produced.
-- **`BtcPrice`** — exact, float-free, self-describing while O12 is open.
+- **Up-space** — `complement(p) = PRICE_SCALE - p`, exact integer, involutive, endpoint-
+  correct, and tick-alignment preserving; venue ↔ synthetic translation both ways.
+- **Zero synthetic spread** — built by complementing the *quantized* centre, so the property
+  holds under every tie policy. Asserted at construction.
+- **Quote centre (O01)** — `QuoteCentre` protocol; `ClobMidCentre` computes an exact rational
+  midpoint from the UP top of book, reports an explicit reason when unavailable, and never
+  invents a midpoint from one side or from the DOWN book.
+- **Tick quantization (O13)** — three named tie policies, no built-in `round`.
+- **Base lot (O03)** — `BaseLotSelector` protocol; `ConfiguredBaseLotSelector` validates
+  `15 / 20 / 25` and is deliberately inert.
+- **Grid (O04)** — `GRID = 5 shares` exactly; both target-selection readings as named
+  policies, plus named grid tie rules.
+- Every replaceable component exposes a `ParameterStatus` at runtime (I18).
 
-### Architectural correction made during P2
+### Not present, by design
 
-P0 documented `accounting → market`; P1 placed `Outcome` in `market` to honour it. P2 showed
-the real direction is `market → accounting` (the event stream carries `Fill`, `MarketState`
-embeds `LedgerState`), which produced a genuine import cycle. `Outcome` moved to the leaf
-module `maker5m/domain.py`; both packages re-export it, so no call site changed. Recorded in
-`ARCHITECTURE_SSOT.md` §8. **No P1 arithmetic was modified.**
+No `gamma`, no `band_skew`, no endgame, no favourite, no `endgame_tilt`, no `endgame_band`,
+no `band_hard`, no eligibility gate, no `decide()`. The soft `0.11-0.89` band is **not**
+enforced anywhere and is regression-tested as such. `MarketState` is read but never mutated,
+and no strategy field was added to it.
 
-### One P1 bug fixed
+### Measured
 
-`parse_fixed_point` raised `ValueError` for `decimals=0` with no fractional part
-(`int("")`). Unreachable from P1, where the only scale is 6 decimals; reachable once the
-parser became public for `BtcPrice`. Fixed and regression-tested. Behaviour at every
-previously-reachable scale is unchanged.
+Full pricing + sizing pass (centre → quantize → prices → grid): **~4.7 µs**.
+
+```text
+complement              122 ns      ClobMidCentre.compute   1 332 ns
+quantize_centre         315 ns      plan_grid CANONICAL     2 117 ns
+build_quote_prices      943 ns      plan_grid OBSERVED      1 861 ns
+```
+
+Dominated by dataclass validation, which is worth keeping at these event rates (a few
+thousand book updates per 300 s market). No pathological design; P8 owns real latency work.
 
 ---
 
@@ -114,34 +143,29 @@ previously-reachable scale is unchanged.
 | | |
 |---|---|
 | Status | **green** |
-| Suite | 325 passed (183 at the P1 boundary; +142 in P2) |
+| Suite | 472 passed (325 at the P2 boundary; +147 in P3) |
 | `ruff check` | clean |
-| `ruff format --check` | clean, 57 files |
-| `mypy` (strict) | clean, 50 files — covers `src/` and `tests/` |
+| `ruff format --check` | clean, 71 files |
+| `mypy` (strict) | clean, 64 files — `src/` and `tests/` |
+| Fingerprint corpus | **100 000 inventories × both O04 policies** (99 951 fractional) |
 
-P2 coverage:
+P3 coverage highlights:
 
-- **phase boundaries** — every boundary tested at `−1 ns`, exactly on it, and `+1 ns`;
-  representative offsets across the window; monotonicity across 310 seconds; independence
-  from the absolute epoch; full config validation;
-- **determinism** — a >100-event stream spanning all five phases and every event type,
-  asserted to give identical final state, identical snapshots, and an identical
-  *step-by-step trajectory* across repeated runs, with stepwise reduction equal to the fold;
-- **accounting integration** — the mandatory `120/100 → −$2 / −$22` example driven through
-  the event stream; each fill counted exactly once; duplicate fill rejected with prior state
-  intact; identical payloads with distinct ids both applying;
-- **ordering** — strictly increasing ordinal enforced; equal timestamps ordered by ordinal;
-  decreasing timestamp rejected; reversed order rejected rather than silently reinterpreted;
-- **immutability** — every event, `MarketState`, `MarketDefinition`, `PhaseConfig`, and
-  `MarketSnapshot`; prior states unaffected by later transitions; the order map read-only;
-  every non-scalar snapshot field proven frozen by attempting mutation;
-- **validation** — wrong market, illegal phase claim, duplicate fill, malformed ordering,
-  negative timestamps, empty identities, identical up/down tokens, non-positive tick,
-  unknown token, out-of-range prices and sizes;
-- **purity** — the static guard now also sweeps top-level Plane 2 modules and forbids
-  filesystem, process, and persistence imports (`os`, `io`, `pathlib`, `subprocess`,
-  `threading`, `pickle`, …) alongside the existing clock, network, and nondeterminism bans.
-  No exemption was added to make anything pass.
+- **fingerprint at scale** — the congruence itself (`up_size ≡ -I`, `down_size ≡ +I`, mod 5
+  shares) asserted for 100 000 deterministic inventories under both policies, plus a
+  cross-product sweep over all base lots and grid tie rules;
+- **the O04 divergence is pinned** — both worked examples asserted exactly, and a test
+  requires the policies to keep disagreeing on most inventories, so the conflict cannot
+  vanish behind a green suite;
+- **the fingerprint's blindness is asserted** — both policies pass it for every inventory,
+  which is the reason O04 cannot be closed from the documents;
+- **tie behaviour** — every tick and grid tie policy tested at exact half points, including
+  the demonstration that independently rounding both sides breaks zero spread for `HALF_UP`
+  and `HALF_DOWN` at all 100 tie points and never for `HALF_EVEN`;
+- **zero spread** — asserted at every price on every supported tick grid, and a hand-built
+  spread is rejected at construction;
+- **purity** — the P0/P2 static guard extends unchanged over the new `strategy/` modules; no
+  exemption was added.
 
 ---
 
@@ -157,21 +181,18 @@ L3  live paper                 not started  (P13)
 L4  minimum-size live          not started  (P14)
 ```
 
-**L1 remains UNRUN and is not relabelled.** `DEVELOPMENT_PLAN.md` sets P1's gate as "L0
-green **and** the arithmetic reproduces a known target-wallet market ledger exactly". No
-reconstructed fill-level target-wallet ledger exists in this repository, so that half of the
-P1 gate has never been executed. It is not passed and it is not waived. It needs either the
-reconstructed per-market ledgers or the first recorded live-paper data from P13.
+**L1 remains UNRUN and is not relabelled.** No reconstructed fill-level target-wallet ledger
+exists in this repository, so that half of the P1 gate has never been executed. It is not
+passed and it is not waived.
 
-P2's own gate — "phase machine is a pure function of the event stream, and a static check
-proves Plane 2 modules import no clock, no I/O, and no network module" — **was executed and
-passed**.
+L1 is also what would close O04. The same missing artefact blocks both.
 
 ---
 
 ## Update ritual
 
 At each accepted boundary, update: current phase, branch, boundary commit, last accepted
-milestone, next milestone, blockers, open-item labels, and test status. If a phase gate was
-not actually executed, say so — code existing is not completion
+milestone, next milestone, blockers, open-item labels, and test status. Record the
+implementation gate and the empirical status **separately**. If a gate was not actually
+executed, say so — code existing is not completion
 ([`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md), rule 1).

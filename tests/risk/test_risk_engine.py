@@ -37,7 +37,7 @@ def healthy(**overrides: object) -> RiskInputs:
         clob_awaiting_snapshot=False,
         spot_status=HealthStatus.HEALTHY,
     )
-    return dataclasses.replace(base, **overrides)  # type: ignore[arg-type]
+    return base._replace(**overrides)  # type: ignore[arg-type]
 
 
 def settled(inputs: RiskInputs, config: RiskConfig = CONFIG) -> RiskEngine:
@@ -170,9 +170,8 @@ def test_an_absent_order_stream_is_not_a_fault() -> None:
 
 def test_staleness_is_read_from_p6_never_computed() -> None:
     """P9 has no last-message clock of its own; P6's status is simply believed."""
-    import dataclasses
 
-    fields = {f.name for f in dataclasses.fields(RiskInputs)}
+    fields = set(RiskInputs._fields)
     assert not any("last_message" in name for name in fields), sorted(fields)
     assert RiskReason.CLOB_STALE not in active_reasons(healthy(), CONFIG)
     assert RiskReason.SPOT_STALE not in active_reasons(healthy(), CONFIG)
@@ -289,7 +288,6 @@ def test_evaluation_is_pure_and_repeatable() -> None:
 
 def test_the_risk_config_owns_no_feed_staleness_threshold() -> None:
     """P6 owns that question, its monitor, and its OPERATIONAL numbers."""
-    import dataclasses
 
     names = {f.name for f in dataclasses.fields(RiskConfig)}
     assert not any("stale" in name for name in names), sorted(names)

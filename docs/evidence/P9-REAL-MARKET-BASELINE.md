@@ -1,5 +1,27 @@
 # P9 real-market baseline
 
+> ## SUPERSEDED FOR FINAL P9 ARCHITECTURAL ACCEPTANCE
+>
+> The mechanisms this run exercised are **valid** and nothing here is withdrawn: the halts, the
+> recoveries, the zero placements outside `SAFE`, and the real `STALE`-recovery defect it found
+> all stand as evidence about how risk behaves.
+>
+> It is superseded as *architectural* acceptance because independent review then found two gaps
+> in the code that produced it:
+>
+> 1. **P9 ran a second staleness detector.** `RiskEngine` compared its own copy of the threshold
+>    against its own last-message timestamps, while P6 already owned the monitor and the
+>    numbers. Two authorities for one question.
+> 2. **Operational permission changes were not ordered or replayable.** `RiskEngine.reconciled`
+>    mutated the latched snapshot directly and the fault scheduler called it, so `allows_place`
+>    could change with no record of when, why, or relative to which market events.
+>
+> Corrected on `fix/p9-risk-ordering-staleness`, with fresh real-market evidence in
+> [`P9B-REAL-MARKET-BASELINE.md`](P9B-REAL-MARKET-BASELINE.md).
+> This run is retained because a measurement that led to a correction is part of the record of
+> how the correction was reached.
+
+
 **Provenance: `REAL_PUBLIC_MARKET_DATA`.** Real Polymarket CLOB and real Binance BTC data
 throughout. No faults injected. No orders, no credentials, no authenticated socket.
 

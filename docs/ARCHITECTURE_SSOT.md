@@ -608,6 +608,33 @@ mismatch, and taker fill latch until an explicit reconciliation result arrives. 
 does not become known because the socket reconnected, and a position mismatch does not become a
 match because the next snapshot happened to agree.
 
+**P6 is the sole authority on feed staleness.** It owns the ``StalenessMonitor``, the
+``OPERATIONAL`` thresholds, and the ``mark_stale`` transition, and its ``check_staleness`` runs on
+the capture loop's idle path so silence is detected without waiting for a market event. P9 reads
+the resulting ``HealthStatus`` and decides what to do about it. It holds no threshold, no
+last-message timestamp, and no age comparison — asserted structurally, because two authorities
+for one question can disagree and the wrong one stays invisible until it matters.
+
+**Execution permission is ordered and replayable.** Every change to risk state is a typed
+``RiskSignal`` applied through :class:`~maker5m.risk.trace.RiskController`, the single owner, and
+produces a ``RiskRecord`` carrying a strict ``risk_sequence``, the ``as_of_ingress_ordinal`` it
+was applied at, the health frame it saw, and the verdict that followed. Nothing may reach in and
+flip a condition: reconciliation is a signal, not a method call, and a structural test forbids
+calling ``engine.reconciled`` from outside.
+
+``as_of_ingress_ordinal`` means: *the signal was applied after every market event through that
+ordinal had been consumed, and before the next execution permission decision that references
+this risk sequence.* Ordering never depends on coroutine scheduling or wall-clock tie-breaking.
+
+The stream lives **beside** the P5 journal, never inside it. Feed health is not duplicated —
+``HealthEvent`` already exists in the market stream — and no risk type appears in
+``MarketState``, ``LedgerState``, ``DecisionResult``, or ``StrategyConfig``. Historical P5
+journals decode and re-encode byte-identically.
+
+``verify_risk_replay`` re-derives every verdict from the recorded signals and fails closed at the
+first divergence, naming the risk sequence, the ingress ordinal, and both values. A gap in the
+sequence fails immediately: an audit missing records cannot explain the cycles it lost.
+
 **No silent repair.** Reconciliation compares and reports; it never overwrites the ledger with
 whatever the venue currently says. A missed fill and a duplicated fill look identical from a
 balance alone and have opposite corrections, so the two diagnoses are reported apart and neither

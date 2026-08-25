@@ -48,7 +48,7 @@ def test_risk_never_instantiates_a_staleness_monitor() -> None:
 
 def test_risk_holds_no_last_message_timestamp() -> None:
     """Without the input, the comparison cannot be reintroduced by accident."""
-    fields = {f.name for f in dataclasses.fields(RiskInputs)}
+    fields = set(RiskInputs._fields)
     assert not any("last_message" in name for name in fields), sorted(fields)
 
 

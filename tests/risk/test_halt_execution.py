@@ -31,7 +31,6 @@ SRC = Path(maker5m.__file__).parent
 
 
 def healthy(**overrides: object) -> RiskInputs:
-    import dataclasses
 
     base = RiskInputs(
         now_ns=NOW,
@@ -39,7 +38,7 @@ def healthy(**overrides: object) -> RiskInputs:
         clob_awaiting_snapshot=False,
         spot_status=HealthStatus.HEALTHY,
     )
-    return dataclasses.replace(base, **overrides)  # type: ignore[arg-type]
+    return base._replace(**overrides)  # type: ignore[arg-type]
 
 
 def safe_engine() -> RiskEngine:

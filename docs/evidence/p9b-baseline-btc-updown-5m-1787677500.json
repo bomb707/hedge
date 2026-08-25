@@ -1,0 +1,705 @@
+{
+  "api_errors": {
+    "failures_retained": 0,
+    "threshold": 5,
+    "total_failures": 0,
+    "total_successes": 0,
+    "window_ns": 30000000000
+  },
+  "clock_health": {
+    "last_offset_ns": -13680586,
+    "max_abs_offset_ns": 1148067272,
+    "samples": 149459
+  },
+  "credentials_used": "none",
+  "cycles": 147844,
+  "execution_counters": {
+    "actions": {
+      "BLOCKED": 123076,
+      "CANCEL": 357,
+      "KEEP": 138116,
+      "NOTHING": 32918,
+      "PLACE": 789,
+      "REPLACE": 432
+    },
+    "cycles_with_live_order": 138905,
+    "execution_queue_loss_actions": 789,
+    "execution_queue_loss_reasons": {
+      "PRICE_CHANGED": 432,
+      "UNSAFE_REPLACEMENT": 357
+    },
+    "keep_ratio": 0.994319858896368,
+    "keeps_with_live_order": 138116,
+    "quality": {
+      "AT_FRONT": 10891,
+      "NOT_QUOTING": 16656,
+      "PRICE_OK_BUT_DEEP": 4091
+    },
+    "reasons": {
+      "CENTRE_UNAVAILABLE": 2582,
+      "NO_LIVE_ORDER": 432,
+      "PHASE_NOT_QUOTING": 718,
+      "POST_ONLY_BLOCK": 12924,
+      "QUOTING": 14982
+    }
+  },
+  "faults_scheduled": [],
+  "feed_counters": {
+    "clob_best_bid_ask": 0,
+    "clob_books": 3382,
+    "clob_last_trade_price": 1615,
+    "clob_messages": 143287,
+    "clob_price_changes": 137169,
+    "clob_tick_size_changes": 4,
+    "clob_unhandled": 0,
+    "malformed": 0,
+    "pongs": 33,
+    "reconnects": 0,
+    "spot_messages": 7289,
+    "telemetry_dropped": 0,
+    "unhandled_kinds": {}
+  },
+  "kind": "BASELINE",
+  "latency_ns": {
+    "acting_cycle": {
+      "count": 131,
+      "label": "acting_cycle",
+      "max": 3321706,
+      "p50": 185533,
+      "p90": 635960,
+      "p95": 750696,
+      "p99": 1510212
+    },
+    "clob_receive_to_decide": {
+      "count": 14059,
+      "label": "clob_receive_to_decide",
+      "max": 546548868,
+      "p50": 190275,
+      "p90": 628311,
+      "p95": 742483,
+      "p99": 1108896
+    },
+    "decide_duration": {
+      "count": 14806,
+      "label": "decide_duration",
+      "max": 23397466,
+      "p50": 46397,
+      "p90": 152886,
+      "p95": 171474,
+      "p99": 225572
+    },
+    "fill_receive_to_decide": {
+      "count": 0,
+      "label": "fill_receive_to_decide"
+    },
+    "keep_cycle": {
+      "count": 762,
+      "label": "keep_cycle",
+      "max": 3220444,
+      "p50": 172453,
+      "p90": 630800,
+      "p95": 765768,
+      "p99": 1203832
+    },
+    "phase_receive_to_decide": {
+      "count": 4,
+      "label": "phase_receive_to_decide",
+      "max": 260701,
+      "p50": 188347,
+      "p90": 260701,
+      "p95": 260701,
+      "p99": 260701
+    },
+    "prepare_duration": {
+      "count": 14806,
+      "label": "prepare_duration",
+      "max": 1384100,
+      "p50": 14156,
+      "p90": 52059,
+      "p95": 59271,
+      "p99": 87692
+    },
+    "queue_ahead": {
+      "count": 14982,
+      "label": "queue_ahead",
+      "max": 911420000,
+      "p50": 0,
+      "p90": 145260000,
+      "p95": 248670000,
+      "p99": 580980000
+    },
+    "receive_to_reconcile": {
+      "count": 14806,
+      "label": "receive_to_reconcile",
+      "max": 546584173,
+      "p50": 214290,
+      "p90": 709861,
+      "p95": 807845,
+      "p99": 1201222
+    },
+    "reconcile_duration": {
+      "count": 14806,
+      "label": "reconcile_duration",
+      "max": 240043,
+      "p50": 10858,
+      "p90": 36316,
+      "p95": 39257,
+      "p99": 49957
+    },
+    "spot_receive_to_decide": {
+      "count": 743,
+      "label": "spot_receive_to_decide",
+      "max": 883518,
+      "p50": 116917,
+      "p90": 397073,
+      "p95": 484550,
+      "p99": 613753
+    }
+  },
+  "live_trading_enabled": false,
+  "market_id": "0xe82f9c565e926e0a88cbf2fb0a6c95652d8b91de320dfd87a8a98c05114f09e1",
+  "note": "Real public Polymarket CLOB and real Binance BTC data throughout. No faults injected.",
+  "observations": {
+    "accepted": 147844,
+    "buffered": 147844,
+    "capacity": 320000,
+    "dropped": 0,
+    "gaps_seen_downstream": 0,
+    "lost_downstream": 0
+  },
+  "orders_sent": 0,
+  "phase": "P9",
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "risk": {
+    "actions_recorded": 1003,
+    "actions_sample": [
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 1321,
+        "risk_sequence": 1296,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 1957,
+        "risk_sequence": 1911,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 1964,
+        "risk_sequence": 1917,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 1965,
+        "risk_sequence": 1918,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 2005,
+        "risk_sequence": 1954,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 2056,
+        "risk_sequence": 1999,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 2057,
+        "risk_sequence": 2000,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 2087,
+        "risk_sequence": 2028,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 2088,
+        "risk_sequence": 2029,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 3359,
+        "risk_sequence": 3284,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 3360,
+        "risk_sequence": 3285,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 3613,
+        "risk_sequence": 3532,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 3616,
+        "risk_sequence": 3535,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 5605,
+        "risk_sequence": 5478,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 5608,
+        "risk_sequence": 5481,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 5610,
+        "risk_sequence": 5482,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 5613,
+        "risk_sequence": 5484,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 5614,
+        "risk_sequence": 5485,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 5648,
+        "risk_sequence": 5519,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 5753,
+        "risk_sequence": 5624,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 5757,
+        "risk_sequence": 5628,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 5758,
+        "risk_sequence": 5629,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 6708,
+        "risk_sequence": 6564,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 6752,
+        "risk_sequence": 6607,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 6753,
+        "risk_sequence": 6608,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 6818,
+        "risk_sequence": 6671,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 6903,
+        "risk_sequence": 6744,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 6938,
+        "risk_sequence": 6772,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 6992,
+        "risk_sequence": 6823,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 6993,
+        "risk_sequence": 6824,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 7214,
+        "risk_sequence": 7041,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 7224,
+        "risk_sequence": 7049,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 7704,
+        "risk_sequence": 7522,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 7723,
+        "risk_sequence": 7540,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 7724,
+        "risk_sequence": 7541,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 7878,
+        "risk_sequence": 7693,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 7880,
+        "risk_sequence": 7694,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 7918,
+        "risk_sequence": 7730,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 7944,
+        "risk_sequence": 7753,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 7945,
+        "risk_sequence": 7754,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 8022,
+        "risk_sequence": 7827,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 8023,
+        "risk_sequence": 7828,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 8072,
+        "risk_sequence": 7877,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 8073,
+        "risk_sequence": 7878,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 8189,
+        "risk_sequence": 7994,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 8235,
+        "risk_sequence": 8034,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 8899,
+        "risk_sequence": 8668,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 8913,
+        "risk_sequence": 8680,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 9012,
+        "risk_sequence": 8775,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 9015,
+        "risk_sequence": 8778,
+        "risk_state": "SAFE"
+      }
+    ],
+    "cycles_by_state": {
+      "HALTED": 154,
+      "RECOVERING": 1,
+      "SAFE": 147689
+    },
+    "fault_events": [],
+    "halts_by_reason": {
+      "SPOT_STALE": 1
+    },
+    "risk_evaluate_ns": {
+      "count": 147844,
+      "label": "risk_evaluate_ns",
+      "max": 546411684,
+      "p50": 25721,
+      "p90": 84256,
+      "p95": 105246,
+      "p99": 134325
+    },
+    "risk_signal_ns": {
+      "count": 0,
+      "label": "risk_signal_ns"
+    },
+    "shadow_cancels_by_state": {
+      "SAFE": 441
+    },
+    "shadow_places_by_state": {
+      "SAFE": 562
+    },
+    "transitions": [
+      {
+        "active": [
+          "SPOT_STALE"
+        ],
+        "at_ns": 1787677500013118625,
+        "from": null,
+        "ingress_ordinal": 2,
+        "latched": [],
+        "risk_sequence": 0,
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787677500183050249,
+        "from": "HALTED",
+        "ingress_ordinal": 159,
+        "latched": [],
+        "risk_sequence": 154,
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787677500183720554,
+        "from": "RECOVERING",
+        "ingress_ordinal": 160,
+        "latched": [],
+        "risk_sequence": 155,
+        "to": "SAFE"
+      }
+    ]
+  },
+  "risk_config": {
+    "api_error_threshold": 5,
+    "api_error_window_ns": 30000000000,
+    "clock_drift_limit_ns": 250000000,
+    "feed_staleness_owner": "P6 (maker5m.feeds.health) - P9 holds no threshold",
+    "recovery_confirmations": 2,
+    "status": "OPERATIONAL"
+  },
+  "risk_records_head": [
+    {
+      "active": [
+        "SPOT_STALE"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 2,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "REAL_PUBLIC_MARKET_DATA",
+      "reason": null,
+      "risk_sequence": 0,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787677500013118625
+    },
+    {
+      "active": [
+        "SPOT_STALE"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 3,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "REAL_PUBLIC_MARKET_DATA",
+      "reason": null,
+      "risk_sequence": 1,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787677500015940094
+    },
+    {
+      "active": [
+        "SPOT_STALE"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 4,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "REAL_PUBLIC_MARKET_DATA",
+      "reason": null,
+      "risk_sequence": 2,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787677500016219762
+    },
+    {
+      "active": [
+        "SPOT_STALE"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 5,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "REAL_PUBLIC_MARKET_DATA",
+      "reason": null,
+      "risk_sequence": 3,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787677500016397626
+    },
+    {
+      "active": [
+        "SPOT_STALE"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 6,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "REAL_PUBLIC_MARKET_DATA",
+      "reason": null,
+      "risk_sequence": 4,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787677500017072226
+    }
+  ],
+  "risk_records_transitions": [
+    {
+      "active": [
+        "SPOT_STALE"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 2,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "REAL_PUBLIC_MARKET_DATA",
+      "reason": null,
+      "risk_sequence": 0,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787677500013118625
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 159,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "REAL_PUBLIC_MARKET_DATA",
+      "reason": null,
+      "risk_sequence": 154,
+      "schema_version": 1,
+      "state": "RECOVERING",
+      "timestamp": 1787677500183050249
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": true,
+      "as_of_ingress_ordinal": 160,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "REAL_PUBLIC_MARKET_DATA",
+      "reason": null,
+      "risk_sequence": 155,
+      "schema_version": 1,
+      "state": "SAFE",
+      "timestamp": 1787677500183720554
+    }
+  ],
+  "risk_replay": {
+    "final_state": "SAFE",
+    "records": 147844,
+    "sequence_gaps": [],
+    "states_seen": [
+      "HALTED",
+      "RECOVERING",
+      "SAFE"
+    ],
+    "verified": true
+  },
+  "risk_signals_non_evaluation": [],
+  "risk_trace": {
+    "last_risk_sequence": 147843,
+    "provenance": "REAL_PUBLIC_MARKET_DATA",
+    "risk_records": 147844,
+    "risk_records_dropped": 0,
+    "risk_records_retained": 147844,
+    "schema_version": 1,
+    "state": "SAFE"
+  },
+  "run_utc": "2026-08-25T17:10:13Z",
+  "slug": "btc-updown-5m-1787677500",
+  "t0_ns": 1787677500000000000
+}

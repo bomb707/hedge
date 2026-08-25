@@ -101,12 +101,13 @@ OBS_ELIGIBILITY: Final = 15
 OBS_FILL: Final = 16
 """``(outcome, client_order_id, fully_filled)`` for a shadow fill, else ``None``."""
 
-DEFAULT_OBSERVATION_CAPACITY: Final[int] = 160_000
+DEFAULT_OBSERVATION_CAPACITY: Final[int] = 220_000
 """Sized from evidence, not from a round number.
 
-A measured 5-minute market produced 117,772 cycles, and one observation retains 638 bytes —
-the tuple plus the reconcile plan it references. So this bound costs about 97 MiB and leaves
-36% headroom over the busiest market actually observed.
+The busiest market measured produced 153,762 cycles, and one observation retains 638 bytes —
+the tuple plus the reconcile plan it references. So this bound costs about 134 MiB and leaves
+43% headroom. An earlier 160,000 was set from a 117,772-cycle market and a later one filled it
+to 96%; a bound with 4% of room left is a bound about to be discovered the hard way.
 
 A larger buffer is not free in a way that matters: retained object graphs are what the garbage
 collector walks, and disabling GC in the steady-state benchmark cut the instrumented p99 tail

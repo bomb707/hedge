@@ -148,3 +148,30 @@ def test_safety_relevant_kinds_are_never_sampled_away() -> None:
 
 def test_the_sampling_policy_is_operational_configuration() -> None:
     assert SAMPLING_STATUS.value == "OPERATIONAL"
+
+
+def test_stage_timing_reaches_roughly_one_cycle_in_sample_every() -> None:
+    """Whether a cycle was sampled is captured, not recomputed downstream.
+
+    An earlier version re-derived it from the ingress ordinal. ``next_meta`` assigns an ordinal
+    and then increments, so the hot path sampled on N while the analyzer traced on N+1; the two
+    decisions almost never agreed and a full real market produced stage timings for 126 cycles
+    out of 153,762 instead of roughly 15,400. Nothing failed, nothing raised - the evidence was
+    just quietly empty. This is the arithmetic that would have caught it.
+    """
+    harness = build(sample_every=10)
+    # One PLACE, then a long run of KEEPs so acting cycles cannot mask the sampling rate.
+    quoting(harness, "60")
+    for step_index in range(200):
+        quoting(harness, str(60 - step_index % 40))
+
+    result = analyzed(harness)
+    assert result.counters.actions.get("PLACE", 0) == 1
+    assert result.counters.actions.get("KEEP", 0) == 200
+
+    expected = harness.cycles // 10
+    assert 0.5 * expected <= result.stages_captured <= 1.5 * expected, (
+        f"{result.stages_captured} cycles timed out of {harness.cycles}, expected about "
+        f"{expected} at sample_every=10"
+    )
+    assert len(result.latency.receive_to_reconcile) == result.stages_captured

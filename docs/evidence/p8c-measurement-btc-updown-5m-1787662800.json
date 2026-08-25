@@ -1,0 +1,170 @@
+{
+  "feed_counters": {
+    "clob_best_bid_ask": 0,
+    "clob_books": 3972,
+    "clob_last_trade_price": 1860,
+    "clob_messages": 152065,
+    "clob_price_changes": 145302,
+    "clob_tick_size_changes": 0,
+    "clob_unhandled": 0,
+    "malformed": 0,
+    "pongs": 33,
+    "reconnects": 0,
+    "spot_messages": 4484,
+    "telemetry_dropped": 0,
+    "unhandled_kinds": {}
+  },
+  "journal_steps": 157736,
+  "kind": "INSTRUMENTED_SHADOW_MEASUREMENT",
+  "live_trading_enabled": false,
+  "market_id": "0x34e02f82fd4dc5d5fcf9ce3120c3d53696c6b2897fa1c2843230e6623fe21c8c",
+  "measurement": {
+    "counters": {
+      "actions": {
+        "BLOCKED": 132867,
+        "CANCEL": 417,
+        "KEEP": 149991,
+        "NOTHING": 22850,
+        "PLACE": 908,
+        "REPLACE": 491
+      },
+      "cycles_with_live_order": 150899,
+      "execution_queue_loss_actions": 908,
+      "execution_queue_loss_reasons": {
+        "PRICE_CHANGED": 491,
+        "UNSAFE_REPLACEMENT": 417
+      },
+      "keep_ratio": 0.9939827301705114,
+      "keeps_with_live_order": 149991,
+      "quality": {
+        "AT_FRONT": 11807,
+        "NOT_QUOTING": 16754,
+        "PRICE_OK_BUT_DEEP": 4547
+      },
+      "reasons": {
+        "CENTRE_UNAVAILABLE": 1164,
+        "ENDGAME_GATE": 35,
+        "NO_LIVE_ORDER": 491,
+        "PHASE_NOT_QUOTING": 1096,
+        "POST_ONLY_BLOCK": 13968,
+        "QUOTING": 16354
+      }
+    },
+    "cycles": 153762,
+    "cycles_with_stage_timing": 126,
+    "instrumentation_enabled": true,
+    "latency_ns": {
+      "acting_cycle": {
+        "count": 123,
+        "label": "acting_cycle",
+        "max": 1851956,
+        "p50": 157773,
+        "p90": 549954,
+        "p95": 723346,
+        "p99": 1844326
+      },
+      "clob_receive_to_decide": {
+        "count": 122,
+        "label": "clob_receive_to_decide",
+        "max": 1804663,
+        "p50": 131887,
+        "p90": 462167,
+        "p95": 693211,
+        "p99": 1781233
+      },
+      "decide_duration": {
+        "count": 126,
+        "label": "decide_duration",
+        "max": 165724,
+        "p50": 41263,
+        "p90": 102698,
+        "p95": 141174,
+        "p99": 157511
+      },
+      "fill_receive_to_decide": {
+        "count": 0,
+        "label": "fill_receive_to_decide"
+      },
+      "keep_cycle": {
+        "count": 0,
+        "label": "keep_cycle"
+      },
+      "phase_receive_to_decide": {
+        "count": 4,
+        "label": "phase_receive_to_decide",
+        "max": 228524,
+        "p50": 87333,
+        "p90": 228524,
+        "p95": 228524,
+        "p99": 228524
+      },
+      "prepare_duration": {
+        "count": 126,
+        "label": "prepare_duration",
+        "max": 309948,
+        "p50": 14106,
+        "p90": 33449,
+        "p95": 48406,
+        "p99": 50487
+      },
+      "queue_ahead": {
+        "count": 16354,
+        "label": "queue_ahead",
+        "max": 1389170000,
+        "p50": 0,
+        "p90": 105000000,
+        "p95": 205000000,
+        "p99": 883490000
+      },
+      "receive_to_reconcile": {
+        "count": 126,
+        "label": "receive_to_reconcile",
+        "max": 1851956,
+        "p50": 157773,
+        "p90": 549954,
+        "p95": 723346,
+        "p99": 1844326
+      },
+      "reconcile_duration": {
+        "count": 126,
+        "label": "reconcile_duration",
+        "max": 39563,
+        "p50": 10002,
+        "p90": 25517,
+        "p95": 34039,
+        "p99": 39333
+      },
+      "spot_receive_to_decide": {
+        "count": 0,
+        "label": "spot_receive_to_decide"
+      }
+    },
+    "observations": {
+      "accepted": 153762,
+      "buffered": 153762,
+      "capacity": 160000,
+      "dropped": 0,
+      "gaps_seen_downstream": 0,
+      "lost_downstream": 0
+    },
+    "real_order_rtt": "UNRUN / P14",
+    "sampling_every": 10,
+    "shadow": {
+      "label": "SHADOW_ESTIMATE",
+      "shadow_slot_cycles_kept": 149991,
+      "shadow_slot_loss_reasons": {
+        "PRICE_CHANGE": 491,
+        "UNSAFE_REPLACEMENT": 417
+      },
+      "shadow_slot_losses": 908,
+      "shadow_slots_acquired": 908,
+      "shadow_slots_open": 0
+    }
+  },
+  "note": "Shadow execution against real market data. No order was sent and no credential was used. Queue figures are SHADOW_ESTIMATE, not venue queue positions.",
+  "orders_sent": 0,
+  "phase": "P8",
+  "run_utc": "2026-08-25T13:05:10Z",
+  "slug": "btc-updown-5m-1787662800",
+  "t0_ns": 1787662800000000000
+}

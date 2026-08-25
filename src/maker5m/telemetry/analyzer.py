@@ -45,7 +45,6 @@ from maker5m.telemetry.observation import (
     OBS_EVENT_KIND,
     OBS_FILL,
     OBS_HEALTHY,
-    OBS_INGRESS_ORDINAL,
     OBS_PLAN,
     OBS_PREPARE_DONE_NS,
     OBS_RAW_RECEIVE_NS,
@@ -148,6 +147,13 @@ class TelemetryAnalyzer:
     """Rebuilds the whole P8 measurement from observations, in order."""
 
     sampling: SamplingPolicy = field(default_factory=SamplingPolicy)
+    """The policy that produced this stream, recorded for provenance.
+
+    Deliberately **not** re-applied: whether a cycle was sampled is read from the observation
+    itself. Recomputing it here would be a second opinion about a decision already made, and
+    the two can drift.
+    """
+
     shadow: ShadowQueueTracker = field(default_factory=ShadowQueueTracker)
     counters: ActionCounters = field(default_factory=ActionCounters)
     latency: LatencyBook = field(default_factory=LatencyBook)
@@ -205,10 +211,15 @@ class TelemetryAnalyzer:
         )
 
         event_kind = observation[OBS_EVENT_KIND]
-        ordinal = observation[OBS_INGRESS_ORDINAL]
-        assert isinstance(event_kind, str) and isinstance(ordinal, int)
-        traced = acting or self.sampling.selects(ordinal, event_kind)
-        if not traced:
+        assert isinstance(event_kind, str)
+        # Whether this cycle was sampled is a *captured fact*, not something to recompute.
+        # Re-deriving it downstream from the ingress ordinal was an off-by-one waiting to
+        # happen, and it happened: `next_meta` assigns an ordinal and then increments, so the
+        # hot path sampled on N while the analyzer traced on N+1 and the two decisions almost
+        # never agreed. A full real market produced stage timings for 126 cycles instead of
+        # ~15,400. There is now one source of truth and no second opinion.
+        sampled = observation[OBS_DECIDE_DONE_NS] != NOT_CAPTURED
+        if not (acting or sampled):
             return
 
         self._record_latency(observation, event_kind, plan, acting)

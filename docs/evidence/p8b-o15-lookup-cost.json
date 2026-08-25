@@ -1,0 +1,51 @@
+{
+  "calls_per_sample": 200,
+  "note": "ns per cycle = two current() calls, one per outcome; best of rounds",
+  "rounds": 9,
+  "rows": [
+    {
+      "after_ns": 497,
+      "before_ns": 1288,
+      "retained_terminal_orders": 0
+    },
+    {
+      "after_ns": 481,
+      "before_ns": 13908,
+      "retained_terminal_orders": 50
+    },
+    {
+      "after_ns": 479,
+      "before_ns": 51270,
+      "retained_terminal_orders": 200
+    },
+    {
+      "after_ns": 517,
+      "before_ns": 130746,
+      "retained_terminal_orders": 500
+    },
+    {
+      "after_ns": 492,
+      "before_ns": 255059,
+      "retained_terminal_orders": 1000
+    },
+    {
+      "after_ns": 474,
+      "before_ns": 513709,
+      "retained_terminal_orders": 2000
+    },
+    {
+      "after_ns": 477,
+      "before_ns": 1263676,
+      "retained_terminal_orders": 5000
+    },
+    {
+      "after_ns": 485,
+      "before_ns": 2539038,
+      "retained_terminal_orders": 10000
+    }
+  ],
+  "slope_ns_per_retained_order": {
+    "after": -0.0011,
+    "before": 253.5222
+  }
+}

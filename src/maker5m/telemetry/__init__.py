@@ -20,13 +20,14 @@ every value carries a confidence and nothing is named as though the venue's true
 known.
 """
 
+from maker5m.telemetry.analyzer import LatencyBook, TelemetryAnalyzer, TelemetryOrderError
 from maker5m.telemetry.classifier import (
     ExecutionQuality,
     QualityReason,
     QuoteClassification,
     classify,
 )
-from maker5m.telemetry.instrumented import InstrumentedRun, LatencyBook
+from maker5m.telemetry.instrumented import InstrumentedRun
 from maker5m.telemetry.latency import (
     LatencyClock,
     Stage,
@@ -34,6 +35,7 @@ from maker5m.telemetry.latency import (
     perf_now_ns,
 )
 from maker5m.telemetry.metrics import ActionCounters, Distribution, quantile
+from maker5m.telemetry.observation import NOT_CAPTURED, ObservationBuffer
 from maker5m.telemetry.queue_estimate import QueueConfidence, QueueEstimate, QueueSlot
 from maker5m.telemetry.sampling import (
     ALWAYS_TRACED_KINDS,
@@ -46,6 +48,7 @@ from maker5m.telemetry.sink import DEFAULT_CAPACITY, TelemetrySink
 __all__ = [
     "ALWAYS_TRACED_KINDS",
     "DEFAULT_CAPACITY",
+    "NOT_CAPTURED",
     "SAMPLING_STATUS",
     "SHADOW_LABEL",
     "ActionCounters",
@@ -54,6 +57,7 @@ __all__ = [
     "InstrumentedRun",
     "LatencyBook",
     "LatencyClock",
+    "ObservationBuffer",
     "QualityReason",
     "QueueConfidence",
     "QueueEstimate",
@@ -63,6 +67,8 @@ __all__ = [
     "ShadowLossReason",
     "ShadowQueueTracker",
     "Stage",
+    "TelemetryAnalyzer",
+    "TelemetryOrderError",
     "TelemetrySink",
     "TraceBuilder",
     "classify",

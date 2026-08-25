@@ -30,7 +30,6 @@ Keeping them apart is what makes both the OFF/ON benchmark and the sampling poli
   sampling is for.
 """
 
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Final
 
@@ -43,105 +42,26 @@ from maker5m.execution import (
     reconcile,
 )
 from maker5m.execution.live_orders import OrderLifecycle
-from maker5m.execution.reconciler import ReconcileAction, ReconcilePlan, SideReason
+from maker5m.execution.reconciler import ReconcileAction, ReconcilePlan
 from maker5m.feeds.pipeline import MarketDataPipeline
 from maker5m.feeds.venue import VenueMarketRules
 from maker5m.market.events import HealthStatus
 from maker5m.numeric.units import ShareUnits
 from maker5m.strategy.decision import DecisionResult
 from maker5m.strategy.engine import StrategyEngine
-from maker5m.telemetry.classifier import QualityReason, classify
-from maker5m.telemetry.latency import Stage, TraceBuilder, perf_now_ns
-from maker5m.telemetry.metrics import ActionCounters, Distribution
+from maker5m.telemetry.analyzer import TelemetryAnalyzer
+from maker5m.telemetry.latency import perf_now_ns
+from maker5m.telemetry.observation import (
+    DEFAULT_OBSERVATION_CAPACITY,
+    NOT_CAPTURED,
+    ObservationBuffer,
+)
 from maker5m.telemetry.sampling import SamplingPolicy
-from maker5m.telemetry.shadow import ShadowLossReason, ShadowQueueTracker
-from maker5m.telemetry.sink import TelemetrySink
 
-__all__ = ["InstrumentedRun", "LatencyBook"]
+__all__ = ["InstrumentedRun"]
 
 QUEUE_LOSS_ACTIONS: Final = frozenset({ReconcileAction.REPLACE, ReconcileAction.CANCEL})
 """Reconciler actions that give up a live order's queue slot. KEEP is never one of them."""
-
-_SHADOW_LOSS_REASON: Final[dict[SideReason, ShadowLossReason]] = {
-    SideReason.PRICE_CHANGED: ShadowLossReason.PRICE_CHANGE,
-    SideReason.SIZE_CHANGED: ShadowLossReason.SIZE_CHANGE,
-    SideReason.DESIRED_WITHDRAWN: ShadowLossReason.DESIRED_WITHDRAWN,
-    SideReason.UNSAFE_REPLACEMENT: ShadowLossReason.UNSAFE_REPLACEMENT,
-}
-"""Every reconciler reason that can close a slot maps to an explicit shadow reason."""
-
-_STRATEGY_REASON: Final[dict[str, QualityReason]] = {
-    "PHASE_NOT_QUOTING": QualityReason.PHASE_NOT_QUOTING,
-    "CENTRE_UNAVAILABLE": QualityReason.CENTRE_UNAVAILABLE,
-    "ENDGAME_GATE": QualityReason.ENDGAME_GATE,
-    "HARD_BAND": QualityReason.HARD_BAND,
-}
-"""Built once. A dict literal per call showed up clearly in the P8 overhead profile."""
-
-
-@dataclass(slots=True)
-class LatencyBook:
-    """Every distribution the P8 evidence needs, kept separate by source."""
-
-    spot_receive_to_decide: Distribution = field(
-        default_factory=lambda: Distribution("spot_receive_to_decide")
-    )
-    clob_receive_to_decide: Distribution = field(
-        default_factory=lambda: Distribution("clob_receive_to_decide")
-    )
-    fill_receive_to_decide: Distribution = field(
-        default_factory=lambda: Distribution("fill_receive_to_decide")
-    )
-    phase_receive_to_decide: Distribution = field(
-        default_factory=lambda: Distribution("phase_receive_to_decide")
-    )
-    receive_to_reconcile: Distribution = field(
-        default_factory=lambda: Distribution("receive_to_reconcile")
-    )
-    decide_duration: Distribution = field(default_factory=lambda: Distribution("decide_duration"))
-    prepare_duration: Distribution = field(default_factory=lambda: Distribution("prepare_duration"))
-    reconcile_duration: Distribution = field(
-        default_factory=lambda: Distribution("reconcile_duration")
-    )
-    keep_cycle: Distribution = field(default_factory=lambda: Distribution("keep_cycle"))
-    acting_cycle: Distribution = field(default_factory=lambda: Distribution("acting_cycle"))
-    queue_ahead: Distribution = field(default_factory=lambda: Distribution("queue_ahead"))
-
-    _by_kind: dict[str, Distribution] = field(default_factory=dict, repr=False)
-
-    def by_kind(self, event_kind: str) -> Distribution:
-        """Route a sample to its source distribution.
-
-        The mapping is built once. Constructing a dict literal per event showed up clearly in
-        the P8 overhead profile - it is the kind of cost that is invisible in source and
-        obvious in a measurement.
-        """
-        if not self._by_kind:
-            self._by_kind = {
-                "SpotTick": self.spot_receive_to_decide,
-                "BookUpdate": self.clob_receive_to_decide,
-                "OwnFill": self.fill_receive_to_decide,
-                "PhaseEvent": self.phase_receive_to_decide,
-            }
-        return self._by_kind.get(event_kind, self.clob_receive_to_decide)
-
-    def summary(self) -> dict[str, object]:
-        return {
-            d.label: d.summary()
-            for d in (
-                self.spot_receive_to_decide,
-                self.clob_receive_to_decide,
-                self.fill_receive_to_decide,
-                self.phase_receive_to_decide,
-                self.receive_to_reconcile,
-                self.decide_duration,
-                self.prepare_duration,
-                self.reconcile_duration,
-                self.keep_cycle,
-                self.acting_cycle,
-                self.queue_ahead,
-            )
-        }
 
 
 @dataclass(slots=True)
@@ -154,10 +74,9 @@ class InstrumentedRun:
     executor: Executor = field(
         default_factory=lambda: Executor(adapter=VenueAdapter(RecordingTransport()))
     )
-    shadow: ShadowQueueTracker = field(default_factory=ShadowQueueTracker)
-    latency: LatencyBook = field(default_factory=LatencyBook)
-    counters: ActionCounters = field(default_factory=ActionCounters)
-    sink: TelemetrySink = field(default_factory=TelemetrySink)
+    buffer: ObservationBuffer = field(
+        default_factory=lambda: ObservationBuffer(DEFAULT_OBSERVATION_CAPACITY)
+    )
     sampling: SamplingPolicy = field(default_factory=SamplingPolicy)
     enabled: bool = True
     """When ``False`` the harness runs the same decisions and records nothing.
@@ -165,17 +84,14 @@ class InstrumentedRun:
     This is what makes the OFF/ON overhead comparison a like-for-like measurement.
     """
 
-    cycle_observer: Callable[[str, bool, bool], None] | None = None
-    """Optional ``(event_kind, acting, traced)`` hook, for the overhead benchmark only.
-
-    Called only inside the measuring path, so the instrumentation-off configuration never pays
-    for it. It exists so the benchmark can label each cycle's sampling tier from a separate
-    pass rather than by guessing, and is ``None`` in every real run.
-    """
-
-    trace: TraceBuilder = field(default_factory=TraceBuilder)
     cycles: int = 0
     _shadow_seq: int = 0
+    _seq: int = -1
+    """Pre-incremented, so the first captured observation is sequence 0.
+
+    The analyzer starts expecting 0; an off-by-one here would make every run report a phantom
+    dropped observation before it had captured anything.
+    """
     shadow_orders: bool = True
     """Treat a shadow PLACE as immediately resting.
 
@@ -187,148 +103,107 @@ class InstrumentedRun:
     """
 
     def observe(self, event_kind: str, raw_receive_ns: int, decision: DecisionResult) -> None:
-        """Run one shadow execution cycle, timing and classifying it when enabled."""
+        """Run one shadow execution cycle and capture what it did. Nothing analytical.
+
+        Preparation, reconciliation, and the shadow order table are **simulation**: production
+        performs them every cycle, so they run whether or not instrumentation is enabled and
+        they are not telemetry cost. Everything that used to follow them — slot mutation,
+        counting, classification, distributions — now happens downstream in
+        :class:`~maker5m.telemetry.analyzer.TelemetryAnalyzer`.
+
+        What is left here is the irreducible part: the displayed depth at our own price, which
+        the book will have moved past by the time anything downstream looks, plus stage
+        timestamps for the cycles deterministic sampling selected.
+        """
         self.cycles += 1
         measuring = self.enabled
+        stages = measuring and self.pipeline.merger.stages_measured
 
-        decide_done = perf_now_ns() if measuring else 0
+        decide_done = perf_now_ns() if stages else NOT_CAPTURED
         prepared = prepare_both_sides(decision, self.pipeline.merger.state, self.rules)
-        prepare_done = perf_now_ns() if measuring else 0
+        prepare_done = perf_now_ns() if stages else NOT_CAPTURED
 
+        orders = self.executor.orders
         live = {
-            Outcome.UP: self.executor.orders.current(Outcome.UP),
-            Outcome.DOWN: self.executor.orders.current(Outcome.DOWN),
+            Outcome.UP: orders.current(Outcome.UP),
+            Outcome.DOWN: orders.current(Outcome.DOWN),
         }
         plan = reconcile(prepared, live)
-        reconcile_done = perf_now_ns() if measuring else 0
+        reconcile_done = perf_now_ns() if stages else NOT_CAPTURED
 
-        # Simulation, not measurement: it mutates only the executor's order table, which is
-        # exactly the input reconcile() reads next cycle. Gating it on `enabled` would leave
-        # the OFF run reconciling against an empty table while the ON run reconciled against a
-        # populated one, and the resulting "overhead" would be simulation cost, not telemetry.
-        placements = self._advance_orders(plan) if self.shadow_orders else (None, None)
+        if self.shadow_orders:
+            up_placed, down_placed, acted = self._advance_orders(plan)
+        else:
+            up_placed, down_placed, acted = None, None, False
 
         if not measuring:
             return
 
+        if acted and not stages:
+            # An action whose triggering event was not sampled. Record that it happened and
+            # when; its earlier stages stay NOT_CAPTURED rather than being invented.
+            reconcile_done = perf_now_ns()
+
+        # Depth at our own price, on both sides. This is the one measurement that cannot be
+        # deferred: the book is mutable and will have moved by the time the analyzer runs.
+        books = self.pipeline.books
+        up_bids = books.up.bids
+        down_bids = books.down.bids
         up, down = plan.up, plan.down
 
-        # -- measurement state: every cycle, sampled or not ------------------------------
-        # Everything from here to the `traced` gate runs on an ordinary unsampled book update,
-        # so it is kept to what state correctness actually requires. Skipping a slot transition
-        # because its event was not sampled would corrupt the state, not merely thin the output
-        # - a depth decrease missed here is a decrease the estimate never learns about.
-        healthy = self.pipeline.clob_health.status is HealthStatus.HEALTHY
-        if not healthy:
-            self.shadow.invalidate()
+        resting = up.live
+        if resting is not None:
+            up_depth = up_bids.get(resting.price, 0)
+        elif up_placed is not None and up.prepared is not None:
+            up_depth = up_bids.get(up.prepared.submission_price, 0)
+        else:
+            up_depth = 0
 
-        acting = False
-        counters = self.counters
-        books = self.pipeline.books
-        shadow = self.shadow
-        for side, placed_id in ((up, placements[0]), (down, placements[1])):
-            action = side.action
-            counters.count_action(action.value)
-            resting = side.live
-            if resting is not None:
-                counters.cycles_with_live_order += 1
-                if action is ReconcileAction.KEEP:
-                    counters.keeps_with_live_order += 1
-                    shadow.on_keep(
-                        resting.client_order_id,
-                        books.bid_size_at(side.outcome, resting.price),
-                    )
-                elif action in QUEUE_LOSS_ACTIONS:
-                    acting = True
-                    counters.count_execution_queue_loss(side.reason.value)
-                    shadow.on_lost(
-                        resting.client_order_id,
-                        _SHADOW_LOSS_REASON.get(side.reason, ShadowLossReason.OTHER),
-                    )
-            elif placed_id is not None and side.prepared is not None:
-                # Only a dispatched order opens a slot, at the depth displayed right now.
-                acting = True
-                price = side.prepared.submission_price
-                shadow.on_place(
-                    client_order_id=placed_id,
-                    outcome=side.outcome,
-                    price=price,
-                    displayed_now=books.bid_size_at(side.outcome, price),
-                )
-            elif action in QUEUE_LOSS_ACTIONS:
-                acting = True
-                counters.count_execution_queue_loss(side.reason.value)
-            elif action is ReconcileAction.PLACE:
-                # Shadow order placement is switched off; the plan still acts.
-                acting = True
+        resting = down.live
+        if resting is not None:
+            down_depth = down_bids.get(resting.price, 0)
+        elif down_placed is not None and down.prepared is not None:
+            down_depth = down_bids.get(down.prepared.submission_price, 0)
+        else:
+            down_depth = 0
 
-        # `acting` falls out of the loop above rather than costing two more property calls:
-        # every action that consumes network capacity is already inspected there.
-        traced = acting or self.sampling.selects(self.pipeline.merger.ordinal, event_kind)
-        if self.cycle_observer is not None:
-            self.cycle_observer(event_kind, acting, traced)
-
-        if not traced:
-            return
-
-        # -- emission: traced cycles only ------------------------------------------------
         merger = self.pipeline.merger
-        if merger.last_decide_ns and merger.last_reduce_ns:
-            self.latency.decide_duration.add(merger.last_decide_ns - merger.last_reduce_ns)
-
-        self.latency.by_kind(event_kind).add(decide_done - raw_receive_ns)
-        self.latency.receive_to_reconcile.add(reconcile_done - raw_receive_ns)
-        self.latency.prepare_duration.add(prepare_done - decide_done)
-        self.latency.reconcile_duration.add(reconcile_done - prepare_done)
-
-        cycle_ns = reconcile_done - raw_receive_ns
-        if acting:
-            self.latency.acting_cycle.add(cycle_ns)
-        elif all(side.action is ReconcileAction.KEEP for side in plan.sides):
-            # The common case, and the one that must cost nothing on the network.
-            self.latency.keep_cycle.add(cycle_ns)
-
-        for side in plan.sides:
-            prepared_side = prepared.get(side.outcome)
-            desired_price = None if prepared_side is None else prepared_side.submission_price
-            # The slot of the order that actually rests here, or None. AT_FRONT is not
-            # reachable without one, which is the whole point of the correction.
-            estimate = self.shadow.estimate(side.outcome)
-
-            classification = classify(
-                action=side.action,
-                side_reason=side.reason,
-                desired_price=desired_price,
-                estimate=estimate,
-                preparation=side.preparation,
-                strategy_reason=self._strategy_reason(decision, side.outcome),
-                continuity_healthy=healthy,
+        self._seq += 1
+        self.buffer.capture(
+            (
+                self._seq,
+                merger.ordinal,
+                event_kind,
+                self.pipeline.clob_health.status is HealthStatus.HEALTHY,
+                raw_receive_ns,
+                decide_done,
+                prepare_done,
+                reconcile_done,
+                merger.last_reduce_ns,
+                merger.last_decide_ns,
+                plan,
+                up_depth,
+                down_depth,
+                up_placed,
+                down_placed,
+                decision.telemetry.eligibility,
+                None,
             )
-            self.counters.count_quality(classification.quality.value, classification.reason.value)
-            if classification.queue_ahead is not None:
-                self.latency.queue_ahead.add(int(classification.queue_ahead))
+        )
 
-        trace = self.trace
-        trace.reset()
-        trace.event_kind = event_kind
-        trace.ingress_ordinal = merger.ordinal
-        trace.set(Stage.RAW_RECEIVE, raw_receive_ns)
-        trace.set(Stage.DECIDE_DONE, decide_done)
-        trace.set(Stage.PREPARE_DONE, prepare_done)
-        trace.set(Stage.RECONCILE_DONE, reconcile_done)
-        self.sink.put(trace.snapshot())
-
-    def _advance_orders(self, plan: ReconcilePlan) -> tuple[str | None, str | None]:
+    def _advance_orders(self, plan: ReconcilePlan) -> tuple[str | None, str | None, bool]:
         """Model venue acknowledgement so KEEP, REPLACE, and CANCEL can occur in shadow mode.
 
-        Returns the client order id placed on (UP, DOWN) this cycle, or ``None`` per side. A
-        fixed pair rather than a mapping: this runs on every cycle, and the common answer is
-        ``(None, None)``, which should not cost an allocation.
+        Returns the client order id placed on (UP, DOWN) and whether the plan acted at all.
+        ``acted`` falls out of a loop that already inspects every action, so knowing it costs
+        nothing extra — and it is what lets an unsampled action still be timed.
         """
         placed: list[str | None] = [None, None]
+        acted = False
         for index, side in enumerate(plan.sides):
             action = side.action
             if action is ReconcileAction.PLACE and side.prepared is not None:
+                acted = True
                 self._shadow_seq += 1
                 client_order_id = f"shadow-{self._shadow_seq:08d}"
                 self.executor.orders.register_pending_place(
@@ -347,17 +222,22 @@ class InstrumentedRun:
             elif action in QUEUE_LOSS_ACTIONS and side.live is not None:
                 # P7 policy is CANCEL_THEN_PLACE, so a REPLACE retires the order here and the
                 # replacement is placed by a later cycle. The slot dies with the old order.
+                acted = True
                 self.executor.orders.update(
                     side.live.client_order_id, status=OrderLifecycle.CANCELLED
                 )
-        return placed[0], placed[1]
+            elif action in QUEUE_LOSS_ACTIONS or action is ReconcileAction.PLACE:
+                acted = True
+        return placed[0], placed[1], acted
 
     def apply_shadow_fill(self, outcome: Outcome, filled: ShareUnits) -> None:
         """Model a fill against the shadow order resting on ``outcome``.
 
         Reaching the front is what a fill proves, so the estimate becomes zero. A *partial*
         fill leaves the order resting and keeps its slot — the case P7's reconciler protects by
-        comparing remaining size, and therefore the case worth being able to measure.
+        comparing remaining size, and therefore the case worth being able to measure. The fill
+        enters the observation stream in order, so the analyzer sees it exactly where it
+        happened.
         """
         order = self.executor.orders.current(outcome)
         if order is None:
@@ -368,32 +248,59 @@ class InstrumentedRun:
             status=OrderLifecycle.FILLED if remaining == 0 else OrderLifecycle.PARTIALLY_FILLED,
             remaining_size=remaining,
         )
-        self.shadow.on_fill(order.client_order_id, fully_filled=remaining == 0)
-
-    def _strategy_reason(self, decision: DecisionResult, outcome: Outcome) -> QualityReason | None:
-        """Recover *which* strategy gate suppressed a side, so NOT_QUOTING stays explanatory."""
-        telemetry = decision.telemetry
-        reasons = (
-            telemetry.eligibility.up_reasons
-            if outcome is Outcome.UP
-            else telemetry.eligibility.down_reasons
+        if not self.enabled:
+            return
+        self._seq += 1
+        self.buffer.capture(
+            (
+                self._seq,
+                self.pipeline.merger.ordinal,
+                "ShadowFill",
+                True,
+                NOT_CAPTURED,
+                NOT_CAPTURED,
+                NOT_CAPTURED,
+                NOT_CAPTURED,
+                NOT_CAPTURED,
+                NOT_CAPTURED,
+                None,
+                0,
+                0,
+                None,
+                None,
+                None,
+                (outcome, order.client_order_id, remaining == 0),
+            )
         )
-        if not reasons:
-            return None
-        return _STRATEGY_REASON.get(reasons[0].value)
+
+    def analyze(self) -> TelemetryAnalyzer:
+        """Fold the captured stream into the full measurement. Off the trading path.
+
+        Idempotent within a run: the buffer is not drained, so this can be called again and
+        will produce the same answer from the same observations.
+        """
+        analyzer = TelemetryAnalyzer(sampling=self.sampling)
+        analyzer.run(self.buffer)
+        return analyzer
 
     def summary(self) -> dict[str, object]:
+        """The full measurement. Runs the downstream analyzer; never called on the hot path."""
+        analyzer = self.analyze()
         return {
             "cycles": self.cycles,
             "instrumentation_enabled": self.enabled,
             "sampling_every": self.sampling.sample_every,
-            "latency_ns": self.latency.summary(),
-            "counters": self.counters.summary(),
-            "telemetry": {
-                "buffered": len(self.sink),
-                "accepted": self.sink.accepted,
-                "dropped": self.sink.dropped,
+            "observations": {
+                "capacity": self.buffer.capacity,
+                "accepted": self.buffer.accepted,
+                "buffered": len(self.buffer),
+                "dropped": self.buffer.dropped,
+                "gaps_seen_downstream": analyzer.gaps,
+                "lost_downstream": analyzer.lost_observations,
             },
-            "shadow": self.shadow.summary(),
+            "latency_ns": analyzer.latency.summary(),
+            "counters": analyzer.counters.summary(),
+            "shadow": analyzer.shadow.summary(),
+            "cycles_with_stage_timing": analyzer.stages_captured,
             "real_order_rtt": "UNRUN / P14",
         }

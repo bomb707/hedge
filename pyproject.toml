@@ -1,0 +1,91 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "polymarket-5m-maker"
+version = "0.0.0"
+description = "Polymarket BTC 5-minute post-only maker bot (replication build)"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+
+# No runtime dependencies. Phase 0 is documentation, contracts, and skeleton only.
+# Dependencies are added by the phase that genuinely needs them (see docs/DEVELOPMENT_PLAN.md).
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "mypy>=1.11",
+  "ruff>=0.6",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/maker5m"]
+
+# ---------------------------------------------------------------------------
+# pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q --strict-markers --strict-config"
+xfail_strict = true
+filterwarnings = ["error"]
+
+# ---------------------------------------------------------------------------
+# ruff
+# ---------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+# The two documents under docs/strategy/ are frozen inputs preserved byte-for-byte.
+# ruff format rewrites Python code blocks inside markdown, which would corrupt them.
+# Never remove this exclusion.
+extend-exclude = ["docs/strategy"]
+
+[tool.ruff.lint]
+select = [
+  "E", "W",    # pycodestyle
+  "F",         # pyflakes
+  "I",         # import sorting
+  "UP",        # pyupgrade
+  "B",         # bugbear
+  "SIM",       # simplify
+  "RUF",       # ruff-specific
+  "ANN",       # annotations required
+  "PTH",       # pathlib over os.path
+  "TID",       # tidy imports
+  "C4",        # comprehensions
+  "N",         # naming
+]
+ignore = [
+  "ANN401",    # allow explicit Any where genuinely needed
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ANN201"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+# ---------------------------------------------------------------------------
+# mypy
+# ---------------------------------------------------------------------------
+# Strict from the first line of real code. Retrofitting types onto an exact-arithmetic
+# ledger is far more expensive than starting strict (see ARCHITECTURE_SSOT.md section 6:
+# PriceTicks / ShareUnits / MoneyUnits must not be implicitly interchangeable, and the
+# type checker is the mechanism that enforces that).
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "src"
+packages = ["maker5m"]
+strict = true
+warn_unreachable = true
+warn_return_any = true
+disallow_any_explicit = false
+no_implicit_reexport = true
+enable_error_code = ["redundant-expr", "truthy-bool", "ignore-without-code"]

@@ -423,8 +423,44 @@ def test_config_rejects_incoherent_regime_parameters() -> None:
         dataclasses.replace(base, endgame_band=ShareUnits(0))
     with pytest.raises(StrategyError):
         dataclasses.replace(base, band_hard=ShareUnits(0))
-    with pytest.raises(StrategyError):
-        dataclasses.replace(base, band_hard=sh("20"))  # inside the 30-share tilt
+
+
+def test_config_enforces_no_unsourced_relationship_between_the_regime_parameters() -> None:
+    """The endgame gate and the hard band are independent controls (Canonical §32).
+
+    A ``band_hard`` at or below ``endgame_tilt`` is unusual and not a recommended production
+    setting, but nothing in the frozen sources forbids it, so the config must not.
+    """
+    config = dataclasses.replace(default_config(), band_hard=sh("20"))
+    assert config.band_hard == sh("20")
+    assert config.endgame_tilt == DEFAULT_ENDGAME_TILT
+    assert config.band_hard < config.endgame_tilt
+
+
+def test_an_unusual_config_may_legitimately_suppress_both_sides() -> None:
+    """Regression for the removed constraint.
+
+    favourite UP, tilt 30, band 5, band_hard 20, I = +20:
+
+    * the hard band blocks UP because ``I >= band_hard``;
+    * the endgame gate blocks DOWN because ``distance = -10`` is not ``> -5``.
+
+    Empty desired orders is a deterministic strategy result here, not an error, and must not
+    be turned back into a configuration failure.
+    """
+    config = dataclasses.replace(default_config(), band_hard=sh("20"))
+    state = state_with_inventory("20", offset_s=250, bid="0.70", ask="0.72")
+    result = StrategyEngine(config).decide(state)
+
+    assert result.telemetry.endgame is not None
+    assert result.telemetry.endgame.favourite is Outcome.UP
+    assert result.telemetry.endgame.distance_to_target == sh("-10")
+    assert result.orders.is_empty
+    assert result.telemetry.eligibility.up_reasons == (EligibilityReason.HARD_BAND,)
+    assert result.telemetry.eligibility.down_reasons == (EligibilityReason.ENDGAME_GATE,)
+    # The candidate quote was still computed; only emission was suppressed.
+    assert result.telemetry.candidate_up_size is not None
+    assert result.telemetry.candidate_down_size is not None
 
 
 def test_config_has_no_skew_knobs() -> None:

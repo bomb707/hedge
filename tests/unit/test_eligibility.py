@@ -129,13 +129,13 @@ def test_both_gates_block_the_same_side_and_both_reasons_are_recorded() -> None:
     )
 
 
-def test_both_sides_blocked_for_different_reasons_is_unreachable_with_a_sane_config() -> None:
-    """A property worth recording rather than a case worth faking.
+def test_both_sides_are_never_blocked_at_once_under_the_production_defaults() -> None:
+    """A property of the default numbers, not a rule the engine enforces.
 
-    The hard band can only bite on one side at a time, and the endgame gate's two strict
-    inequalities cannot both fail at once. Blocking UP needs ``I >= band_hard`` or
-    ``I >= target + band``; blocking DOWN needs ``I <= -band_hard`` or ``I <= target - band``.
-    With ``band_hard > tilt`` enforced by StrategyConfig, no inventory satisfies one of each.
+    With ``tilt = 30``, ``band = 5``, and ``band_hard = 100`` the hard band can only bite on
+    one side at a time, and the gate's two strict inequalities cannot both fail. That is a
+    consequence of these particular values -- it is **not** a constraint the configuration
+    imposes, and other explicitly configured combinations may suppress both sides.
     """
     from maker5m.domain import Outcome
     from maker5m.strategy import DEFAULT_ENDGAME_BAND, DEFAULT_ENDGAME_TILT, endgame_target
@@ -157,6 +157,26 @@ def test_both_sides_blocked_for_different_reasons_is_unreachable_with_a_sane_con
             assert result.up_allowed or result.down_allowed, (
                 f"both sides blocked at I={inventory} with favourite {favourite}"
             )
+
+
+def test_both_sides_can_be_blocked_under_an_unusual_explicit_configuration() -> None:
+    """band_hard 20 with tilt 30 and band 5, at I = +20 with an UP favourite.
+
+    Nothing in the frozen sources forbids this combination, so eligibility must express it
+    rather than the configuration rejecting it.
+    """
+    result = evaluate_eligibility(
+        quoting_phase=True,
+        centre_available=True,
+        inventory=sh("20"),
+        band_hard=sh("20"),
+        endgame_up_allowed=True,
+        endgame_down_allowed=False,  # distance = 20 - 30 = -10, not > -5
+    )
+    assert not result.up_allowed
+    assert not result.down_allowed
+    assert result.up_reasons == (EligibilityReason.HARD_BAND,)
+    assert result.down_reasons == (EligibilityReason.ENDGAME_GATE,)
 
 
 def test_reasons_are_typed_not_free_text() -> None:

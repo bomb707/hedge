@@ -63,6 +63,9 @@ class StrategyConfig:
     Deliberately small. A knob added "because it might be useful later" is one nobody has
     justified against the frozen sources, and each widens the space of behaviours a replay
     has to account for.
+
+    Validation is limited to what the sources actually establish: each regime parameter must
+    be positive. No relationship *between* them is enforced, because none is stated.
     """
 
     quote_centre: QuoteCentre
@@ -87,12 +90,12 @@ class StrategyConfig:
             )
         if self.band_hard <= 0:
             raise StrategyError(f"band_hard must be positive, got {self.band_hard}")
-        if self.band_hard <= self.endgame_tilt:
-            raise StrategyError(
-                f"band_hard ({self.band_hard}) must exceed endgame_tilt "
-                f"({self.endgame_tilt}); otherwise the safety wall sits at or inside the "
-                "endgame target and the target could never be reached"
-            )
+        # No relationship between band_hard and endgame_tilt is validated. The frozen sources
+        # treat the endgame gate and the hard band as independent eligibility controls
+        # (Canonical section 32), and requiring band_hard > endgame_tilt would be an
+        # engineering rule of our own invention rather than a strategy rule. An unusual but
+        # explicitly configured combination may legitimately suppress both sides at some
+        # inventory; that is a deterministic strategy result, not corrupted state.
 
 
 def default_config(base_lot: BaseLot | None = None) -> StrategyConfig:

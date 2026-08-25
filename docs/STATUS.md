@@ -182,7 +182,11 @@ P4 coverage highlights:
 - **determinism** — a full-lifecycle stream decided at every event, asserted reproducible as
   a whole trajectory, plus an 18-way config cross-product;
 - **structural absences** — no skew field on `StrategyConfig`, no side/action field on
-  `DesiredOrder`, at most two intents.
+  `DesiredOrder`, at most two intents;
+- **no unsourced config relationship** — `band_hard` and `endgame_tilt` are independent
+  controls (Canonical §32), so no relationship between them is validated. An unusual but
+  explicitly configured combination may legitimately suppress both sides; that is a
+  deterministic strategy result, not corrupted state, and is regression-tested.
 
 ---
 

@@ -380,6 +380,16 @@ class BookTracker:
         """Both sides have an authoritative snapshot. Required before trusting the book."""
         return self.up.snapshot_seen and self.down.snapshot_seen
 
+    def bid_size_at(self, outcome: Outcome, price: PriceUnits) -> ShareUnits:
+        """Displayed bid size at an exact price. The hot-path form of :meth:`size_at`.
+
+        Identical in meaning, minus the side-string validation, because the side is fixed by
+        the method name and cannot be wrong. Shadow queue state consults this on every cycle of
+        a measuring run, and the validation alone cost more than the lookup.
+        """
+        book = self.up if outcome is Outcome.UP else self.down
+        return ShareUnits(book.bids.get(int(price), 0))
+
     def size_at(self, outcome: Outcome, side: str, price: PriceUnits) -> ShareUnits:
         """Displayed size at an exact price on **this outcome's own** ladder.
 

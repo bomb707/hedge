@@ -98,6 +98,16 @@ class IngressMerger:
     def ordinal(self) -> int:
         return self._ordinal
 
+    def advance_ordinal(self) -> int:
+        """Advance the counter without building an event. Offline harnesses only.
+
+        The measurement and benchmark harnesses reduce prepared events directly instead of
+        decoding feed frames, so nothing would otherwise move the ordinal — and a pinned
+        ordinal silently disables deterministic sampling, because ``0 % n == 0`` always holds.
+        """
+        self._ordinal += 1
+        return self._ordinal
+
     @property
     def step_count(self) -> int:
         return len(self.steps)

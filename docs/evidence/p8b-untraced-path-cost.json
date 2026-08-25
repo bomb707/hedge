@@ -1,0 +1,14 @@
+{
+  "components_ns": {
+    "  of_which_bid_size_at_x2": 423.4,
+    "  of_which_count_action_x2": 208.5,
+    "continuity_health_check": 49.9,
+    "sampling_decision": 98.9,
+    "three_perf_counter_reads": 248.8,
+    "two_side_state_loop_total": 1569.6
+  },
+  "note": "Best-of-rounds nanoseconds per call. Components of the work an UNSAMPLED cycle still performs in a measuring run. The state loop cannot be sampled away without making the queue estimate depend on the sampling rate.",
+  "repeats": 100000,
+  "rounds": 7,
+  "sum_of_top_level_ns": 1967.2
+}

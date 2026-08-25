@@ -79,7 +79,7 @@ production.
 | Current branch | `feature/p7-execution` |
 | Venue-tick correction | `55977f4` — `fix: update current venue tick capabilities` |
 | P7 boundary commit | `de96681` — `feat: add post-only execution reconciler` |
-| P7 concurrency correction | recorded by the immediately following commit on `fix/p7-concurrent-dispatch` |
+| P7 concurrency correction | `d333aeb` — `fix: dispatch independent outcome orders concurrently` |
 | Last accepted milestone | P6 — read-only market-data adapters (`6a50794`, tip `d6851a4`) |
 | Next milestone | **P8 — Queue and latency instrumentation** |
 | `main` | `d6851a4` — fast-forwarded to the accepted P6 HEAD, pushed |

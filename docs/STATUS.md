@@ -23,7 +23,7 @@ an agent.
 |---|---|
 | **Current phase** | **P2 — MarketState + event contracts + phase machine** |
 | Current branch | `feature/p2-market-state-events` |
-| P2 boundary commit | recorded by the immediately following commit on this branch |
+| P2 boundary commit | `fcd8ddf` — `feat: add deterministic market state and event model` |
 | Last accepted milestone | P1 — fixed-point numeric kernel + exact accounting (`89f7178`, tip `3966978`) |
 | Next milestone | **P3 — Strategy core: Up-space + grid sizing** (blocked on O04, see below) |
 | `main` | `3966978` — fast-forwarded to the accepted P1 HEAD, pushed. No history rewritten |

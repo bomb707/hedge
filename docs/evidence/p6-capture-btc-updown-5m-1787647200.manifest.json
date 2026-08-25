@@ -1,0 +1,87 @@
+{
+  "byte_roundtrip_identical": true,
+  "clock_health": {
+    "last_offset_ns": -14195696,
+    "max_abs_offset_ns": 1789583548,
+    "samples": 128453
+  },
+  "counters": {
+    "clob_best_bid_ask": 0,
+    "clob_books": 3612,
+    "clob_last_trade_price": 1697,
+    "clob_messages": 125477,
+    "clob_price_changes": 118814,
+    "clob_tick_size_changes": 0,
+    "clob_unhandled": 0,
+    "malformed": 0,
+    "pongs": 33,
+    "reconnects": 0,
+    "spot_messages": 4330,
+    "telemetry_dropped": 0,
+    "unhandled_kinds": {}
+  },
+  "end_ns": 1787647500000000000,
+  "event_kinds": {
+    "BookUpdate": 122426,
+    "HealthEvent": 3614,
+    "PhaseEvent": 4,
+    "SpotTick": 4330
+  },
+  "final_state_matches": true,
+  "journal_bytes": 193408732,
+  "market_id": "0x24e323ca050a43d27c06db59f4a901be5178c5338c55aab664ce258c8ab8f024",
+  "phases": [
+    "DONE",
+    "ENDGAME",
+    "PREARM",
+    "QUOTE",
+    "SETTLING"
+  ],
+  "prearm": {
+    "next_t0_ns": 1787647500000000000,
+    "ready_ns": 1787647106462345912,
+    "slack_ns": 393537654088,
+    "slug": "btc-updown-5m-1787647500"
+  },
+  "precision": {
+    "binance_price": {
+      "examples": {
+        "8": "80025.99000000"
+      },
+      "label": "binance_price",
+      "max_decimals": 8,
+      "min_decimals": 8,
+      "samples": 4713
+    },
+    "polymarket_price": {
+      "examples": {
+        "0": "1",
+        "1": "0.1",
+        "2": "0.01"
+      },
+      "label": "polymarket_price",
+      "max_decimals": 2,
+      "min_decimals": 0,
+      "samples": 1083100
+    },
+    "polymarket_size": {
+      "examples": {
+        "0": "18951",
+        "1": "505.2",
+        "2": "95192.18"
+      },
+      "label": "polymarket_size",
+      "max_decimals": 2,
+      "min_decimals": 0,
+      "samples": 603198
+    }
+  },
+  "provenance": "LIVE_PAPER",
+  "replay_steps": 130374,
+  "replay_verified": true,
+  "sha256": "c550aafd9d355215961b6fe09d1b129b2118f0948a5f2a25598d88f5138db52e",
+  "slug": "btc-updown-5m-1787647200",
+  "steps": 130374,
+  "t0_ns": 1787647200000000000,
+  "venue_tick_changes": 0
+}

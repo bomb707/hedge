@@ -313,17 +313,18 @@ size exactly — the finest, `0.0001`, is `100` price units, leaving two decimal
 headroom below it. Frozen in `src/maker5m/numeric/scales.py`; the two-decimal submission
 quantisation lives separately in `numeric/ticks.py` and is never applied to a ledger input.
 
-### Residual requirement — still open, owned by P6
+### Residual requirement — **COMPLETED in P6** (2026-08-25)
 
 > Verify real `btc-updown-5m-*` messages against the frozen scales before live execution.
 
-The evidence above is upstream implementation constants, not observed traffic for this
-specific market universe. P6 must confirm against recorded messages that (a) no fill or book
-message carries more than six decimals of size or price, and (b) no market in the universe
-uses a tick outside the documented set. The kernel already enforces this at runtime: a
-non-representable value raises `NotRepresentableError` rather than rounding, so a wrong
-assumption surfaces as a halt rather than as silent ledger corruption. That guard is what
-makes it safe to proceed to P2 before the traffic check is done.
+P6 ran the check against real captured `btc-updown-5m-*` traffic. Every observed price and
+size is exactly representable by the frozen six-decimal scales; the observed precisions and
+tick sizes are recorded in `STATUS.md` under the P6 capture evidence, and asserted by
+`tests/feeds/test_exactness_o10.py` against committed real fixtures.
+
+The check is not a one-off audit: `maker5m.feeds.exactness` runs it on **every** parsed
+message, raising `ExactnessError` rather than rounding, so a future venue change surfaces as
+a halt instead of silent ledger corruption.
 
 ---
 
@@ -347,46 +348,60 @@ makes it safe to proceed to P2 before the traffic check is done.
 
 ## O12 — BTC spot fixed-point scale
 
-- **Status:** OPEN · BLOCKING for P6 · raised in P2
-- **Source:** derived requirement — Canonical §24.2 (external pricing state); P2 event
-  contracts
+- **Status:** **CLOSED — self-describing representation retained** (P6, 2026-08-25)
+- **Source:** derived requirement — Canonical §24.2; P2 event contracts
 
-### Why it exists
+### Why this item existed
 
-`PriceUnits` cannot carry a BTC price: it is a probability constrained to `[0, 1]`. External
-spot needs its own exact fixed-point representation, and that representation needs a scale.
+`PriceUnits` is a probability constrained to `[0, 1]` and cannot carry a BTC price. P2 needed
+an exact representation and this repository held no evidence for the external feed's
+precision, so freezing a global scale would have repeated the failure O10 exists to prevent.
+P2 therefore made `BtcPrice` self-describing and deferred the question here.
 
-This repository holds **no authoritative evidence** for the precision of the external BTC
-feed — nothing equivalent to the published `COLLATERAL_TOKEN_DECIMALS` and tick set that
-closed O10. Freezing a scale from a guess would repeat exactly the failure O10 existed to
-prevent: a scale too coarse for a real feed value either rounds the input silently, which
-corrupts every downstream comparison, or halts the bot in production.
+### Evidence
 
-### What P2 did instead of guessing
+Official metadata, `GET https://api.binance.com/api/v3/exchangeInfo?symbol=BTCUSDT`, captured
+2026-08-25 (fixture `tests/feeds/fixtures/binance_exchangeinfo.json`):
 
-`maker5m.market.btc_price.BtcPrice` is **self-describing**: it carries its own
-`scale_decimals` alongside its integer units. That keeps every value exact and float-free
-while leaving the scale question genuinely open. Comparison across two different scales
-normalises exactly rather than comparing raw integers, which would be meaningless.
+```text
+PRICE_FILTER.tickSize = "0.01000000"      minPrice = "0.01000000"
+quotePrecision        = 8                 baseAssetPrecision = 8
+```
 
-The same type carries the market strike, which is the same kind of quantity.
+Live messages, `wss://stream.binance.com:9443/ws/btcusdt@aggTrade`, same date (fixture
+`tests/feeds/fixtures/binance_aggtrade.json`, plus the full capture run):
 
-Parsing goes through the one strict parser in the project
-(`maker5m.numeric.units.parse_fixed_point`), so a feed value with more precision than the
-chosen scale raises `NotRepresentableError` rather than rounding — the same fail-closed
-property that makes a wrong scale surface as a halt instead of as silent corruption.
+```text
+price field `p` is a decimal string, e.g. "80190.01000000"
+observed decimals: 8 in every sampled message (trailing zeros, tick is 0.01)
+```
 
-### What must remain configurable
+Every captured value round-trips exactly through `BtcPrice`, asserted by
+`tests/feeds/test_binance_adapter.py`.
 
-The scale itself, per feed. Nothing in the deterministic core assumes a value.
+### Decision — **A. keep the self-describing representation**
 
-### Closing experiment
+`BtcPrice(units, scale_decimals)` stays permanent. This is a *closure*, not a deferral: a
+dynamic exact representation is the answer, because
 
-Sample real Binance (or whichever external feed is selected) BTC messages and determine the
-maximum decimal precision actually used for price. Then decide, explicitly, whether to
-promote `BtcPrice` to a single frozen global scale — which would be cheaper per event and is
-the right end state — or to keep it self-describing because more than one feed is in play.
-Promoting it is a contract change that requires a replay-journal version bump.
+* precision is **symbol metadata**, not a global constant — `tickSize` and `quotePrecision`
+  come from `exchangeInfo` and differ per symbol, so any hard-coded scale would be wrong for
+  the next symbol or the next venue;
+* the feed sends decimal strings, so the exact precision is available in the message itself;
+  deriving the scale from the string is exact by construction and cannot silently round;
+* a frozen scale would have to be chosen large enough for every future feed, which is the
+  same guess this item existed to avoid.
+
+**This is explicitly not "a fixed BTC scale was found".** The finding is that the value's
+precision is data, so the representation carries it.
+
+### Residual
+
+None for the representation. A different external feed may of course publish different
+precision; the adapter derives the scale per message, so that requires no change — only a
+fixture and a conformance test for the new source.
+
+---
 
 ---
 
@@ -463,6 +478,62 @@ a different centre source changes how often ties even occur.
 
 ---
 
+## O14 — Strike chaining is unverified; no strike is published
+
+- **Status:** OPEN · raised in P6 · blocks any strategy component that needs the strike
+- **Source:** Canonical §6.2 (`coinPriceStart[N] == coinPriceEnd[N-1]`), §21; observed public
+  Polymarket metadata, 2026-08-25
+
+### The finding
+
+The frozen strategy states that the strike is chained from the previous window, and treats
+that as what makes pre-arm possible. **The public metadata publishes neither field.**
+
+Checked on live `btc-updown-5m-*` markets, both the Gamma event payload and the CLOB market
+payload: no `coinPriceStart`, no `coinPriceEnd`, and no strike field under any other name.
+What the metadata *does* say is how resolution works:
+
+```text
+cryptoMarketConfig = {"id": "btc-5m-twap-60", "asset": "btc", "duration": "5m",
+                      "twapEnabled": true, "twapLookbackSeconds": 60}
+```
+
+and the market description: resolves UP if the Chainlink BTC/USD **TWAP over the window** is
+at or above *the price at the beginning of that range*. So a reference price certainly exists
+— it is simply not exposed as a queryable field on either public endpoint.
+
+Two things follow, and they are worth separating:
+
+* the 60-second TWAP settlement of Canonical §7 is **corroborated by live venue metadata**
+  (`twapLookbackSeconds: 60`), which is a genuine confirmation;
+* the *chaining relationship* of Canonical §6.2 is **unverified**. It may well hold, but
+  nothing observable here demonstrates it.
+
+### What P6 did about it
+
+Nothing was fabricated. `MarketDefinition.strike` is left `None` and
+`DiscoveredMarket.strike_available` is `False`. Deriving a strike from the previous market's
+outcome would be inventing a number the venue never published, and a wrong strike would feed
+straight into any future fair-value model.
+
+Pre-arm does not depend on it: token ids, `T0`, venue rules, and subscriptions are all
+resolvable ahead of time, which is what the opening seconds actually need.
+
+### What must remain configurable
+
+The strike source. Nothing may assume the strike is available, and nothing may assume the
+chaining relationship until it is demonstrated.
+
+### Closing experiment
+
+Read the Chainlink BTC/USD TWAP data stream named as the resolution source, sample the
+reference price at successive window boundaries, and test whether market `N`'s reference
+equals market `N-1`'s final value. That closes both the availability question and the
+chaining question, and is a prerequisite for any centre model that needs the strike (O01
+option 2, O02).
+
+---
+
 ## Summary table
 
 | ID | Item | Status | Blocking |
@@ -476,7 +547,8 @@ a different centre source changes how often ties even occur.
 | O07 | Fee / rebate calibration | OPEN | — |
 | O08 | Latency distribution for queue dominance | OPEN | — |
 | O09 | Spot-to-next-CLOB-level timing model | OPEN | — |
-| O10 | Venue precision / numeric scale | **CLOSED for kernel** (P6 traffic check open) | — |
+| O10 | Venue precision / numeric scale | **CLOSED** (kernel + P6 live traffic check) | — |
 | O11 | Authoritative resolution source | OPEN | P10 |
-| O12 | BTC spot fixed-point scale | OPEN | **P6** |
+| O12 | BTC spot fixed-point scale | **CLOSED** — self-describing representation retained | — |
 | O13 | Quote-centre tick tie-breaking | OPEN | — (reference policy in use) |
+| O14 | Strike chaining unverified / no strike published | OPEN | strike-dependent models |

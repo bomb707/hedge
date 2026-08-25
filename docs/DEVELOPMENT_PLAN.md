@@ -177,6 +177,12 @@ plus `INVARIANTS.md` and `STATUS.md`.
 - **Acceptance gate:** a full 5-minute market recorded end-to-end and replayed
   deterministically; pre-arm completes before `T0` with no discovery work in the opening
   seconds.
+- **Contracts established here** (see `ARCHITECTURE_SSOT` §4.1): ingress-time semantics, the
+  single ordinal assigner, pre-arm warming without pre-`T0` events, conservative continuity
+  with mandatory resnapshot, and the venue-tick/strategy-tick separation.
+- **The gate needs real traffic.** Adapter code passing its tests is the implementation gate;
+  the acceptance gate additionally requires an actual captured market verified by P5. Without
+  network access this phase reports IMPLEMENTATION COMPLETE / LIVE ACCEPTANCE UNRUN.
 - **Out of scope:** any order submission, keys, signing. Read-only network only.
 
 ---

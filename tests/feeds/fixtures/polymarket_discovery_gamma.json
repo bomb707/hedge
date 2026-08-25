@@ -1,0 +1,41 @@
+{
+  "_captured_at_utc": "2026-08-25T08:32:12Z",
+  "_endpoint": "https://gamma-api.polymarket.com/events?slug=btc-updown-5m-1787646600",
+  "_fixture_kind": "REAL_PUBLIC_FIXTURE",
+  "_note": "market object trimmed to fields discovery uses",
+  "_source": "Polymarket Gamma API",
+  "event": {
+    "markets": [
+      {
+        "clobTokenIds": "[\"16067591591534838917781712043471599434119894752068375883666083452810776699004\", \"5908517634376406977793380599294404989517705809203672181382338120555544448498\"]",
+        "conditionId": "0x4c714382761a143180fbf555d29a442689e7f37f31c4d2951b3d90fe63c6188b",
+        "cryptoMarketConfig": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "endDate": "2026-08-25T08:35:00Z",
+        "eventStartTime": "2026-08-25T08:30:00Z",
+        "feeSchedule": {
+          "exponent": 1,
+          "rate": 0.07,
+          "rebateRate": 0.2,
+          "takerOnly": true
+        },
+        "feeType": "crypto_fees_v2",
+        "feesEnabled": true,
+        "makerBaseFee": 1000,
+        "orderMinSize": 5,
+        "orderPriceMinTickSize": 0.01,
+        "outcomes": "[\"Up\", \"Down\"]",
+        "question": "Bitcoin Up or Down - August 25, 4:30AM-4:35AM ET",
+        "slug": "btc-updown-5m-1787646600",
+        "takerBaseFee": 1000
+      }
+    ],
+    "slug": "btc-updown-5m-1787646600",
+    "title": "Bitcoin Up or Down - August 25, 4:30AM-4:35AM ET"
+  }
+}

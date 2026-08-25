@@ -1,0 +1,46 @@
+{
+  "_captured_at_utc": "2026-08-25T08:32:12Z",
+  "_endpoint": "https://clob.polymarket.com/markets/0x4c714382761a143180fbf555d29a442689e7f37f31c4d2951b3d90fe63c6188b",
+  "_fixture_kind": "REAL_PUBLIC_FIXTURE",
+  "_source": "Polymarket CLOB REST",
+  "market": {
+    "accepting_orders": true,
+    "active": true,
+    "closed": false,
+    "condition_id": "0x4c714382761a143180fbf555d29a442689e7f37f31c4d2951b3d90fe63c6188b",
+    "maker_base_fee": 1000,
+    "market_slug": "btc-updown-5m-1787646600",
+    "minimum_order_size": 5,
+    "minimum_tick_size": 0.01,
+    "question": "Bitcoin Up or Down - August 25, 4:30AM-4:35AM ET",
+    "rewards": {
+      "max_spread": 4.5,
+      "min_size": 50,
+      "rates": null
+    },
+    "tags": [
+      "Crypto",
+      "Bitcoin",
+      "Crypto Prices",
+      "Recurring",
+      "Up or Down",
+      "Hide From New",
+      "5M"
+    ],
+    "taker_base_fee": 1000,
+    "tokens": [
+      {
+        "outcome": "Up",
+        "price": 0.505,
+        "token_id": "16067591591534838917781712043471599434119894752068375883666083452810776699004",
+        "winner": false
+      },
+      {
+        "outcome": "Down",
+        "price": 0.495,
+        "token_id": "5908517634376406977793380599294404989517705809203672181382338120555544448498",
+        "winner": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "_captured_at_utc": "2026-08-25T08:32:12Z",
+  "_endpoint": "wss://stream.binance.com:9443/ws/btcusdt@aggTrade",
+  "_fixture_kind": "REAL_PUBLIC_FIXTURE",
+  "_source": "Binance public market WebSocket",
+  "_stream": "btcusdt@aggTrade",
+  "_symbol": "BTCUSDT",
+  "messages": [
+    {
+      "E": 1787646732898,
+      "M": true,
+      "T": 1787646732898,
+      "a": 4044280788,
+      "e": "aggTrade",
+      "f": 6615953752,
+      "l": 6615953752,
+      "m": true,
+      "p": "80190.00000000",
+      "q": "0.00027000",
+      "s": "BTCUSDT"
+    },
+    {
+      "E": 1787646733069,
+      "M": true,
+      "T": 1787646733068,
+      "a": 4044280789,
+      "e": "aggTrade",
+      "f": 6615953753,
+      "l": 6615953753,
+      "m": false,
+      "p": "80190.01000000",
+      "q": "0.00022000",
+      "s": "BTCUSDT"
+    },
+    {
+      "E": 1787646733235,
+      "M": true,
+      "T": 1787646733235,
+      "a": 4044280790,
+      "e": "aggTrade",
+      "f": 6615953754,
+      "l": 6615953754,
+      "m": true,
+      "p": "80190.00000000",
+      "q": "0.00024000",
+      "s": "BTCUSDT"
+    }
+  ]
+}

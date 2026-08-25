@@ -7,13 +7,15 @@ commit is the audit trail.
 
 ## LIVE TRADING: DISABLED
 
-No execution path, market-data feeds, credentials, signing material, or venue connectivity
-exist in this repository. `maker5m.safety.LIVE_TRADING_ENABLED` is `False` and is asserted
-by `tests/unit/test_project_skeleton.py`.
+`maker5m.safety.LIVE_TRADING_ENABLED` is `False`. P6 added the first network access, and it is
+**strictly public and read-only**: no order endpoint, no credential, no API key, no wallet
+key, no signing, no write path of any kind. `tests/feeds/test_read_only_guarantees.py` asserts
+this structurally — it scans every module for credential and signing markers, forbids HTTP
+POST, restricts the WebSocket endpoints to the two public market-data streams, checks the
+Polymarket subscription carries no authentication, and forbids reading the environment.
 
-Unlocking is a **P14** decision, gated on the full Canonical §35 acceptance checklist plus
-explicit human authorisation. It is not a configuration knob and must never be flipped by
-an agent.
+Unlocking is a **P14** decision, gated on the full Canonical §35 checklist plus explicit human
+authorisation. It is not a configuration knob.
 
 ---
 
@@ -21,12 +23,11 @@ an agent.
 
 | | |
 |---|---|
-| **Implementation gate** | The code does what this phase specified, and it is proven by tests. |
-| **Empirical replication correctness** | The code does what the *target wallet* did. Only replay against real data can establish this. |
+| **Implementation gate** | The code does what this phase specified, proven by tests. |
+| **Empirical replication correctness** | The code does what the *target wallet* did. Only replay against the wallet's own history can establish that. |
 
-P5 is where the distinction becomes structural rather than rhetorical: the repository now
-contains the machinery that *would* settle the open items, and still contains no data to
-settle them with. Every journal here declares `provenance = SYNTHETIC`.
+P6 adds a third distinction worth keeping separate: capturing our **own** bot's trajectory on
+real market data is not evidence about the target wallet's trajectory.
 
 ---
 
@@ -34,15 +35,15 @@ settle them with. Every journal here declares `provenance = SYNTHETIC`.
 
 | | |
 |---|---|
-| **Current phase** | **P5 — Deterministic replay engine** |
-| P5 replay-engine gate | **PASSED** |
-| Target-wallet empirical replay | **UNRUN / BLOCKED** — only `SYNTHETIC` journals exist |
-| Current branch | `feature/p5-replay` |
-| P5 boundary commit | `ab22f3b` — `feat: add deterministic replay engine` |
-| Preceding correction | `2ee8c21` — `fix: remove unsourced band-target constraint`, on `fix/p4-unsourced-config-constraint` |
-| Last accepted milestone | P4 — endgame decision engine (`41b61af`, tip `15ff368`) |
-| Next milestone | **P6 — Polymarket / BTC market-data adapters** |
-| `main` | `2ee8c21` — fast-forwarded through P4 and then the correction, pushed |
+| **Current phase** | **P6 — Polymarket / BTC market-data adapters** |
+| P6 implementation gate | **PASSED** |
+| P6 live acceptance gate | **PASSED** — two full markets captured read-only and verified by P5 |
+| Target-wallet empirical replay | **UNRUN / BLOCKED** — no reconstructed wallet journal exists |
+| Current branch | `feature/p6-market-data` |
+| P6 boundary commit | recorded by the immediately following commit on this branch |
+| Last accepted milestone | P5 — deterministic replay engine (`ab22f3b`, tip `c8463e3`) |
+| Next milestone | **P7 — Execution state + post-only order reconciler** |
+| `main` | `c8463e3` — fast-forwarded to the accepted P5 HEAD, pushed |
 | Remote | `origin` → `https://github.com/bomb707/hedge.git` |
 
 ### Branch policy
@@ -51,32 +52,10 @@ settle them with. Every journal here declares `provenance = SYNTHETIC`.
 main                                latest ACCEPTED milestone
 feature/<phase>                     active phase development
 fix/<subject>                       accepted corrections, merged forward by fast-forward
-bootstrap/phase-0                   retained P0 boundary
-feature/p1-numeric-accounting       retained P1 boundary
-feature/p2-market-state-events      retained P2 boundary
-feature/p3-strategy-core            retained P3 boundary
-feature/p4-endgame-decision         retained P4 boundary, unchanged
-fix/p4-unsourced-config-constraint  retained correction boundary
+bootstrap/phase-0 … feature/p5-replay   retained milestone boundaries
 ```
 
-Nothing merged by merge commit, rebased, squashed, or force-pushed. `main` advances by
-fast-forward only.
-
----
-
-## The P4 correction
-
-`StrategyConfig` required `band_hard > endgame_tilt`. That is a reasonable engineering
-relationship under the current defaults, but **it is not a strategy rule**: the frozen sources
-treat the endgame gate and the hard band as independent eligibility controls (Canonical §32)
-and state no relationship between their magnitudes.
-
-Removed. Positivity validation for both is kept and no replacement relationship was guessed.
-Production defaults are unchanged (tilt 30, band 5, band_hard 100). An unusual but explicitly
-configured combination may now legitimately suppress both sides — a deterministic strategy
-result, not corrupted state — and that is regression-tested with the documented case
-(favourite UP, tilt 30, band 5, `band_hard` 20, `I = +20`). The eligibility test that claimed
-both sides can never be blocked at once is rescoped to a property *of the default numbers*.
+Nothing merged by merge commit, rebased, squashed, or force-pushed.
 
 ---
 
@@ -84,75 +63,151 @@ both sides can never be blocked at once is rescoped to a property *of the defaul
 
 | Blocker | Blocks | Detail |
 |---|---|---|
-| **No reconstructed target-wallet journal** | **L1, L2-empirical, and O04's closure** | The single missing artefact. P5 built the machinery that consumes it. |
-| **O12** — BTC spot fixed-point scale unknown | **P6** | No authoritative evidence for external-feed precision. `BtcPrice` is self-describing, so nothing is frozen. |
+| **No reconstructed target-wallet journal** | **L1, L2-empirical, O04's closure** | The single missing artefact. P5 built the machinery, P6 proved it works on real data — but only on *our* bot's trajectory. |
+| **O14** — strike chaining unverified, no strike published | any strike-dependent model (O01 option 2, O02) | New in P6, see below. |
 | **O11** — authoritative resolution source unnamed | P10 | Both sources say "prefer on-chain" without naming a source, depth, or timeout. |
 
-Nothing blocks P6.
+`O12` and the residual half of `O10` are now **closed**. The P5 STATUS said both "O12 blocks
+P6" and "nothing blocks P6"; the accurate statement was **P6 could start but could not pass
+its gate until O12 was closed from real feed evidence**. It has been.
+
+Nothing blocks P7.
 
 ---
 
 ## Open strategy items
 
-Full detail in [`OPEN_ITEMS.md`](OPEN_ITEMS.md). **P5 closed none and added none.**
+Full detail in [`OPEN_ITEMS.md`](OPEN_ITEMS.md).
 
 ```text
 O01 quote-centre source            OPEN      O08 latency for queue dominance OPEN
 O02 volatility sigma               OPEN      O09 spot-to-CLOB timing model   OPEN
-O03 base-lot L selection rule      OPEN      O10 venue precision / scales    CLOSED for kernel
+O03 base-lot L selection rule      OPEN      O10 venue precision / scales    CLOSED (kernel + live traffic)
 O04 grid-target selection          OPEN      O11 resolution source           OPEN
-O05 endgame tilt magnitude         FITTED    O12 BTC spot scale              OPEN * (P6)
+O05 endgame tilt magnitude         FITTED    O12 BTC spot scale              CLOSED (self-describing kept)
 O06 endgame gate magnitude         FITTED    O13 tick tie-breaking           OPEN
-O07 fee/rebate calibration         OPEN
+O07 fee/rebate calibration         OPEN      O14 strike chaining unverified  OPEN  (new)
 ```
 
-Synthetic replay closes nothing. The sweep runner can now produce a reproducible trajectory
-per candidate for O01, O03, O04, O05, O06, and O13 — but choosing between trajectories needs
-an empirical objective, and there is none yet. That is why `run_sweep` deliberately returns
-no score and no ranking.
+**P6 closed O10 and O12 from real evidence, and closed nothing else.** A live journal of our
+own bot's decisions says nothing about which strategy parameter the target wallet used, so
+O04 in particular is untouched.
+
+### O12 — closed: the self-describing representation is kept
+
+Not "a fixed BTC scale was found". Binance publishes `PRICE_FILTER.tickSize = "0.01000000"`
+and `quotePrecision = 8` **per symbol**, and sends prices as decimal strings; 4 357 live
+messages all carried 8 decimals and every one round-trips exactly through `BtcPrice`. Because
+precision is symbol metadata rather than a global constant, deriving the scale from the string
+is exact by construction and a frozen global scale would just be the guess this item existed
+to avoid.
+
+### O14 — new: the strike is not published, and chaining is unverified
+
+Canonical §6.2 states `coinPriceStart[N] == coinPriceEnd[N-1]`. **Neither field exists** in the
+Gamma event payload or the CLOB market payload. Resolution is a Chainlink BTC/USD TWAP over
+the window against "the price at the beginning of that range" — a reference price that is
+real but not exposed as a queryable field.
+
+So `MarketDefinition.strike` is left `None` and `strike_available` is `False`. Nothing was
+fabricated; a wrong strike would feed straight into any future fair-value model. Pre-arm does
+not need it.
+
+Separately, and in the other direction: the venue's own `cryptoMarketConfig` reads
+`{"twapEnabled": true, "twapLookbackSeconds": 60, "duration": "5m"}`, which **corroborates the
+60-second TWAP settlement of Canonical §7** from live metadata.
 
 ---
 
-## What P5 delivered
+## What P6 delivered
 
-- **Versioned journal** — schema version 1, checked on decode; a header record plus one
-  record per step.
-- **Canonical codec** — UTF-8 NDJSON, sorted keys, compact separators, ASCII output, `\n`
-  endings. **No floats**: the encoder refuses one. Enums by explicit stable value; no `repr`,
-  `pickle`, class paths, or object identities. Optional values always present, explicitly
-  `null`.
-- **Byte contract** — `decode(encode(j)) == j` and `encode(decode(b)) == b`, byte for byte,
-  verified on a 39-step / 58 581-byte journal.
-- **Complete config snapshot** — every behaviour-affecting P1-P4 choice, so a replay can
-  never depend on what today's defaults are. A test asserts the encoded config covers every
-  declared `StrategyConfig` field, so adding a field without a codec entry fails.
-- **Provenance** — a required header field. No journal here is anything but `SYNTHETIC`, and
-  a test asserts that.
-- **Recorder** — runs `reduce_event` (P2) and `StrategyEngine.decide` (P4) **unchanged**, with
-  the frozen ordering: reduce the event, *then* decide.
-- **Verifier** — compares the **complete** `DecisionResult` after every event and fails at the
-  *first* divergence with step index, event id, and ingress ordinal.
-- **Sweep runner** — deterministic, non-mutating, and explicitly not a scorer.
-- **Architectural guard** — a static test proves `market/`, `accounting/`, `strategy/`, and
-  `numeric/` cannot import `maker5m.replay`, and that no `replay_mode` / `is_replay` switch
-  exists in any of them.
+- **Polymarket market-data adapter** — public WebSocket, `book` / `price_change` /
+  `tick_size_change` / `best_bid_ask` / `last_trade_price`, documented `PING`/`PONG`
+  heartbeat, bounded exponential backoff with jitter.
+- **External BTC adapter** — Binance `btcusdt@aggTrade`. Chosen because its `p` field is a
+  single exact traded price; `bookTicker` was rejected because deriving one `SpotTick` from a
+  bid and an ask needs a midpoint rule, and inventing one silently would be an unrecorded
+  normalisation decision.
+- **Ingress clock** — wall-anchored monotonic, so it is wall-aligned *and* immune to a
+  backwards NTP step. `EventMeta.timestamp` is **synchronized local ingress time**, never a
+  venue timestamp; venue stamps stay in feed diagnostics.
+- **Single ingress merger** — the only assigner of `ingress_ordinal`, so there is exactly one
+  legal production event order for P5 to replay.
+- **Discovery and pre-arm** — the `btc-updown-5m-<T0>` slug is addressable directly and the
+  next market exists well before it starts. Fails closed on zero or ambiguous matches.
+- **Phase scheduler** — boundary events at exactly `T0+3 / +240 / +280 / +300`, through the
+  same merger, so a quiet market still crosses phases on time.
+- **Conservative continuity** — no venue sequence is invented; any disconnect, malformed
+  message, unknown token, or resubscription drops the book and requires a fresh snapshot.
+- **Venue rules kept separate from strategy** — `tick_size_change` is recorded, never applied
+  to `MarketDefinition.tick`.
+- **O10 guard on every message** — a non-representable value raises rather than rounds.
 
-### Synthetic corpus
+### One real bug the live run found
 
-39 events spanning all five phases and all six event types: multiple book updates, spot
-ticks, fractional partial fills on both sides, order-state events, health events, phase
-events, and a timestamp tie broken only by ingress ordinal. The centre crosses `0.5` in both
-directions so ENDGAME sees both favourites, including the exact-`0.50` case (DOWN by A1) and
-the raw-`0.504`-quantizes-to-`0.50` case (UP). The mandatory accounting example — 120 UP at
-$72, 100 DOWN at $50 → `−$2` / `−$22` — is reached exactly through real fills and holds
-across steps 22–30.
+`MarketState.initial` parks the state clock at `T0`, so the first pre-arm event — arriving
+*before* `T0` — was rejected as a decreasing timestamp. Fixed without touching P2: messages
+before `T0` are consumed and applied to the book trackers but produce no Plane 2 event. That
+is what pre-arm is for (Canonical §21) — at `T0` the book is already warm and no discovery
+work remains — and it keeps P5 able to rebuild the identical initial state from the header
+alone. Integration surfacing this is exactly why the phase exists.
 
-### O04 divergence, demonstrated
+---
 
-Sweeping the one corpus under both grid policies produces two different decision
-trajectories, differing in `candidate_down_size` while `candidate_up_size` always agrees —
-exactly the shape O04 describes. Reproducible across repeated runs and across A→B→A ordering.
-**This demonstrates the machinery, not which policy is right.**
+## Live capture evidence
+
+Two consecutive full markets, captured read-only and verified end to end by the P5 engine.
+
+| | primary | second |
+|---|---|---|
+| slug | `btc-updown-5m-1787647500` | `btc-updown-5m-1787647200` |
+| decision steps | 108 617 | 130 374 |
+| phases covered | all five | all five |
+| `BookUpdate` / `SpotTick` / `HealthEvent` / `PhaseEvent` | 102 296 / 4 111 / 2 206 / 4 | 122 426 / 4 330 / 3 614 / 4 |
+| CLOB messages · price_changes · books | 104 298 · 100 092 · 2 204 | — |
+| PONGs · reconnects · malformed · unhandled | 33 · 0 · 0 · 0 | — |
+| venue `tick_size_change` observed | **4** | 0 |
+| **P5 verified every decision** | **yes** | **yes** |
+| **final state matches** | **yes** | **yes** |
+| **canonical bytes round-trip identical** | **yes** | **yes** |
+| pre-arm slack before next `T0` | 500.5 s | 462.6 s |
+
+Observed precision, all within the frozen six-decimal scales:
+
+```text
+polymarket price   0-3 decimals   829,146 samples   finest example "0.001"
+polymarket size    0-2 decimals   425,320 samples   finest example "95259.64"
+binance  price     8 decimals       4,357 samples   e.g. "80099.79000000"
+```
+
+Clock health: 107 458 samples, max absolute offset 2.745 s against venue source timestamps
+(network latency plus venue clock; measured, never corrected).
+
+### The journals are stored outside Git
+
+Every step records the **complete** `DecisionResult`, which is deliberate — a decision can be
+wrong in its centre or eligibility while the emitted order looks identical — so the canonical
+journal runs about 1.5 kB per step. A single market is 150–200 MB, which does not belong in
+Git history.
+
+```text
+path        /home/hr/p6-captures/btc-updown-5m-1787647500.journal.ndjson
+bytes       159,464,961
+sha256      dbd436b4d2bb46c23182390256e07ff8712246d311c83b52ecb08048e717d3aa
+steps       108,617
+
+path        /home/hr/p6-captures/btc-updown-5m-1787647200.journal.ndjson
+bytes       193,408,732
+sha256      see docs/evidence/p6-capture-btc-updown-5m-1787647200.manifest.json
+steps       130,374
+
+reproduce   .venv/bin/python tools/capture_market.py <output-directory>
+```
+
+These are on a single machine's local disk and are **not** durable artefacts. The committed
+manifests in [`docs/evidence/`](evidence/) are the record; the journals themselves are
+regenerable by the command above. P11 owns durable telemetry persistence, and the per-step
+size is a real input to that design.
 
 ---
 
@@ -161,19 +216,22 @@ exactly the shape O04 describes. Reproducible across repeated runs and across A�
 | | |
 |---|---|
 | Status | **green** |
-| Suite | 690 passed (608 at the P4 boundary; +82 in P5, including the correction) |
-| `ruff check` | clean |
-| `ruff format --check` | clean, 93 files |
-| `mypy` (strict) | clean, 86 files — `src/` and `tests/` |
+| Suite | 896 passed (690 at the P5 boundary; +206 in P6) |
+| `ruff check` / `ruff format --check` | clean |
+| `mypy` (strict) | clean — `src/`, `tests/`, `tools/` |
+| Runtime dependencies | one: `websockets`. HTTP discovery uses the standard library. |
 
-Tamper coverage, all fail-closed: changed fill amount, changed ordinal, changed timestamp
-(across a phase boundary), tampered recorded decision, tampered telemetry with an identical
-order, unknown event tag, unknown enum value, unknown schema version, unsupported centre
-component, unsupported base-lot selector, missing field, unexpected extra field, boolean
-where an integer belongs, misplaced step index, header that is not a header, invalid JSON,
-missing trailing newline, empty input, non-bytes input, invalid UTF-8, and a logically
-invalid decoded value. A separate test proves verification fails at the **first** divergence
-when two steps are tampered.
+Real-message conformance fixtures under `tests/feeds/fixtures/`, all labelled
+`REAL_PUBLIC_FIXTURE` with capture date, source, endpoint, and market/symbol identity:
+Polymarket `book`, `price_change`, `last_trade_price`, Gamma and CLOB discovery excerpts,
+Binance `aggTrade` and `exchangeInfo`.
+
+**Two documented event types have no raw fixture.** `tick_size_change` and `best_bid_ask` are
+sporadic — four tick changes occurred in one captured market and none in the other, and a
+further three-minute targeted listen caught neither. Their handling is unit-tested against the
+documented shape, and the live capture proves the `tick_size_change` path runs on real traffic
+(the manifest records four of them). That is weaker than a raw fixture and is recorded as such
+rather than glossed over; a fixture should be added opportunistically.
 
 ---
 
@@ -182,21 +240,23 @@ when two steps are tampered.
 Canonical §34.
 
 ```text
-L0  arithmetic                 PASSED   (P1 - full L0 suite green)
+L0  arithmetic                 PASSED
 L1  historical reconstruction  BLOCKED  (needs target-wallet ledger data, not in repo)
-L2  offline replay             ENGINE PASSED / EMPIRICAL UNRUN
-L3  live paper                 not started  (P13)
+L2  offline replay             ENGINE PASSED (now on real data) / TARGET-WALLET EMPIRICAL UNRUN
+L3  live paper                 not started  (P13 - sustained validation programme)
 L4  minimum-size live          not started  (P14)
 ```
 
 **L1 remains UNRUN and is not relabelled.**
 
-**L2 is split deliberately.** The replay *engine* is proven: recorded journals round-trip
-byte-identically and every recorded decision is reproduced exactly by the production code
-path. The *empirical* half of Canonical §34-L2 — reproducing the target wallet's behaviour —
-is **UNRUN**, because every journal in this repository is `SYNTHETIC`. Synthetic data proves
-the machinery works and proves nothing about the wallet. It is not passed and it is not
-waived.
+**L2 stays split.** The replay engine is now proven against 239 k real decision steps rather
+than only synthetic ones — a genuine strengthening. The *empirical* half of Canonical §34-L2,
+reproducing the **target wallet's** behaviour, is still **UNRUN**: these journals record our
+own bot's decisions, not the wallet's history.
+
+P6's capture is labelled `LIVE_PAPER` — real market data, no real orders. That is the accurate
+provenance, and it is not the same as P13, which is the sustained live-paper *validation
+programme* over ≥200 markets.
 
 ---
 

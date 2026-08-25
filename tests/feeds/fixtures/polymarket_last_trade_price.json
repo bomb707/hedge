@@ -1,0 +1,23 @@
+{
+  "_captured_at_utc": "2026-08-25T08:31:48Z",
+  "_condition_id": "0x4c714382761a143180fbf555d29a442689e7f37f31c4d2951b3d90fe63c6188b",
+  "_down_token_id": "5908517634376406977793380599294404989517705809203672181382338120555544448498",
+  "_endpoint": "wss://ws-subscriptions-clob.polymarket.com/ws/market",
+  "_event_type": "last_trade_price",
+  "_fixture_kind": "REAL_PUBLIC_FIXTURE",
+  "_market_slug": "btc-updown-5m-1787646600",
+  "_source": "Polymarket CLOB market WebSocket",
+  "_topic": "market",
+  "_up_token_id": "16067591591534838917781712043471599434119894752068375883666083452810776699004",
+  "message": {
+    "asset_id": "16067591591534838917781712043471599434119894752068375883666083452810776699004",
+    "event_type": "last_trade_price",
+    "fee_rate_bps": "0",
+    "market": "0x4c714382761a143180fbf555d29a442689e7f37f31c4d2951b3d90fe63c6188b",
+    "price": "0.37",
+    "side": "BUY",
+    "size": "2.702701",
+    "timestamp": "1787646678133",
+    "transaction_hash": "0x5848f0bb1688347fd6addb78dcf4900deb83dfb04c3c79d54b77db0507b4eb00"
+  }
+}

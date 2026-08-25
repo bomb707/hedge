@@ -274,15 +274,17 @@ Owns the market lifecycle and is the top-level event pump.
 - Must never: do discovery work inside the opening seconds of a market; make strategy
   decisions.
 
-### MarketData — Plane 1
-- `PolymarketBookFeed` — streaming book maintenance, sequence tracking, gap detection.
-  REST is for recovery and reconciliation only, never the main live path (Canonical §22).
-- `BinanceSpotFeed` — external BTC spot, consumed asynchronously and immediately; on the
-  decision path (I11).
-- `ClockSynchronizer` — monotonic clock for intervals, drift monitoring against exchange
-  timestamps; drift beyond threshold is a kill-switch input.
+### MarketData — Plane 1  *(built P6)*
+- Polymarket market WebSocket (`book`, `price_change`, `tick_size_change`, `best_bid_ask`),
+  with the documented `PING`/`PONG` application heartbeat. REST is used for discovery and
+  recovery only, never as the steady-state path (Canonical §22).
+- Binance `@aggTrade` for external BTC spot, consumed asynchronously and on the decision
+  path (I11).
+- `IngressClock` — wall-anchored monotonic time; drift measured, never corrected.
 - Must never: block on decode, allocate per-tick dataframes, or hand mutable buffers to
   Plane 2.
+- Strictly **read-only**: no order endpoint, credential, wallet key, or signing exists in
+  this plane or anywhere it imports. Execution begins at P7.
 
 ### StrategyEngine — Plane 2 (pure)
 `decide(state) -> DesiredOrders`. The single place the strategy exists.
@@ -355,6 +357,44 @@ Owns the market lifecycle and is the top-level event pump.
   (e.g. halt, resume, kill-switch) that enqueues a control event into the ordered stream —
   never a direct mutation of trading state.
 - Must never: hold a lock, or be required for trading to run.
+
+### §4.1 Market-data contracts  *(established P6)*
+
+**`EventMeta.timestamp` is synchronized local ingress time**, not a venue timestamp. The
+strategy reacts when data is *received*, and P2 requires a non-decreasing stamp. The clock is
+wall-anchored once and advanced monotonically:
+
+```text
+ingress = wall_anchor + (monotonic_now - mono_anchor)
+```
+
+so it is wall-aligned (phase boundaries derive from a market's `T0`) and immune to a
+backwards NTP step. Drift from true wall time is **measured, never corrected** — correcting
+mid-run would reintroduce the backwards jump this design exists to prevent. Venue timestamps
+are kept in feed diagnostics and never enter Plane 2 state.
+
+**One merger assigns every ordinal.** No feed numbers its own events; two counters could not
+be interleaved into one legal order, and P5 replay depends on there being exactly one.
+
+**Pre-arm warms state; the market's stream begins at `T0`.** `MarketState.initial` parks the
+state clock at `T0`, so an event stamped earlier would violate the non-decreasing contract.
+Messages arriving before `T0` are therefore consumed and applied to the book trackers but
+produce no Plane 2 event — which is exactly what pre-arm is for (Canonical §21): at `T0` the
+strategy already has a warm book and no discovery work remains.
+
+**Continuity is handled conservatively.** Polymarket publishes no documented monotonic
+sequence — the payloads carry `timestamp` and `hash`, neither with defined continuity
+semantics — so `BookUpdate.sequence` stays `None` and nothing is fabricated into it. Instead
+any disconnect, heartbeat failure, malformed message, unknown token, or resubscription marks
+the stream unhealthy, **drops the book**, and requires a fresh authoritative snapshot before
+it is trusted again. Reconnect never reorders: recovered data takes the next ordinal, and
+history is never spliced backwards into an already-consumed stream.
+
+**Venue tick is not strategy tick.** The venue's announced `tick_size` / `tick_size_change` is
+its currently legal order-price increment, recorded in `VenueMarketRules` for P7's
+submission-legality checks. It never mutates `MarketDefinition.tick`: the replica quotes on
+its documented `0.01` grid unless an empirical strategy revision says otherwise. They happen
+to coincide today; that is not relied upon.
 
 ---
 

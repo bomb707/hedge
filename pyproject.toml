@@ -10,9 +10,12 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "Proprietary" }
 
-# No runtime dependencies. Phase 0 is documentation, contracts, and skeleton only.
-# Dependencies are added by the phase that genuinely needs them (see docs/DEVELOPMENT_PLAN.md).
-dependencies = []
+# One runtime dependency, added by P6 because it genuinely needs it: a maintained WebSocket
+# client for the two public market-data streams. HTTP discovery uses the standard library, so
+# no HTTP client is pulled in. Nothing here is a heavy SDK, ORM, broker, or dataframe library.
+dependencies = [
+  "websockets>=13",
+]
 
 [project.optional-dependencies]
 dev = [

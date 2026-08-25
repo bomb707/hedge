@@ -220,3 +220,188 @@ comparable to P8C's isolated measurement and are shown only for continuity.
 Sampled cycles (+1,360 ns, +4.1%) and always-traced cycles legitimately cost more, and are
 reported separately rather than averaged in. No limit was moved.
 
+## Full real market — `btc-updown-5m-1787663400`
+
+| Field | Value |
+| --- | --- |
+| Market id | `0x1f7c9d8819f6695e6ab3dbdfffe017c75df9da38e600041d1613fcba12f0d630` |
+| Run (UTC) | 2026-08-25T13:15:14Z |
+| `live_trading_enabled` | **false** |
+| Orders sent to any venue | **0** |
+| Credentials used | none — no key, no signing, no authenticated socket, no write endpoint |
+| Cycles | 204,440 |
+| Journal steps | 210,570 |
+| Feed | 201,200 CLOB + 7,428 spot messages; 0 malformed, 0 unhandled, 0 reconnects |
+| Raw data | `p8c-measurement-btc-updown-5m-1787663400.json` |
+
+### Observation stream
+
+| Metric | Value |
+| --- | ---: |
+| Captured | 204,440 |
+| Buffer capacity | 320,000 |
+| **Dropped** | **0** |
+| Gaps seen downstream | **0** |
+| Observations lost downstream | **0** |
+| Cycles with stage timing | 20,440 (**10.0%**, sampling is 1-in-10) |
+| Retained memory | ≈124 MiB at 638 bytes per observation |
+
+Zero drops and zero gaps, which is the acceptance requirement: the analysis covers the entire
+market with no interval whose queue continuity had to be abandoned.
+
+The 10.0% is worth stating plainly, because the *first* P8C market run got this wrong. See
+"A defective run, retained" below.
+
+### Execution actions (exact, every cycle)
+
+| Action | Count |
+| --- | ---: |
+| `KEEP` | 201,049 |
+| `BLOCKED` | 173,215 |
+| `NOTHING` | 31,616 |
+| `PLACE` | 1,500 |
+| `REPLACE` | 902 |
+| `CANCEL` | 598 |
+| `WAIT` | 0 |
+
+**`keep_ratio` = 0.99259** — 201,049 keeps over 202,549 cycles that had a live order.
+
+### Queue (`SHADOW_ESTIMATE`)
+
+| Metric | Value |
+| --- | ---: |
+| Shadow slots acquired | **1,500** |
+| Shadow slot-cycles kept | 201,049 |
+| Shadow slot losses | **1,500** |
+| — `PRICE_CHANGE` | 902 |
+| — `UNSAFE_REPLACEMENT` | 591 |
+| — `DESIRED_WITHDRAWN` | 7 |
+| Slots still open at end | 0 |
+| `execution_queue_loss_actions` | 1,500 (`PRICE_CHANGED` 902, `UNSAFE_REPLACEMENT` 591, `DESIRED_WITHDRAWN` 7) |
+
+Slots acquired equals `PLACE` actions exactly (1,500), which is the defining property of the
+corrected lifecycle: a slot exists only where an order was dispatched. Both loss totals
+reconcile exactly to their typed reasons, and the two metrics remain reported apart.
+
+| Queue metric | n | p50 | p90 | p95 | p99 | max |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `queue_ahead` (share units) | 22,108 | 0 | 87,710,000 | 166,250,000 | 433,580,000 | 1,189,590,000 |
+
+In shares: p50 **0**, p90 **88**, p95 **166**, p99 **434**, max **1,190**.
+
+### Execution quality (sampled cycles)
+
+| Quality | Count | Rate |
+| --- | ---: | ---: |
+| `NOT_QUOTING` | 22,850 | 50.9% |
+| `AT_FRONT` | 16,540 | 36.8% |
+| `PRICE_OK_BUT_DEEP` | 5,568 | 12.4% |
+| `OFF_PRICE` | **0** | 0% |
+| `STALE` | **0** | 0% |
+
+| Reason | Count |
+| --- | ---: |
+| `QUOTING` | 22,108 |
+| **`POST_ONLY_BLOCK`** | **18,291** |
+| `NO_LIVE_ORDER` | 902 |
+| `PHASE_NOT_QUOTING` | 926 |
+| `ENDGAME_GATE` | 2,535 |
+| `CENTRE_UNAVAILABLE` | 196 |
+
+`OFF_PRICE` is zero for the structural reason recorded in P8B: shadow acknowledgement is
+instantaneous, so no order can rest at a stale price while a replacement is in flight. It is
+reachable and unit-tested at the classifier, and producing it in a run needs real dispatch
+latency (P13/P14). `STALE` is zero because continuity held for the whole market — 0 reconnects,
+0 malformed messages, 0 telemetry gaps.
+
+**The `POST_ONLY_BLOCK` finding stands and is still not acted on.** `BLOCKED` covers
+**173,215 of 408,880 sides (42.4%)**, consistent with P8B's 41.4%. No spread was introduced.
+
+### Critical-path latency (ns, sampled cycles)
+
+| Stage | n | p50 | p90 | p95 | p99 | max |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `spot_receive_to_decide` | 749 | 85,991 | 270,015 | 329,812 | 463,995 | 846,859 |
+| `clob_receive_to_decide` | 19,687 | 153,319 | 501,558 | 614,399 | 1,182,158 | 193,168,078 |
+| `phase_receive_to_decide` | 4 | 98,708 | 315,296 | 315,296 | 315,296 | 315,296 |
+| `fill_receive_to_decide` | **0** | — | — | — | — | — |
+| `decide_duration` | 20,440 | 47,827 | 151,531 | 173,795 | 241,600 | 193,105,703 |
+| `prepare_duration` | 20,440 | 15,585 | 50,649 | 59,944 | 89,756 | 2,069,076 |
+| `reconcile_duration` | 20,440 | **11,154** | 34,859 | 38,195 | 50,298 | 167,910 |
+| `receive_to_reconcile` | 20,440 | 178,857 | 584,808 | 698,643 | 1,218,561 | 193,205,335 |
+| `keep_cycle` | 1,227 | 150,327 | 526,234 | 740,071 | 1,760,416 | 3,793,918 |
+| `acting_cycle` | 241 | 172,714 | 578,872 | 732,683 | 1,077,926 | 2,139,321 |
+
+`real_order_rtt`: **UNRUN — deferred to P14.** Absent, not estimated. All values come from
+`time.perf_counter_ns()` alone; no exchange timestamp is subtracted from a local one.
+
+### O15 holds across three markets
+
+| `reconcile_duration` p50 | P8 (pre-fix) | P8B | P8C |
+| --- | ---: | ---: | ---: |
+| ns | 171,659 | 14,882 | **11,154** |
+
+Reconciliation remains the smallest stage on the critical path, below `decide` (47,827) and
+`prepare` (15,585). The occupancy index was not touched in this round and its regression suite
+runs unchanged; the standalone benchmark still reports a slope of **0.0 ns per retained order**
+against 260.9 for the original scan.
+
+## A defective run, retained
+
+The first P8C market run — `btc-updown-5m-1787662800`, 153,762 cycles, retained as
+`p8c-measurement-SUPERSEDED-btc-updown-5m-1787662800.json` — produced stage timings for **126
+cycles instead of ~15,400**. Nothing raised and nothing failed; the latency evidence was simply
+almost empty, and the number was small enough to be easy to skim past.
+
+The cause was making the same decision twice. The hot path asked the sampler with
+`meta.ingress_ordinal`; the analyzer asked again with the observation's ordinal. `next_meta`
+assigns an ordinal and *then* increments, so those differ by one, and at `sample_every = 10`
+the two answers could essentially never agree. Only cycles that were also acting — and
+therefore traced regardless — survived. That is exactly the 126.
+
+Whether a cycle was sampled is now a captured fact, read from the observation rather than
+re-derived, so there is one source of truth and no second opinion. The regression test asserts
+the arithmetic that would have caught it: on a KEEP-dominated corpus, cycles with stage timing
+must land within 50% of `cycles / sample_every`. Restoring the off-by-one fails it and four
+others.
+
+That run's queue, action, and quality results were unaffected — none of them depend on stage
+timing — and they agree with the corrected run. It is retained anyway.
+
+## Buffer sizing, resized twice
+
+| Market | Cycles | Capacity at the time | Fill |
+| --- | ---: | ---: | ---: |
+| `…1787652900` | 137,752 | — | — |
+| `…1787658900` | 117,772 | — | — |
+| `…1787662800` | 153,762 | 160,000 | 96% |
+| `…1787663400` | 204,440 | 220,000 | 93% |
+
+Each bound set from the busiest market *so far* was nearly filled by the next. The capacity is
+now **320,000**, set from the busiest observed plus a little over half again (≈195 MiB at the
+bound, ≈124 MiB for the market above). Markets vary by nearly 2× in cycle count, and a bound
+sized to the last one is a bound about to be discovered the hard way.
+
+Overflow is not silent: the oldest observations are dropped, the count is visible, and the
+analyzer independently sees the sequence gap and marks queue confidence `STALE`.
+
+## Reproducing
+
+```bash
+.venv/bin/python tools/measure_market.py <output-directory>   # waits for the next T0, ~10 min
+.venv/bin/python tools/instrumentation_overhead.py            # paired, interleaved, tiered
+.venv/bin/python tools/decide_overhead_isolated.py            # process-isolated decide
+.venv/bin/python tools/untraced_path_cost.py                  # unsampled capture breakdown
+.venv/bin/python tools/live_order_lookup_bench.py             # O15 before/after
+.venv/bin/python tools/queue_semantics_snapshot.py            # the equivalence snapshot
+```
+
+All read-only. `LIVE_TRADING_ENABLED` is `False` and no code path in any of these tools can
+reach a venue write endpoint.
+
+## Open items
+
+**O08 remains OPEN. O09 remains OPEN.** The latency distribution is measurable and the queue
+model is correct, but neither question can be settled without real resting orders, which P8
+does not place. **O15 remains CLOSED.** No strategy open item was created for the telemetry
+architecture: it is an engineering concern, not a question about the reconstructed strategy.

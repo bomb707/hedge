@@ -176,10 +176,10 @@ def test_a_stale_estimate_stops_reading_as_at_front() -> None:
 
 
 def test_the_default_capacity_covers_a_measured_market_with_room() -> None:
-    """The busiest market actually measured produced 153,762 cycles."""
-    assert DEFAULT_OBSERVATION_CAPACITY >= int(153_762 * 1.25), "too little headroom"
+    """Measured markets have run 117,772, 153,762, and 204,440 cycles."""
+    assert int(204_440 * 1.25) <= DEFAULT_OBSERVATION_CAPACITY, "too little headroom"
     # And it is bounded, not effectively infinite: ~638 bytes retained per observation.
-    assert DEFAULT_OBSERVATION_CAPACITY * 638 < 192 * 1024 * 1024
+    assert DEFAULT_OBSERVATION_CAPACITY * 638 < 256 * 1024 * 1024
 
 
 def test_one_observation_is_small() -> None:

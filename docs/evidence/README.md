@@ -1,3 +1,21 @@
+# Evidence index
+
+| Document | Phase | Status |
+| --- | --- | --- |
+| `p6-capture-*.manifest.json` | P6 | valid |
+| [`P8-MEASUREMENT.md`](P8-MEASUREMENT.md) | P8, first run | **queue metrics SUPERSEDED** |
+| [`P8B-MEASUREMENT.md`](P8B-MEASUREMENT.md) | P8, correction 1 | **valid correctness evidence; performance gate failed** |
+| [`P8C-PERFORMANCE-CLOSURE.md`](P8C-PERFORMANCE-CLOSURE.md) | P8, correction 2 | **final performance closure** |
+
+Superseded documents are retained and labelled rather than deleted. A measurement that turned
+out to be wrong is part of the record of how the right one was reached, and removing it would
+leave the history reading as though the first answer had been correct.
+
+Files named `*-SUPERSEDED-*` are runs kept for the same reason; each is explained in the
+manifest that replaced it.
+
+---
+
 # P6 capture evidence
 
 Machine-readable evidence for the P6 acceptance gate. Each manifest describes one **real,

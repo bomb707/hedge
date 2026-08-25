@@ -101,19 +101,26 @@ OBS_ELIGIBILITY: Final = 15
 OBS_FILL: Final = 16
 """``(outcome, client_order_id, fully_filled)`` for a shadow fill, else ``None``."""
 
-DEFAULT_OBSERVATION_CAPACITY: Final[int] = 220_000
-"""Sized from evidence, not from a round number.
+DEFAULT_OBSERVATION_CAPACITY: Final[int] = 320_000
+"""Sized from evidence, and resized twice as the evidence arrived.
 
-The busiest market measured produced 153,762 cycles, and one observation retains 638 bytes —
-the tuple plus the reconcile plan it references. So this bound costs about 134 MiB and leaves
-43% headroom. An earlier 160,000 was set from a 117,772-cycle market and a later one filled it
-to 96%; a bound with 4% of room left is a bound about to be discovered the hard way.
+Measured markets have run 117,772, 153,762, and 204,440 cycles. Each bound set from the busiest
+market *so far* was nearly filled by the next one — 160,000 reached 96%, 220,000 reached 93% —
+so this one is set from the busiest observed plus a little over half again.
 
-A larger buffer is not free in a way that matters: retained object graphs are what the garbage
-collector walks, and disabling GC in the steady-state benchmark cut the instrumented p99 tail
-roughly in half. Extracting the plan's fields into the tuple instead of referencing it was
-measured at 315 bytes per observation for about +100 ns of capture — a trade worth revisiting
-in P11, which owns continuous draining, and unnecessary for P8's one bounded market.
+One observation retains 638 bytes, the tuple plus the reconcile plan it references, so the bound
+costs about 195 MiB. That is a real amount of memory for a five-minute measurement harness, and
+the way to reduce it is known and measured: extracting the plan's fields into the tuple instead
+of referencing it costs 315 bytes per observation for about +100 ns of capture. P11 owns
+continuous draining and should take that trade; P8 analyses one bounded market and does not
+need to.
+
+Overflow is not silent. The oldest observations are dropped, the count is visible, and the
+analyzer independently sees the sequence gap and marks queue confidence STALE.
+
+Retained graphs are also what the garbage collector walks: disabling GC in the steady-state
+benchmark cut the instrumented p99 tail roughly in half, which is the other reason the bound
+matters and is not merely a memory ceiling.
 """
 
 

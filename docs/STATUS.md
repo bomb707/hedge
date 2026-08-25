@@ -127,6 +127,38 @@ Hot-path capture is now **347 ns** on an unsampled cycle, from ~1,970 ns. Sample
 GC-dominated — disabling GC halved the instrumented p99 delta — and that is stated rather than
 smoothed away.
 
+### Confirmed on a full real market
+
+`btc-updown-5m-1787663400`, **204,440 cycles**, `live_trading_enabled: false`, **0 orders
+sent**, **0 observation drops**, **0 gaps**, 0 malformed feed messages, 0 reconnects.
+
+```text
+observations captured / capacity   204,440 / 320,000     zero dropped, zero lost
+cycles with stage timing            20,440 = 10.0%       sampling is 1-in-10
+keep_ratio                         0.99259
+shadow slots acquired                1,500               = PLACE actions exactly
+shadow slot losses                   1,500               reconciles to typed reasons
+reconcile_duration p50              11,154 ns            O15 holds; smallest stage
+receive_to_reconcile p50           178,857 ns
+queue_ahead                        p50 0, p95 166, p99 434 shares
+BLOCKED                    173,215 of 408,880 sides (42.4%)
+```
+
+`OFF_PRICE` is 0 structurally — instantaneous shadow acknowledgement means no order can rest at
+a stale price while a replacement is in flight. `STALE` is 0 because continuity held throughout.
+The `POST_ONLY_BLOCK` finding is unchanged and still **not acted on**; no spread was introduced.
+
+### One defective run, retained
+
+The first P8C market produced stage timings for **126 cycles instead of ~15,400**, and nothing
+raised. The sampling decision was being made twice — once on the hot path with
+`meta.ingress_ordinal`, once downstream with the observation's ordinal — and `next_meta`
+increments after assigning, so at `sample_every = 10` the two answers could essentially never
+agree. Whether a cycle was sampled is now a captured fact rather than a recomputation, and a
+regression test asserts the arithmetic that would have caught it. That run is retained as
+`p8c-measurement-SUPERSEDED-*`; its queue and action results were unaffected and agree with the
+corrected run.
+
 ---
 
 ## P8 correction: shadow queue lifecycle, O15, and telemetry overhead

@@ -97,6 +97,36 @@ def test_plane2_module_imports_nothing_impure(path: Path) -> None:
     )
 
 
+def test_plane2_never_imports_the_replay_engine() -> None:
+    """Replay depends on the deterministic core, never the reverse.
+
+    A strategy that could import replay would invite a "replay-aware strategy" architecture,
+    and the whole value of replay is that it drives the *production* code object unchanged
+    (invariant I20).
+    """
+    for path in _python_files():
+        roots = _imported_roots(path)
+        text = path.read_text(encoding="utf-8")
+        assert "maker5m.replay" not in text, (
+            f"{path.name} references maker5m.replay; Plane 2 must not depend on the replay "
+            f"engine. See docs/ARCHITECTURE_SSOT.md section 7."
+        )
+        assert "replay" not in roots
+
+
+def test_no_replay_mode_branch_exists_in_plane2() -> None:
+    """There must be no code path that behaves differently under replay.
+
+    Replay and production run the same reducer and the same decide(); a flag that switched
+    behaviour would make a recorded journal prove nothing about production.
+    """
+    forbidden = ("replay_mode", "is_replay", "in_replay", "replaying")
+    for path in _python_files():
+        text = path.read_text(encoding="utf-8")
+        for name in forbidden:
+            assert name not in text, f"{path.name} contains a replay-mode switch: {name!r}"
+
+
 def test_guard_covers_every_plane2_package() -> None:
     for pkg in PLANE2_PACKAGES:
         assert (SRC / pkg).is_dir(), f"Plane 2 package missing from the tree: {pkg}"

@@ -572,6 +572,53 @@ Requirements this places on the code:
 `ReplayRecorder` and the replay harness must round-trip: recording a replay must produce a
 byte-identical journal. That property is the P5 acceptance gate.
 
+### §7.1 Journal contract  *(established P5)*
+
+Canonical UTF-8 NDJSON: one header record, then one record per step, `\n` after every line
+including the last. `json.dumps` with `sort_keys=True`, compact separators, and
+`ensure_ascii=True`, so the bytes cannot vary with insertion order, whitespace, locale, or
+encoding. **No floats anywhere** — the encoder rejects one rather than writing it. Enums are
+written as their explicit stable values; no `repr`, no `pickle`, no class paths, no object
+identities. Optional values are always present and explicitly `null`, so "recorded as
+nothing" is distinguishable from "this build forgot to write it".
+
+```text
+decode(encode(journal)) == journal
+encode(decode(bytes))   == bytes        byte for byte
+```
+
+The decoder **fails closed** on an unknown schema version, unknown event tag, unknown enum
+value, missing field, unexpected field, or an unsupported strategy component. A journal is
+evidence; a decoder that guessed would turn it into fiction.
+
+### §7.2 The config snapshot is complete  *(established P5)*
+
+The header carries the **entire** strategy configuration — centre component, base-lot
+selector, grid policy, grid rounding, tick rounding, and all three regime magnitudes — never
+a reference to whatever this build's defaults happen to be. A journal recorded under
+`OBSERVED_ADJACENT` must still replay under `OBSERVED_ADJACENT` after the default changes,
+or every O01/O03/O04/O05/O06/O13 comparison would drift silently with the code.
+
+Every header also declares its **provenance** (`SYNTHETIC` / `RECONSTRUCTED` / `LIVE_PAPER` /
+`LIVE`). The difference matters enormously and is invisible in the data, so it is a required
+field rather than an assumption. No journal in this repository is anything but `SYNTHETIC`.
+
+### §7.3 Verified replay vs parameter sweep  *(established P5)*
+
+Two operations that must never be conflated:
+
+* **verified replay** re-derives every decision from the journal's *own* recorded config and
+  compares the **complete** `DecisionResult` after each event, failing at the *first*
+  divergence with the step index, event id, and ingress ordinal. Comparing only the emitted
+  order would miss a decision that is wrong in its centre, its eligibility reasons, or its
+  economics while the order happens to look identical;
+* **parameter sweep** re-derives decisions under a *different* config and compares nothing,
+  because a candidate config is expected to decide differently.
+
+The sweep produces trajectories and **does not score or rank them**. Judging one requires an
+empirical objective measured against real data, which does not exist yet; a ranking derived
+from synthetic journals would look like evidence and be none.
+
 ---
 
 ## §8 Module map
@@ -587,7 +634,7 @@ src/maker5m/
     strategy/       up-space, centre, quantization, prices, base lot, grid   [P3 DONE]
                     config, endgame, eligibility, decision, engine.decide()   [P4 DONE]
     accounting/     LedgerState, Fill, settlement, Term1/Term2 decomposition  [P1 DONE]
-    replay/         journal format, replay harness, parameter sweeps          [P5]
+    replay/         schema, canonical codec, recorder, verifier, sweeps       [P5 DONE]
     feeds/          Polymarket book feed, Binance spot feed, clock            [P6]
     execution/      PostOnlyGuard, LiveOrderTable, reconciler, rate limiter   [P7]
     risk/           hard band, staleness, consistency, kill switch            [P9]

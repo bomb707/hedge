@@ -148,6 +148,14 @@ plus `INVARIANTS.md` and `STATUS.md`.
   and reproducible result; no strategy branch keyed on "am I replaying".
 - **Acceptance gate:** byte-identical round-trip on a non-trivial journal, and the replayed
   decision stream matches the recorded one exactly.
+- **Contracts established here** (see `ARCHITECTURE_SSOT` §7.1-§7.3): the canonical journal
+  byte contract, the complete config snapshot, the required provenance field, and the
+  separation of verified replay from parameter sweep. P6 onwards must not re-litigate them.
+- **The engine gate and the empirical gate are different things.** Passing this phase proves
+  the replay machinery reproduces decisions exactly. It says nothing about which strategy
+  parameters match the target wallet, because only `SYNTHETIC` journals exist. Canonical
+  §34-L2 empirical reproduction stays **UNRUN** until a `RECONSTRUCTED` or `LIVE_PAPER`
+  journal exists.
 - **Out of scope:** live feeds, real journals from the venue (synthetic journals only at
   this stage).
 

@@ -22,10 +22,11 @@ an agent.
 | | |
 |---|---|
 | **Implementation gate** | The code does what this phase specified, and it is proven by tests. |
-| **Empirical replication correctness** | The code does what the *target wallet* did. Only replay or live evidence can establish this. |
+| **Empirical replication correctness** | The code does what the *target wallet* did. Only replay against real data can establish this. |
 
-A green suite is evidence of the first and **no evidence at all** of the second. P4 makes
-this sharpest: `decide()` now composes six unresolved or fitted choices at once.
+P5 is where the distinction becomes structural rather than rhetorical: the repository now
+contains the machinery that *would* settle the open items, and still contains no data to
+settle them with. Every journal here declares `provenance = SYNTHETIC`.
 
 ---
 
@@ -33,28 +34,49 @@ this sharpest: `decide()` now composes six unresolved or fitted choices at once.
 
 | | |
 |---|---|
-| **Current phase** | **P4 — ENDGAME controller + strategy decision engine** |
-| P4 implementation gate | **PASSED** |
-| P4 empirical replication | **UNPROVEN** — composes O01, O03, O04, O05, O06, O13 at reference/fitted settings |
-| Current branch | `feature/p4-endgame-decision` |
-| P4 boundary commit | `41b61af` — `feat: add endgame strategy decision engine` |
-| Last accepted milestone | P3 — strategy pricing and grid core (`32703aa`, tip `1e5f549`) |
-| Next milestone | **P5 — Deterministic replay engine** |
-| `main` | `1e5f549` — fast-forwarded to the accepted P3 HEAD, pushed |
+| **Current phase** | **P5 — Deterministic replay engine** |
+| P5 replay-engine gate | **PASSED** |
+| Target-wallet empirical replay | **UNRUN / BLOCKED** — only `SYNTHETIC` journals exist |
+| Current branch | `feature/p5-replay` |
+| P5 boundary commit | recorded by the immediately following commit on this branch |
+| Preceding correction | `2ee8c21` — `fix: remove unsourced band-target constraint`, on `fix/p4-unsourced-config-constraint` |
+| Last accepted milestone | P4 — endgame decision engine (`41b61af`, tip `15ff368`) |
+| Next milestone | **P6 — Polymarket / BTC market-data adapters** |
+| `main` | `2ee8c21` — fast-forwarded through P4 and then the correction, pushed |
 | Remote | `origin` → `https://github.com/bomb707/hedge.git` |
 
 ### Branch policy
 
 ```text
-main                            latest ACCEPTED milestone
-feature/<phase>                 active phase development
-bootstrap/phase-0               retained P0 boundary
-feature/p1-numeric-accounting   retained P1 boundary
-feature/p2-market-state-events  retained P2 boundary
-feature/p3-strategy-core        retained P3 boundary
+main                                latest ACCEPTED milestone
+feature/<phase>                     active phase development
+fix/<subject>                       accepted corrections, merged forward by fast-forward
+bootstrap/phase-0                   retained P0 boundary
+feature/p1-numeric-accounting       retained P1 boundary
+feature/p2-market-state-events      retained P2 boundary
+feature/p3-strategy-core            retained P3 boundary
+feature/p4-endgame-decision         retained P4 boundary, unchanged
+fix/p4-unsourced-config-constraint  retained correction boundary
 ```
 
-Nothing merged, rebased, squashed, or force-pushed. `main` advances by fast-forward only.
+Nothing merged by merge commit, rebased, squashed, or force-pushed. `main` advances by
+fast-forward only.
+
+---
+
+## The P4 correction
+
+`StrategyConfig` required `band_hard > endgame_tilt`. That is a reasonable engineering
+relationship under the current defaults, but **it is not a strategy rule**: the frozen sources
+treat the endgame gate and the hard band as independent eligibility controls (Canonical §32)
+and state no relationship between their magnitudes.
+
+Removed. Positivity validation for both is kept and no replacement relationship was guessed.
+Production defaults are unchanged (tilt 30, band 5, band_hard 100). An unusual but explicitly
+configured combination may now legitimately suppress both sides — a deterministic strategy
+result, not corrupted state — and that is regression-tested with the documented case
+(favourite UP, tilt 30, band 5, `band_hard` 20, `I = +20`). The eligibility test that claimed
+both sides can never be blocked at once is rescoped to a property *of the default numbers*.
 
 ---
 
@@ -62,94 +84,75 @@ Nothing merged, rebased, squashed, or force-pushed. `main` advances by fast-forw
 
 | Blocker | Blocks | Detail |
 |---|---|---|
-| **O04** — the two sources give different DOWN-side grid targets | P3/P4 empirical correctness | Both readings run through `decide()` and produce different DOWN sizes (`16.37` vs `1.37` at the worked example). The fingerprint provably cannot arbitrate. Closes only on replay evidence. |
+| **No reconstructed target-wallet journal** | **L1, L2-empirical, and O04's closure** | The single missing artefact. P5 built the machinery that consumes it. |
 | **O12** — BTC spot fixed-point scale unknown | **P6** | No authoritative evidence for external-feed precision. `BtcPrice` is self-describing, so nothing is frozen. |
 | **O11** — authoritative resolution source unnamed | P10 | Both sources say "prefer on-chain" without naming a source, depth, or timeout. |
 
-Nothing blocks P5. Replay is in fact the phase that starts making O01/O04/O05/O06/O13
-closable.
+Nothing blocks P6.
 
 ---
 
 ## Open strategy items
 
-Full detail in [`OPEN_ITEMS.md`](OPEN_ITEMS.md). **P4 closed none and added none.**
+Full detail in [`OPEN_ITEMS.md`](OPEN_ITEMS.md). **P5 closed none and added none.**
 
 ```text
 O01 quote-centre source            OPEN      O08 latency for queue dominance OPEN
 O02 volatility sigma               OPEN      O09 spot-to-CLOB timing model   OPEN
 O03 base-lot L selection rule      OPEN      O10 venue precision / scales    CLOSED for kernel
-O04 grid-target selection          OPEN *    O11 resolution source           OPEN
-O05 endgame tilt magnitude         FITTED    O12 BTC spot scale              OPEN *
+O04 grid-target selection          OPEN      O11 resolution source           OPEN
+O05 endgame tilt magnitude         FITTED    O12 BTC spot scale              OPEN * (P6)
 O06 endgame gate magnitude         FITTED    O13 tick tie-breaking           OPEN
 O07 fee/rebate calibration         OPEN
-
-* blocking a specific later phase
 ```
 
-`endgame_tilt = 30` and `endgame_band = 5` are now live defaults in `StrategyConfig` and
-carry `ParameterStatus.FITTED` in every decision record. Being wired in is not evidence.
+Synthetic replay closes nothing. The sweep runner can now produce a reproducible trajectory
+per candidate for O01, O03, O04, O05, O06, and O13 — but choosing between trajectories needs
+an empirical objective, and there is none yet. That is why `run_sweep` deliberately returns
+no score and no ranking.
 
 ---
 
-## What P4 delivered
+## What P5 delivered
 
-`StrategyEngine.decide(state) -> DecisionResult`, pure and deterministic, composed from the
-P1-P3 components.
+- **Versioned journal** — schema version 1, checked on decode; a header record plus one
+  record per step.
+- **Canonical codec** — UTF-8 NDJSON, sorted keys, compact separators, ASCII output, `\n`
+  endings. **No floats**: the encoder refuses one. Enums by explicit stable value; no `repr`,
+  `pickle`, class paths, or object identities. Optional values always present, explicitly
+  `null`.
+- **Byte contract** — `decode(encode(j)) == j` and `encode(decode(b)) == b`, byte for byte,
+  verified on a 39-step / 58 581-byte journal.
+- **Complete config snapshot** — every behaviour-affecting P1-P4 choice, so a replay can
+  never depend on what today's defaults are. A test asserts the encoded config covers every
+  declared `StrategyConfig` field, so adding a field without a codec entry fails.
+- **Provenance** — a required header field. No journal here is anything but `SYNTHETIC`, and
+  a test asserts that.
+- **Recorder** — runs `reduce_event` (P2) and `StrategyEngine.decide` (P4) **unchanged**, with
+  the frozen ordering: reduce the event, *then* decide.
+- **Verifier** — compares the **complete** `DecisionResult` after every event and fails at the
+  *first* divergence with step index, event id, and ingress ordinal.
+- **Sweep runner** — deterministic, non-mutating, and explicitly not a scorer.
+- **Architectural guard** — a static test proves `market/`, `accounting/`, `strategy/`, and
+  `numeric/` cannot import `maker5m.replay`, and that no `replay_mode` / `is_replay` switch
+  exists in any of them.
 
-- **Lifecycle** — PREARM / SETTLING / DONE emit nothing via a fast path that skips centre,
-  base-lot, and grid work entirely. QUOTE builds the candidate quote. ENDGAME builds the
-  **same** candidate quote and applies its gate on top.
-- **No cancels.** P4 emits intent only; desired-none against a live order becomes a CANCEL
-  in P7's reconciler (I09).
-- **Favourite from the raw centre**, before quantization, by exact rational comparison.
-  `centre == 0.50` → DOWN (A1).
-- **Endgame gate** with strict inequalities, boundaries tested at one unit either side in
-  both favourite directions.
-- **One-sided `band_hard`** — the inward side always stays live, and it never touches a
-  price (I17, A4).
-- **Eligibility by intersection** with a typed `EligibilityReason` enum, feeding Detailed
-  §35's `NOT_QUOTING` classification.
-- **Economics on every decision** — both rebate views, straight from the P1 ledger.
+### Synthetic corpus
 
-### A5 is structural, not just tested
+39 events spanning all five phases and all six event types: multiple book updates, spot
+ticks, fractional partial fills on both sides, order-state events, health events, phase
+events, and a timestamp tie broken only by ingress ordinal. The centre crosses `0.5` in both
+directions so ENDGAME sees both favourites, including the exact-`0.50` case (DOWN by A1) and
+the raw-`0.504`-quantizes-to-`0.50` case (UP). The mandatory accounting example — 120 UP at
+$72, 100 DOWN at $50 → `−$2` / `−$22` — is reached exactly through real fills and holds
+across steps 22–30.
 
-The candidate quote is built before the regime is consulted, so no branch exists in which
-ENDGAME could resize or reprice. Candidates are recorded in telemetry whether or not they
-were emitted, making the invariant checkable from the record.
+### O04 divergence, demonstrated
 
-### No invented economic gate
-
-Canonical §17 says "monitor"; Detailed §28 says "must be visible"; Canonical §32 computes
-the settlement edges and **returns them without gating on them**. No threshold rule exists in
-either source, so none was invented. Recorded as `ARCHITECTURE_SSOT` §10 A10 and asserted by
-a test: a market where both settlement branches are deeply negative still quotes both sides.
-
-### Not present, by design
-
-No `gamma`, no `band_skew`, no skew field of any kind, no flattening path, no SELL / HEDGE /
-MERGE / SPLIT / CONVERT intent — `DesiredOrder` has exactly `{outcome, price, size}` and no
-side field, because there is no other kind of order. No venue, transport, queue, or timing
-data anywhere in the decision record.
-
-### Measured
-
-```text
-decide() case                median
-QUOTE                        16.6 us
-ENDGAME                      20.3 us
-non-quoting (fast path)       9.1 us
-centre unavailable            9.8 us
-```
-
-**Investigated, as the P4 brief requires.** That is ~3.5× the P3 pricing+sizing pass
-(~4.7 µs), and the fast path is floored at ~9 µs despite doing almost no work. The cause is
-not logic: a frozen+slots dataclass assigns every field through `object.__setattr__`, costing
-**~99 ns/field against ~11 ns/field mutable** (measured). The decision record is ~43 field
-assignments across four frozen objects, so ~4-5 µs of every call *is* the immutable record
-itself. Immutability is a hard requirement (I20, single-owner state), and the brief forbids
-weakening validation for benchmark numbers, so nothing was changed. At realistic event rates
-(≤100 Hz) 20 µs is under 0.3 % of one core. Formal latency work remains P8.
+Sweeping the one corpus under both grid policies produces two different decision
+trajectories, differing in `candidate_down_size` while `candidate_up_size` always agrees —
+exactly the shape O04 describes. Reproducible across repeated runs and across A→B→A ordering.
+**This demonstrates the machinery, not which policy is right.**
 
 ---
 
@@ -158,35 +161,19 @@ weakening validation for benchmark numbers, so nothing was changed. At realistic
 | | |
 |---|---|
 | Status | **green** |
-| Suite | 608 passed (472 at the P3 boundary; +136 in P4) |
+| Suite | 690 passed (608 at the P4 boundary; +82 in P5, including the correction) |
 | `ruff check` | clean |
-| `ruff format --check` | clean, 80 files |
-| `mypy` (strict) | clean, 73 files — `src/` and `tests/` |
+| `ruff format --check` | clean, 93 files |
+| `mypy` (strict) | clean, 86 files — `src/` and `tests/` |
 
-P4 coverage highlights:
-
-- **raw-vs-quantized favourite** — the mandatory `0.504 → quantized 0.50 → favourite UP`
-  case, plus its mirror, plus below/at/above a half;
-- **gate boundaries** — every boundary at one unit inside, exactly on, and one unit outside,
-  for both favourite directions, both at the gate function and through `decide()`;
-- **`band_hard`** — one-sided at and beyond the wall in both directions, with a test that the
-  wall never changes a price;
-- **A5** — candidate prices and sizes identical between QUOTE and ENDGAME across seven
-  inventories;
-- **economic regression** — `120 UP / $72`, `100 DOWN / $50` reaches decision telemetry as
-  `−$2` / `−$22` with inventory `+20`, in every phase;
-- **no invented gate** — both branches negative still quotes both sides;
-- **configurability** — the engine runs under both O04 policies (and they still diverge
-  through `decide()`), all three O13 tick policies (which genuinely change the quoted price
-  at a tie), and all three base lots;
-- **determinism** — a full-lifecycle stream decided at every event, asserted reproducible as
-  a whole trajectory, plus an 18-way config cross-product;
-- **structural absences** — no skew field on `StrategyConfig`, no side/action field on
-  `DesiredOrder`, at most two intents;
-- **no unsourced config relationship** — `band_hard` and `endgame_tilt` are independent
-  controls (Canonical §32), so no relationship between them is validated. An unusual but
-  explicitly configured combination may legitimately suppress both sides; that is a
-  deterministic strategy result, not corrupted state, and is regression-tested.
+Tamper coverage, all fail-closed: changed fill amount, changed ordinal, changed timestamp
+(across a phase boundary), tampered recorded decision, tampered telemetry with an identical
+order, unknown event tag, unknown enum value, unknown schema version, unsupported centre
+component, unsupported base-lot selector, missing field, unexpected extra field, boolean
+where an integer belongs, misplaced step index, header that is not a header, invalid JSON,
+missing trailing newline, empty input, non-bytes input, invalid UTF-8, and a logically
+invalid decoded value. A separate test proves verification fails at the **first** divergence
+when two steps are tampered.
 
 ---
 
@@ -197,14 +184,19 @@ Canonical §34.
 ```text
 L0  arithmetic                 PASSED   (P1 - full L0 suite green)
 L1  historical reconstruction  BLOCKED  (needs target-wallet ledger data, not in repo)
-L2  offline replay             not started  (P5)
+L2  offline replay             ENGINE PASSED / EMPIRICAL UNRUN
 L3  live paper                 not started  (P13)
 L4  minimum-size live          not started  (P14)
 ```
 
-**L1 remains UNRUN and is not relabelled.** No reconstructed fill-level target-wallet ledger
-exists in this repository. It is not passed and it is not waived. The same missing artefact
-is what would close O04.
+**L1 remains UNRUN and is not relabelled.**
+
+**L2 is split deliberately.** The replay *engine* is proven: recorded journals round-trip
+byte-identically and every recorded decision is reproduced exactly by the production code
+path. The *empirical* half of Canonical §34-L2 — reproducing the target wallet's behaviour —
+is **UNRUN**, because every journal in this repository is `SYNTHETIC`. Synthetic data proves
+the machinery works and proves nothing about the wallet. It is not passed and it is not
+waived.
 
 ---
 

@@ -1,0 +1,2075 @@
+{
+  "api_errors": {
+    "failures_retained": 0,
+    "threshold": 5,
+    "total_failures": 0,
+    "total_successes": 0,
+    "window_ns": 30000000000
+  },
+  "clock_health": {
+    "last_offset_ns": -17145710,
+    "max_abs_offset_ns": 1469516548,
+    "samples": 165135
+  },
+  "credentials_used": "none",
+  "cycles": 162644,
+  "execution_counters": {
+    "actions": {
+      "BLOCKED": 109489,
+      "CANCEL": 367,
+      "KEEP": 128655,
+      "NOTHING": 85086,
+      "PLACE": 1029,
+      "REPLACE": 662
+    },
+    "cycles_with_live_order": 129684,
+    "execution_queue_loss_actions": 1029,
+    "execution_queue_loss_reasons": {
+      "DESIRED_WITHDRAWN": 23,
+      "PRICE_CHANGED": 662,
+      "UNSAFE_REPLACEMENT": 344
+    },
+    "keep_ratio": 0.99206532802813,
+    "keeps_with_live_order": 128655,
+    "quality": {
+      "AT_FRONT": 10330,
+      "NOT_QUOTING": 21240,
+      "PRICE_OK_BUT_DEEP": 3832,
+      "STALE": 6
+    },
+    "reasons": {
+      "CONTINUITY_LOST": 6,
+      "ENDGAME_GATE": 3349,
+      "NO_LIVE_ORDER": 662,
+      "PHASE_NOT_QUOTING": 5743,
+      "POST_ONLY_BLOCK": 11486,
+      "QUOTING": 14162
+    }
+  },
+  "faults_scheduled": [
+    {
+      "end_offset_s": 60,
+      "kind": "pause_spot",
+      "name": "btc_stale",
+      "start_offset_s": 40
+    },
+    {
+      "end_offset_s": 111,
+      "kind": "drop_clob",
+      "name": "clob_disconnect",
+      "start_offset_s": 110
+    },
+    {
+      "end_offset_s": 191,
+      "kind": "force_resnapshot",
+      "name": "continuity_uncertain",
+      "start_offset_s": 190
+    },
+    {
+      "end_offset_s": 214,
+      "kind": "signal:CLOCK_HEALTH_UPDATE",
+      "name": "clock_drift",
+      "start_offset_s": 210
+    },
+    {
+      "end_offset_s": 228,
+      "kind": "signal:ORDER_RECONCILIATION_RESULT",
+      "name": "order_state_uncertain",
+      "start_offset_s": 222
+    },
+    {
+      "end_offset_s": 242,
+      "kind": "signal:POSITION_RECONCILIATION_RESULT",
+      "name": "position_mismatch",
+      "start_offset_s": 236
+    },
+    {
+      "end_offset_s": 256,
+      "kind": "signal:COST_RECONCILIATION_RESULT",
+      "name": "cost_ledger_mismatch",
+      "start_offset_s": 250
+    },
+    {
+      "end_offset_s": 268,
+      "kind": "signal:API_ERROR_STATE_UPDATE",
+      "name": "api_error_rate",
+      "start_offset_s": 264
+    },
+    {
+      "end_offset_s": 280,
+      "kind": "signal:RATE_LIMIT_STATE_UPDATE",
+      "name": "rate_limit_uncertain",
+      "start_offset_s": 276
+    },
+    {
+      "end_offset_s": 292,
+      "kind": "signal:RESOLUTION_SAFETY_UPDATE",
+      "name": "resolution_ambiguous",
+      "start_offset_s": 288
+    }
+  ],
+  "feed_counters": {
+    "clob_best_bid_ask": 0,
+    "clob_books": 5100,
+    "clob_last_trade_price": 2432,
+    "clob_messages": 163240,
+    "clob_price_changes": 154530,
+    "clob_tick_size_changes": 0,
+    "clob_unhandled": 0,
+    "malformed": 1,
+    "pongs": 32,
+    "reconnects": 2,
+    "spot_messages": 3073,
+    "telemetry_dropped": 0,
+    "unhandled_kinds": {}
+  },
+  "kind": "FAULTS",
+  "latency_ns": {
+    "acting_cycle": {
+      "count": 163,
+      "label": "acting_cycle",
+      "max": 2765364,
+      "p50": 219554,
+      "p90": 590839,
+      "p95": 718743,
+      "p99": 965389
+    },
+    "clob_receive_to_decide": {
+      "count": 15915,
+      "label": "clob_receive_to_decide",
+      "max": 6453666,
+      "p50": 226700,
+      "p90": 686203,
+      "p95": 817641,
+      "p99": 1485818
+    },
+    "decide_duration": {
+      "count": 16226,
+      "label": "decide_duration",
+      "max": 3455450,
+      "p50": 56974,
+      "p90": 166125,
+      "p95": 203445,
+      "p99": 244559
+    },
+    "fill_receive_to_decide": {
+      "count": 0,
+      "label": "fill_receive_to_decide"
+    },
+    "keep_cycle": {
+      "count": 728,
+      "label": "keep_cycle",
+      "max": 3356094,
+      "p50": 177637,
+      "p90": 535824,
+      "p95": 745075,
+      "p99": 1368295
+    },
+    "phase_receive_to_decide": {
+      "count": 4,
+      "label": "phase_receive_to_decide",
+      "max": 383422,
+      "p50": 122220,
+      "p90": 383422,
+      "p95": 383422,
+      "p99": 383422
+    },
+    "prepare_duration": {
+      "count": 16226,
+      "label": "prepare_duration",
+      "max": 52993511,
+      "p50": 13675,
+      "p90": 53767,
+      "p95": 64320,
+      "p99": 86283
+    },
+    "queue_ahead": {
+      "count": 14162,
+      "label": "queue_ahead",
+      "max": 1346070000,
+      "p50": 0,
+      "p90": 87640000,
+      "p95": 172760000,
+      "p99": 335000000
+    },
+    "receive_to_reconcile": {
+      "count": 16226,
+      "label": "receive_to_reconcile",
+      "max": 53627449,
+      "p50": 252136,
+      "p90": 767415,
+      "p95": 923892,
+      "p99": 1600763
+    },
+    "reconcile_duration": {
+      "count": 16226,
+      "label": "reconcile_duration",
+      "max": 833265,
+      "p50": 12158,
+      "p90": 37174,
+      "p95": 44917,
+      "p99": 52012
+    },
+    "spot_receive_to_decide": {
+      "count": 307,
+      "label": "spot_receive_to_decide",
+      "max": 992368,
+      "p50": 137458,
+      "p90": 431664,
+      "p95": 541547,
+      "p99": 618254
+    }
+  },
+  "live_trading_enabled": false,
+  "market_id": "0x70f319927d417c29d7aa1998a45b4384306203dca3f5786088bf0f96440e1e03",
+  "note": "Real public Polymarket CLOB and real Binance BTC data throughout. Faults are deliberately induced LOCAL failures, not observed venue incidents. The market data itself is real and uninterrupted.",
+  "observations": {
+    "accepted": 162644,
+    "buffered": 162644,
+    "capacity": 320000,
+    "dropped": 0,
+    "gaps_seen_downstream": 0,
+    "lost_downstream": 0
+  },
+  "orders_sent": 0,
+  "phase": "P9",
+  "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+  "risk": {
+    "actions_recorded": 1507,
+    "actions_sample": [
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 1055,
+        "risk_sequence": 1030,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 2211,
+        "risk_sequence": 2160,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 2213,
+        "risk_sequence": 2162,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 2214,
+        "risk_sequence": 2163,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 2217,
+        "risk_sequence": 2166,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 2218,
+        "risk_sequence": 2167,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 2225,
+        "risk_sequence": 2172,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 2226,
+        "risk_sequence": 2173,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 2318,
+        "risk_sequence": 2265,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 2319,
+        "risk_sequence": 2266,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 2375,
+        "risk_sequence": 2322,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 2376,
+        "risk_sequence": 2323,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 2387,
+        "risk_sequence": 2332,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 2388,
+        "risk_sequence": 2333,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 4109,
+        "risk_sequence": 4018,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 4115,
+        "risk_sequence": 4022,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 4876,
+        "risk_sequence": 4775,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 4880,
+        "risk_sequence": 4777,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 4938,
+        "risk_sequence": 4833,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 4940,
+        "risk_sequence": 4835,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 4947,
+        "risk_sequence": 4839,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 4995,
+        "risk_sequence": 4886,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 4996,
+        "risk_sequence": 4887,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 4997,
+        "risk_sequence": 4888,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 4998,
+        "risk_sequence": 4889,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 5759,
+        "risk_sequence": 5634,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 5789,
+        "risk_sequence": 5664,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 5937,
+        "risk_sequence": 5805,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 5950,
+        "risk_sequence": 5815,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 6416,
+        "risk_sequence": 6279,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 6417,
+        "risk_sequence": 6280,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 6418,
+        "risk_sequence": 6281,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 6914,
+        "risk_sequence": 6769,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 6916,
+        "risk_sequence": 6771,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 6918,
+        "risk_sequence": 6772,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 6945,
+        "risk_sequence": 6798,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 7040,
+        "risk_sequence": 6891,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 7119,
+        "risk_sequence": 6964,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 7120,
+        "risk_sequence": 6965,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 7177,
+        "risk_sequence": 7018,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 7217,
+        "risk_sequence": 7058,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 7349,
+        "risk_sequence": 7190,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 7350,
+        "risk_sequence": 7191,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 7481,
+        "risk_sequence": 7318,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 7482,
+        "risk_sequence": 7319,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 7551,
+        "risk_sequence": 7383,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 7590,
+        "risk_sequence": 7421,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 7591,
+        "risk_sequence": 7422,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "PLACE",
+        "ingress_ordinal": 8285,
+        "risk_sequence": 8100,
+        "risk_state": "SAFE"
+      },
+      {
+        "action": "CANCEL",
+        "ingress_ordinal": 8290,
+        "risk_sequence": 8105,
+        "risk_state": "SAFE"
+      }
+    ],
+    "cycles_by_state": {
+      "HALTED": 29401,
+      "RECOVERING": 12,
+      "SAFE": 133253
+    },
+    "fault_events": [
+      {
+        "at_ns": 1787679340003621496,
+        "fault": "btc_stale",
+        "ingress_ordinal": 23067,
+        "phase": "injected"
+      },
+      {
+        "at_ns": 1787679360001408608,
+        "fault": "btc_stale",
+        "ingress_ordinal": 34753,
+        "phase": "released"
+      },
+      {
+        "at_ns": 1787679410000637957,
+        "fault": "clob_disconnect",
+        "ingress_ordinal": 63146,
+        "phase": "injected"
+      },
+      {
+        "at_ns": 1787679411121200681,
+        "fault": "clob_disconnect",
+        "ingress_ordinal": 63151,
+        "phase": "released"
+      },
+      {
+        "at_ns": 1787679490001198346,
+        "fault": "continuity_uncertain",
+        "ingress_ordinal": 102196,
+        "phase": "injected"
+      },
+      {
+        "at_ns": 1787679491011747315,
+        "fault": "continuity_uncertain",
+        "ingress_ordinal": 102807,
+        "phase": "released"
+      },
+      {
+        "at_ns": 1787679510001054047,
+        "fault": "clock_drift",
+        "ingress_ordinal": 113547,
+        "phase": "injected"
+      },
+      {
+        "at_ns": 1787679514000045945,
+        "fault": "clock_drift",
+        "ingress_ordinal": 115465,
+        "phase": "released"
+      },
+      {
+        "at_ns": 1787679522000938143,
+        "fault": "order_state_uncertain",
+        "ingress_ordinal": 123074,
+        "phase": "injected"
+      },
+      {
+        "at_ns": 1787679528000243127,
+        "fault": "order_state_uncertain",
+        "ingress_ordinal": 127847,
+        "phase": "released"
+      },
+      {
+        "at_ns": 1787679528000243127,
+        "fault": "order_state_uncertain",
+        "ingress_ordinal": 127847,
+        "phase": "reconciled"
+      },
+      {
+        "at_ns": 1787679536000406378,
+        "fault": "position_mismatch",
+        "ingress_ordinal": 131757,
+        "phase": "injected"
+      },
+      {
+        "at_ns": 1787679542001008003,
+        "fault": "position_mismatch",
+        "ingress_ordinal": 134679,
+        "phase": "released"
+      },
+      {
+        "at_ns": 1787679542001008003,
+        "fault": "position_mismatch",
+        "ingress_ordinal": 134679,
+        "phase": "reconciled"
+      },
+      {
+        "at_ns": 1787679550012160960,
+        "fault": "cost_ledger_mismatch",
+        "ingress_ordinal": 140555,
+        "phase": "injected"
+      },
+      {
+        "at_ns": 1787679556004996936,
+        "fault": "cost_ledger_mismatch",
+        "ingress_ordinal": 145631,
+        "phase": "released"
+      },
+      {
+        "at_ns": 1787679556004996936,
+        "fault": "cost_ledger_mismatch",
+        "ingress_ordinal": 145631,
+        "phase": "reconciled"
+      },
+      {
+        "at_ns": 1787679564093930496,
+        "fault": "api_error_rate",
+        "ingress_ordinal": 151900,
+        "phase": "injected"
+      },
+      {
+        "at_ns": 1787679568001536609,
+        "fault": "api_error_rate",
+        "ingress_ordinal": 155055,
+        "phase": "released"
+      },
+      {
+        "at_ns": 1787679576000462166,
+        "fault": "rate_limit_uncertain",
+        "ingress_ordinal": 160518,
+        "phase": "injected"
+      },
+      {
+        "at_ns": 1787679580001522483,
+        "fault": "rate_limit_uncertain",
+        "ingress_ordinal": 162947,
+        "phase": "released"
+      },
+      {
+        "at_ns": 1787679588003664190,
+        "fault": "resolution_ambiguous",
+        "ingress_ordinal": 165049,
+        "phase": "injected"
+      },
+      {
+        "at_ns": 1787679592029333493,
+        "fault": "resolution_ambiguous",
+        "ingress_ordinal": 165734,
+        "phase": "released"
+      }
+    ],
+    "halts_by_reason": {
+      "API_ERROR_RATE": 1,
+      "CLOB_CONTINUITY_UNCERTAIN": 3,
+      "CLOCK_DRIFT": 1,
+      "COST_LEDGER_MISMATCH": 1,
+      "ORDER_STATE_UNCERTAIN": 1,
+      "POSITION_MISMATCH": 1,
+      "RATE_LIMIT_UNCERTAIN": 1,
+      "RESOLUTION_AMBIGUOUS": 1,
+      "SPOT_STALE": 2
+    },
+    "risk_evaluate_ns": {
+      "count": 162648,
+      "label": "risk_evaluate_ns",
+      "max": 192512046,
+      "p50": 27472,
+      "p90": 83791,
+      "p95": 98873,
+      "p99": 125698
+    },
+    "risk_signal_ns": {
+      "count": 18,
+      "label": "risk_signal_ns",
+      "max": 77540,
+      "p50": 41274,
+      "p90": 75553,
+      "p95": 77540,
+      "p99": 77540
+    },
+    "shadow_cancels_by_state": {
+      "HALTED": 9,
+      "SAFE": 693
+    },
+    "shadow_places_by_state": {
+      "SAFE": 805
+    },
+    "transitions": [
+      {
+        "active": [
+          "SPOT_STALE"
+        ],
+        "at_ns": 1787679300025767663,
+        "from": null,
+        "ingress_ordinal": 2,
+        "latched": [],
+        "risk_sequence": 0,
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679300044201269,
+        "from": "HALTED",
+        "ingress_ordinal": 6,
+        "latched": [],
+        "risk_sequence": 3,
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679300044549334,
+        "from": "RECOVERING",
+        "ingress_ordinal": 7,
+        "latched": [],
+        "risk_sequence": 4,
+        "to": "SAFE"
+      },
+      {
+        "active": [
+          "SPOT_STALE"
+        ],
+        "at_ns": 1787679344086915042,
+        "from": "SAFE",
+        "ingress_ordinal": 25366,
+        "latched": [],
+        "risk_sequence": 24857,
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679360449420094,
+        "from": "HALTED",
+        "ingress_ordinal": 34975,
+        "latched": [],
+        "risk_sequence": 34267,
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679360452116238,
+        "from": "RECOVERING",
+        "ingress_ordinal": 34976,
+        "latched": [],
+        "risk_sequence": 34268,
+        "to": "SAFE"
+      },
+      {
+        "active": [
+          "CLOB_CONTINUITY_UNCERTAIN"
+        ],
+        "at_ns": 1787679410024943853,
+        "from": "SAFE",
+        "ingress_ordinal": 63148,
+        "latched": [],
+        "risk_sequence": 61862,
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679411120701014,
+        "from": "HALTED",
+        "ingress_ordinal": 63151,
+        "latched": [],
+        "risk_sequence": 61864,
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679411122066926,
+        "from": "RECOVERING",
+        "ingress_ordinal": 63152,
+        "latched": [],
+        "risk_sequence": 61865,
+        "to": "SAFE"
+      },
+      {
+        "active": [
+          "CLOB_CONTINUITY_UNCERTAIN"
+        ],
+        "at_ns": 1787679463443490201,
+        "from": "SAFE",
+        "ingress_ordinal": 86397,
+        "latched": [],
+        "risk_sequence": 84498,
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679464513719278,
+        "from": "HALTED",
+        "ingress_ordinal": 86401,
+        "latched": [],
+        "risk_sequence": 84501,
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679464514919373,
+        "from": "RECOVERING",
+        "ingress_ordinal": 86402,
+        "latched": [],
+        "risk_sequence": 84502,
+        "to": "SAFE"
+      },
+      {
+        "active": [
+          "CLOB_CONTINUITY_UNCERTAIN"
+        ],
+        "at_ns": 1787679490001198346,
+        "from": "SAFE",
+        "ingress_ordinal": 102197,
+        "latched": [],
+        "risk_sequence": 99983,
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679490060044706,
+        "from": "HALTED",
+        "ingress_ordinal": 102201,
+        "latched": [],
+        "risk_sequence": 99986,
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679490060231531,
+        "from": "RECOVERING",
+        "ingress_ordinal": 102202,
+        "latched": [],
+        "risk_sequence": 99987,
+        "to": "SAFE"
+      },
+      {
+        "active": [
+          "CLOCK_DRIFT"
+        ],
+        "at_ns": 1787679510001054047,
+        "from": "SAFE",
+        "ingress_ordinal": 113547,
+        "latched": [],
+        "risk_sequence": 111105,
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679514000045945,
+        "from": "HALTED",
+        "ingress_ordinal": 115465,
+        "latched": [],
+        "risk_sequence": 112982,
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679514008919354,
+        "from": "RECOVERING",
+        "ingress_ordinal": 115466,
+        "latched": [],
+        "risk_sequence": 112983,
+        "to": "SAFE"
+      },
+      {
+        "active": [
+          "ORDER_STATE_UNCERTAIN"
+        ],
+        "at_ns": 1787679522000938143,
+        "from": "SAFE",
+        "ingress_ordinal": 123074,
+        "latched": [
+          "ORDER_STATE_UNCERTAIN"
+        ],
+        "risk_sequence": 120352,
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679528000243127,
+        "from": "HALTED",
+        "ingress_ordinal": 127847,
+        "latched": [
+          "ORDER_STATE_UNCERTAIN"
+        ],
+        "risk_sequence": 124970,
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679528000243127,
+        "from": "RECOVERING",
+        "ingress_ordinal": 127847,
+        "latched": [],
+        "risk_sequence": 124971,
+        "to": "SAFE"
+      },
+      {
+        "active": [
+          "POSITION_MISMATCH"
+        ],
+        "at_ns": 1787679536000406378,
+        "from": "SAFE",
+        "ingress_ordinal": 131757,
+        "latched": [
+          "POSITION_MISMATCH"
+        ],
+        "risk_sequence": 128786,
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679542001008003,
+        "from": "HALTED",
+        "ingress_ordinal": 134679,
+        "latched": [
+          "POSITION_MISMATCH"
+        ],
+        "risk_sequence": 131555,
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679542001008003,
+        "from": "RECOVERING",
+        "ingress_ordinal": 134679,
+        "latched": [],
+        "risk_sequence": 131556,
+        "to": "SAFE"
+      },
+      {
+        "active": [
+          "COST_LEDGER_MISMATCH"
+        ],
+        "at_ns": 1787679550012160960,
+        "from": "SAFE",
+        "ingress_ordinal": 140555,
+        "latched": [
+          "COST_LEDGER_MISMATCH"
+        ],
+        "risk_sequence": 137119,
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679556004996936,
+        "from": "HALTED",
+        "ingress_ordinal": 145631,
+        "latched": [
+          "COST_LEDGER_MISMATCH"
+        ],
+        "risk_sequence": 141956,
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679556004996936,
+        "from": "RECOVERING",
+        "ingress_ordinal": 145631,
+        "latched": [],
+        "risk_sequence": 141957,
+        "to": "SAFE"
+      },
+      {
+        "active": [
+          "API_ERROR_RATE"
+        ],
+        "at_ns": 1787679564093930496,
+        "from": "SAFE",
+        "ingress_ordinal": 151900,
+        "latched": [],
+        "risk_sequence": 147791,
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679568001275138,
+        "from": "HALTED",
+        "ingress_ordinal": 155055,
+        "latched": [],
+        "risk_sequence": 150778,
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679568001275138,
+        "from": "RECOVERING",
+        "ingress_ordinal": 155055,
+        "latched": [],
+        "risk_sequence": 150779,
+        "to": "SAFE"
+      },
+      {
+        "active": [
+          "RATE_LIMIT_UNCERTAIN"
+        ],
+        "at_ns": 1787679576000462166,
+        "from": "SAFE",
+        "ingress_ordinal": 160518,
+        "latched": [],
+        "risk_sequence": 155892,
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679580001522483,
+        "from": "HALTED",
+        "ingress_ordinal": 162947,
+        "latched": [],
+        "risk_sequence": 158116,
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679580001873596,
+        "from": "RECOVERING",
+        "ingress_ordinal": 162948,
+        "latched": [],
+        "risk_sequence": 158117,
+        "to": "SAFE"
+      },
+      {
+        "active": [
+          "RESOLUTION_AMBIGUOUS"
+        ],
+        "at_ns": 1787679588003664190,
+        "from": "SAFE",
+        "ingress_ordinal": 165049,
+        "latched": [],
+        "risk_sequence": 159993,
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679592029333493,
+        "from": "HALTED",
+        "ingress_ordinal": 165734,
+        "latched": [],
+        "risk_sequence": 160661,
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787679592036332671,
+        "from": "RECOVERING",
+        "ingress_ordinal": 165735,
+        "latched": [],
+        "risk_sequence": 160662,
+        "to": "SAFE"
+      }
+    ]
+  },
+  "risk_config": {
+    "api_error_threshold": 5,
+    "api_error_window_ns": 30000000000,
+    "clock_drift_limit_ns": 250000000,
+    "feed_staleness_owner": "P6 (maker5m.feeds.health) - P9 holds no threshold",
+    "recovery_confirmations": 2,
+    "status": "OPERATIONAL"
+  },
+  "risk_records_head": [
+    {
+      "active": [
+        "SPOT_STALE"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 2,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 0,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787679300025767663
+    },
+    {
+      "active": [
+        "SPOT_STALE"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 3,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 1,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787679300026008384
+    },
+    {
+      "active": [
+        "SPOT_STALE"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 4,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 2,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787679300026149336
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 6,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 3,
+      "schema_version": 1,
+      "state": "RECOVERING",
+      "timestamp": 1787679300044201269
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": true,
+      "as_of_ingress_ordinal": 7,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 4,
+      "schema_version": 1,
+      "state": "SAFE",
+      "timestamp": 1787679300044549334
+    }
+  ],
+  "risk_records_transitions": [
+    {
+      "active": [
+        "SPOT_STALE"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 2,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 0,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787679300025767663
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 6,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 3,
+      "schema_version": 1,
+      "state": "RECOVERING",
+      "timestamp": 1787679300044201269
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": true,
+      "as_of_ingress_ordinal": 7,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 4,
+      "schema_version": 1,
+      "state": "SAFE",
+      "timestamp": 1787679300044549334
+    },
+    {
+      "active": [
+        "SPOT_STALE"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 25366,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 24857,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787679344086915042
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 34975,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 34267,
+      "schema_version": 1,
+      "state": "RECOVERING",
+      "timestamp": 1787679360449420094
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": true,
+      "as_of_ingress_ordinal": 34976,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 34268,
+      "schema_version": 1,
+      "state": "SAFE",
+      "timestamp": 1787679360452116238
+    },
+    {
+      "active": [
+        "CLOB_CONTINUITY_UNCERTAIN"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 63148,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 61862,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787679410024943853
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 63151,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 61864,
+      "schema_version": 1,
+      "state": "RECOVERING",
+      "timestamp": 1787679411120701014
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": true,
+      "as_of_ingress_ordinal": 63152,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 61865,
+      "schema_version": 1,
+      "state": "SAFE",
+      "timestamp": 1787679411122066926
+    },
+    {
+      "active": [
+        "CLOB_CONTINUITY_UNCERTAIN"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 86397,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 84498,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787679463443490201
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 86401,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 84501,
+      "schema_version": 1,
+      "state": "RECOVERING",
+      "timestamp": 1787679464513719278
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": true,
+      "as_of_ingress_ordinal": 86402,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 84502,
+      "schema_version": 1,
+      "state": "SAFE",
+      "timestamp": 1787679464514919373
+    },
+    {
+      "active": [
+        "CLOB_CONTINUITY_UNCERTAIN"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 102197,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 99983,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787679490001198346
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 102201,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 99986,
+      "schema_version": 1,
+      "state": "RECOVERING",
+      "timestamp": 1787679490060044706
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": true,
+      "as_of_ingress_ordinal": 102202,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 99987,
+      "schema_version": 1,
+      "state": "SAFE",
+      "timestamp": 1787679490060231531
+    },
+    {
+      "active": [
+        "CLOCK_DRIFT"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 113547,
+      "detail": "controlled local fault injection",
+      "kind": "CLOCK_HEALTH_UPDATE",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 111105,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787679510001054047
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 115465,
+      "detail": "fault released",
+      "kind": "CLOCK_HEALTH_UPDATE",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 112982,
+      "schema_version": 1,
+      "state": "RECOVERING",
+      "timestamp": 1787679514000045945
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": true,
+      "as_of_ingress_ordinal": 115466,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 112983,
+      "schema_version": 1,
+      "state": "SAFE",
+      "timestamp": 1787679514008919354
+    },
+    {
+      "active": [
+        "ORDER_STATE_UNCERTAIN"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 123074,
+      "detail": "controlled local fault injection",
+      "kind": "ORDER_RECONCILIATION_RESULT",
+      "latched": [
+        "ORDER_STATE_UNCERTAIN"
+      ],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 120352,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787679522000938143
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 127847,
+      "detail": "fault released",
+      "kind": "ORDER_RECONCILIATION_RESULT",
+      "latched": [
+        "ORDER_STATE_UNCERTAIN"
+      ],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 124970,
+      "schema_version": 1,
+      "state": "RECOVERING",
+      "timestamp": 1787679528000243127
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": true,
+      "as_of_ingress_ordinal": 127847,
+      "detail": "controlled local reconciliation",
+      "kind": "RECONCILIATION_CONFIRMED",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": "ORDER_STATE_UNCERTAIN",
+      "risk_sequence": 124971,
+      "schema_version": 1,
+      "state": "SAFE",
+      "timestamp": 1787679528000243127
+    },
+    {
+      "active": [
+        "POSITION_MISMATCH"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 131757,
+      "detail": "controlled local fault injection",
+      "kind": "POSITION_RECONCILIATION_RESULT",
+      "latched": [
+        "POSITION_MISMATCH"
+      ],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 128786,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787679536000406378
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 134679,
+      "detail": "fault released",
+      "kind": "POSITION_RECONCILIATION_RESULT",
+      "latched": [
+        "POSITION_MISMATCH"
+      ],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 131555,
+      "schema_version": 1,
+      "state": "RECOVERING",
+      "timestamp": 1787679542001008003
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": true,
+      "as_of_ingress_ordinal": 134679,
+      "detail": "controlled local reconciliation",
+      "kind": "RECONCILIATION_CONFIRMED",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": "POSITION_MISMATCH",
+      "risk_sequence": 131556,
+      "schema_version": 1,
+      "state": "SAFE",
+      "timestamp": 1787679542001008003
+    },
+    {
+      "active": [
+        "COST_LEDGER_MISMATCH"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 140555,
+      "detail": "controlled local fault injection",
+      "kind": "COST_RECONCILIATION_RESULT",
+      "latched": [
+        "COST_LEDGER_MISMATCH"
+      ],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 137119,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787679550012160960
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 145631,
+      "detail": "fault released",
+      "kind": "COST_RECONCILIATION_RESULT",
+      "latched": [
+        "COST_LEDGER_MISMATCH"
+      ],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 141956,
+      "schema_version": 1,
+      "state": "RECOVERING",
+      "timestamp": 1787679556004996936
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": true,
+      "as_of_ingress_ordinal": 145631,
+      "detail": "controlled local reconciliation",
+      "kind": "RECONCILIATION_CONFIRMED",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": "COST_LEDGER_MISMATCH",
+      "risk_sequence": 141957,
+      "schema_version": 1,
+      "state": "SAFE",
+      "timestamp": 1787679556004996936
+    },
+    {
+      "active": [
+        "API_ERROR_RATE"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 151900,
+      "detail": "controlled local fault injection",
+      "kind": "API_ERROR_STATE_UPDATE",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 147791,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787679564093930496
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 155055,
+      "detail": "api error monitor",
+      "kind": "API_ERROR_STATE_UPDATE",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 150778,
+      "schema_version": 1,
+      "state": "RECOVERING",
+      "timestamp": 1787679568001275138
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": true,
+      "as_of_ingress_ordinal": 155055,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 150779,
+      "schema_version": 1,
+      "state": "SAFE",
+      "timestamp": 1787679568001275138
+    },
+    {
+      "active": [
+        "RATE_LIMIT_UNCERTAIN"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 160518,
+      "detail": "controlled local fault injection",
+      "kind": "RATE_LIMIT_STATE_UPDATE",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 155892,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787679576000462166
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 162947,
+      "detail": "fault released",
+      "kind": "RATE_LIMIT_STATE_UPDATE",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 158116,
+      "schema_version": 1,
+      "state": "RECOVERING",
+      "timestamp": 1787679580001522483
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": true,
+      "as_of_ingress_ordinal": 162948,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 158117,
+      "schema_version": 1,
+      "state": "SAFE",
+      "timestamp": 1787679580001873596
+    },
+    {
+      "active": [
+        "RESOLUTION_AMBIGUOUS"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 165049,
+      "detail": "controlled local fault injection",
+      "kind": "RESOLUTION_SAFETY_UPDATE",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 159993,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787679588003664190
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 165734,
+      "detail": "fault released",
+      "kind": "RESOLUTION_SAFETY_UPDATE",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 160661,
+      "schema_version": 1,
+      "state": "RECOVERING",
+      "timestamp": 1787679592029333493
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": true,
+      "as_of_ingress_ordinal": 165735,
+      "detail": "",
+      "kind": "RISK_EVALUATION",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 160662,
+      "schema_version": 1,
+      "state": "SAFE",
+      "timestamp": 1787679592036332671
+    }
+  ],
+  "risk_replay": {
+    "final_state": "SAFE",
+    "records": 162666,
+    "sequence_gaps": [],
+    "states_seen": [
+      "HALTED",
+      "RECOVERING",
+      "SAFE"
+    ],
+    "verified": true
+  },
+  "risk_signals_non_evaluation": [
+    {
+      "active": [
+        "CLOCK_DRIFT"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 113547,
+      "detail": "controlled local fault injection",
+      "kind": "CLOCK_HEALTH_UPDATE",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 111105,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787679510001054047
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 115465,
+      "detail": "fault released",
+      "kind": "CLOCK_HEALTH_UPDATE",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 112982,
+      "schema_version": 1,
+      "state": "RECOVERING",
+      "timestamp": 1787679514000045945
+    },
+    {
+      "active": [
+        "ORDER_STATE_UNCERTAIN"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 123074,
+      "detail": "controlled local fault injection",
+      "kind": "ORDER_RECONCILIATION_RESULT",
+      "latched": [
+        "ORDER_STATE_UNCERTAIN"
+      ],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 120352,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787679522000938143
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 127847,
+      "detail": "fault released",
+      "kind": "ORDER_RECONCILIATION_RESULT",
+      "latched": [
+        "ORDER_STATE_UNCERTAIN"
+      ],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 124970,
+      "schema_version": 1,
+      "state": "RECOVERING",
+      "timestamp": 1787679528000243127
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": true,
+      "as_of_ingress_ordinal": 127847,
+      "detail": "controlled local reconciliation",
+      "kind": "RECONCILIATION_CONFIRMED",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": "ORDER_STATE_UNCERTAIN",
+      "risk_sequence": 124971,
+      "schema_version": 1,
+      "state": "SAFE",
+      "timestamp": 1787679528000243127
+    },
+    {
+      "active": [
+        "POSITION_MISMATCH"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 131757,
+      "detail": "controlled local fault injection",
+      "kind": "POSITION_RECONCILIATION_RESULT",
+      "latched": [
+        "POSITION_MISMATCH"
+      ],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 128786,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787679536000406378
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 134679,
+      "detail": "fault released",
+      "kind": "POSITION_RECONCILIATION_RESULT",
+      "latched": [
+        "POSITION_MISMATCH"
+      ],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 131555,
+      "schema_version": 1,
+      "state": "RECOVERING",
+      "timestamp": 1787679542001008003
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": true,
+      "as_of_ingress_ordinal": 134679,
+      "detail": "controlled local reconciliation",
+      "kind": "RECONCILIATION_CONFIRMED",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": "POSITION_MISMATCH",
+      "risk_sequence": 131556,
+      "schema_version": 1,
+      "state": "SAFE",
+      "timestamp": 1787679542001008003
+    },
+    {
+      "active": [
+        "COST_LEDGER_MISMATCH"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 140555,
+      "detail": "controlled local fault injection",
+      "kind": "COST_RECONCILIATION_RESULT",
+      "latched": [
+        "COST_LEDGER_MISMATCH"
+      ],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 137119,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787679550012160960
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 145631,
+      "detail": "fault released",
+      "kind": "COST_RECONCILIATION_RESULT",
+      "latched": [
+        "COST_LEDGER_MISMATCH"
+      ],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 141956,
+      "schema_version": 1,
+      "state": "RECOVERING",
+      "timestamp": 1787679556004996936
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": true,
+      "as_of_ingress_ordinal": 145631,
+      "detail": "controlled local reconciliation",
+      "kind": "RECONCILIATION_CONFIRMED",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": "COST_LEDGER_MISMATCH",
+      "risk_sequence": 141957,
+      "schema_version": 1,
+      "state": "SAFE",
+      "timestamp": 1787679556004996936
+    },
+    {
+      "active": [
+        "API_ERROR_RATE"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 151900,
+      "detail": "controlled local fault injection",
+      "kind": "API_ERROR_STATE_UPDATE",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 147791,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787679564093930496
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 155055,
+      "detail": "api error monitor",
+      "kind": "API_ERROR_STATE_UPDATE",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 150778,
+      "schema_version": 1,
+      "state": "RECOVERING",
+      "timestamp": 1787679568001275138
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": true,
+      "as_of_ingress_ordinal": 155055,
+      "detail": "fault released",
+      "kind": "API_ERROR_STATE_UPDATE",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 150780,
+      "schema_version": 1,
+      "state": "SAFE",
+      "timestamp": 1787679568001536609
+    },
+    {
+      "active": [
+        "RATE_LIMIT_UNCERTAIN"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 160518,
+      "detail": "controlled local fault injection",
+      "kind": "RATE_LIMIT_STATE_UPDATE",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 155892,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787679576000462166
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 162947,
+      "detail": "fault released",
+      "kind": "RATE_LIMIT_STATE_UPDATE",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 158116,
+      "schema_version": 1,
+      "state": "RECOVERING",
+      "timestamp": 1787679580001522483
+    },
+    {
+      "active": [
+        "RESOLUTION_AMBIGUOUS"
+      ],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 165049,
+      "detail": "controlled local fault injection",
+      "kind": "RESOLUTION_SAFETY_UPDATE",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 159993,
+      "schema_version": 1,
+      "state": "HALTED",
+      "timestamp": 1787679588003664190
+    },
+    {
+      "active": [],
+      "allows_cancel": true,
+      "allows_place": false,
+      "as_of_ingress_ordinal": 165734,
+      "detail": "fault released",
+      "kind": "RESOLUTION_SAFETY_UPDATE",
+      "latched": [],
+      "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+      "reason": null,
+      "risk_sequence": 160661,
+      "schema_version": 1,
+      "state": "RECOVERING",
+      "timestamp": 1787679592029333493
+    }
+  ],
+  "risk_trace": {
+    "last_risk_sequence": 162665,
+    "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+    "risk_records": 162666,
+    "risk_records_dropped": 0,
+    "risk_records_retained": 162666,
+    "schema_version": 1,
+    "state": "SAFE"
+  },
+  "run_utc": "2026-08-25T17:40:14Z",
+  "slug": "btc-updown-5m-1787679300",
+  "t0_ns": 1787679300000000000
+}

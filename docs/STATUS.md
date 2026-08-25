@@ -67,7 +67,117 @@ production.
 
 ---
 
-## P9: risk, health, and recovery
+## P9B: staleness ownership and the ordered risk audit
+
+Independent review accepted the risk model, the overlay, the halt semantics, the real-market
+evidence, and the `STALE`-recovery defect it found — then identified two architectural gaps.
+Evidence: [`evidence/P9B-REAL-MARKET-BASELINE.md`](evidence/P9B-REAL-MARKET-BASELINE.md) and
+[`evidence/P9B-REAL-MARKET-FAULTS.md`](evidence/P9B-REAL-MARKET-FAULTS.md).
+
+### Gap A — two authorities for one question
+
+`RiskEngine` carried its own `_stale(last_at, now, threshold)` against its own copies of
+`DEFAULT_CLOB_STALE_AFTER` and `DEFAULT_SPOT_STALE_AFTER`, while P6 already owned
+`StalenessMonitor`, `StreamHealth`, and the `STALE` transition. Two answers to "has this stream
+been quiet too long?" can disagree, and the wrong one stays invisible until it matters.
+
+P6 now owns it entirely. P9 reads `HealthStatus` and decides what to do about it. Removed rather
+than deprecated: `_stale`, both `last_message_at` inputs, and both thresholds — without the
+inputs the comparison cannot come back by accident. Structural tests assert `risk/` imports no
+staleness constant, builds no monitor, holds no last-message timestamp, and compares no age
+against a limit; and that changing P6's threshold changes when `STALE` fires with no `RiskConfig`
+edit at all.
+
+Detection did not become lazy. `pipeline.check_staleness(now)` already ran on three capture-loop
+paths — the queue-idle timeout, the fault-gated path, and after each payload — all before
+`on_tick`, so silence is noticed without waiting for a market event. Proven live: the real BTC
+pause halted **4,083 ms** after injection, which is P6's 5-second threshold.
+
+### Gap B — permission could change with no ordered record
+
+`RiskEngine.reconciled` mutated the latched snapshot directly and the fault scheduler called it.
+Clock drift, API error rate, rate-limit uncertainty, and every reconciliation result could flip
+`allows_place` without entering any ordered stream. A run could be replayed for its economics and
+not for its permissions.
+
+Risk now has its own versioned stream, **beside** the P5 journal and never inside it:
+
+```text
+RiskSignal      kind, as_of_ingress_ordinal, timestamp, provenance, reason, payload
+RiskRecord      schema version, strict risk_sequence, the signal, the health frame it saw,
+                and the resulting state / active / latched / allows_place / allows_cancel
+RiskController  the single owner of risk state, and the only path that may change it
+```
+
+`as_of_ingress_ordinal` means: the signal was applied after every market event through that
+ordinal had been consumed, and before the next permission decision referencing this risk
+sequence. Nothing depends on coroutine scheduling. Feed health is not duplicated — `HealthEvent`
+already exists in the market stream.
+
+Order is enforced: a signal preceding the last applied ordinal is refused, and a
+`RECONCILIATION_CONFIRMED` for a reason that is not latched is refused as a duplicate or a claim
+about something never in doubt. A structural test asserts nothing outside the controller calls
+`engine.reconciled`.
+
+`verify_risk_replay` re-derives every verdict and fails closed at the first divergence, naming
+the risk sequence, the ingress ordinal, and both values. A sequence gap fails immediately: an
+audit missing records cannot explain the cycles it lost.
+
+### Fresh real-market evidence
+
+Baseline `btc-updown-5m-1787678100` — 153,082 cycles, 152,738 CLOB and 3,196 BTC messages, 0
+malformed, 0 reconnects.
+
+```text
+risk records 153,082   dropped 0   gaps 0   REPLAY VERIFIED
+SAFE 152,914 (99.89%)  HALTED 167 (the explained T0 spot-UNKNOWN halt)  RECOVERING 1
+PLACE 679, ALL in SAFE     1,217 actions each attributed to a risk sequence
+```
+
+Faults `btc-updown-5m-1787679300` — 162,644 cycles, 12 halts, **36 transitions, every one
+through RECOVERING**.
+
+```text
+risk records 162,666   non-evaluation signals 18   dropped 0   gaps 0   REPLAY VERIFIED
+PLACE  805, ALL in SAFE.  Zero while HALTED, zero while RECOVERING, across 29,401 halted cycles.
+CANCEL 693 in SAFE, 9 while HALTED  -- resting quotes withdrawn.
+
+btc_stale             halt seq  24,857   4,083 ms reaction (P6's threshold)   SAFE seq  34,268
+clob_disconnect       halt seq  61,862      24 ms                             SAFE seq  61,865
+genuine venue drop    halt seq  84,498   real incident, not induced           SAFE seq  84,502
+continuity_uncertain  halt seq  99,983       0 ms                             SAFE seq  99,987
+clock_drift           halt seq 111,105       0 ms                             SAFE seq 112,983
+order_state_uncertain halt seq 120,352  LATCHED                               SAFE seq 124,971
+position_mismatch     halt seq 128,786  LATCHED                               SAFE seq 131,556
+cost_ledger_mismatch  halt seq 137,119  LATCHED                               SAFE seq 141,957
+api_error_rate        halt seq 147,791       0 ms                             SAFE seq 150,779
+rate_limit_uncertain  halt seq 155,892       0 ms                             SAFE seq 158,117
+resolution_ambiguous  halt seq 159,993       0 ms                             SAFE seq 160,662
+```
+
+The three latching reasons show the required three-step in the trace: the condition clears and
+**permission does not return** — the state goes to `RECOVERING` with the reason still latched —
+and only the explicit `RECONCILIATION_CONFIRMED` signal restores `SAFE`.
+
+**One halt was a genuine venue incident**, not induced: the feed counters record two reconnects
+where only one was forced. It is labelled as such rather than folded into the induced count, and
+it recovered in 1,071 ms by the same path.
+
+### Two defects these runs found
+
+The first P9B fault run halted on `API_ERROR_RATE` for **0 ms**: the injector forced the
+condition on and the real `ApiErrorMonitor` cleared it on the next evaluation. Two sources
+writing one condition. Fixed in the injector; the corrected run holds it for 3,907 ms. **The
+ordered trace is what made it visible** — two opposite `API_ERROR_STATE_UPDATE` records one
+sequence apart.
+
+Measuring the ordered path also found the third frozen-dataclass cost in this codebase.
+`RiskInputs` alone cost 1,907 ns to construct; as a `NamedTuple` the whole path went **6,390 →
+4,728 ns**. P8 found the same thing twice.
+
+---
+
+## P9: risk, health, and recovery (first round — read with the correction above)
 
 The governing rule, from Canonical §28 and Detailed §38: **if the bot cannot trust its own
 state, stop new quoting, reconcile, and resume only when safe.** Detailed §38 closes with the
@@ -470,9 +580,10 @@ orders, which P8 does not place. Both stay OPEN.
 
 | | |
 |---|---|
-| **Current phase** | **P9 — risk / health / recovery** |
+| **Current phase** | **P9 — risk / health / recovery, corrected** |
 | P9 implementation gate | **PASSED** |
-| P9 real-market integration gate | **PASSED** — baseline + controlled-fault markets |
+| P9 real-market integration gate | **PASSED** — fresh baseline + controlled-fault markets |
+| P9 deterministic-risk-audit gate | **PASSED** — ordered stream, replay verified, zero gaps |
 | P9 authenticated execution gate | **UNRUN / DEFERRED TO P14** |
 | P8 implementation gate | **PASSED** |
 | P8 performance gate | **PASSED** — see the telemetry offload below |
@@ -491,6 +602,8 @@ orders, which P8 does not place. Both stay OPEN.
 | P8 correction commits 2 | `bbeb9b5` analytics offload · `88a7807` stage sampling · `4cb9d5f` benchmarks |
 | Current branch | `feature/p9-risk-recovery` |
 | P9 boundary commit | `4c2ab1d` — `test: exercise every inducible risk condition on a real market` |
+| P9 correction branch | `fix/p9-risk-ordering-staleness` |
+| P9 correction boundary | `PENDING` — recorded in the follow-up commit |
 | P9 commits | `4be0032` risk engine · `6576de0` recovery + runner · `1584dee` stale recovery fix · `b2e715e` real-market evidence · `4c2ab1d` full fault market |
 | Last accepted milestone | P7 — execution state + reconciler, corrected (`0f17bd2`) |
 | Next milestone | P9 — awaiting acceptance of P8; not started |
@@ -596,7 +709,7 @@ construction rather than by logic — the same effect measured in P4. P8 owns en
 | | |
 |---|---|
 | Status | **green** |
-| Suite | 1 342 passed (1 242 at the P8C boundary; +100 in P9) |
+| Suite | 1 387 passed (1 242 at the P8C boundary; +145 across P9 and its correction) |
 | `ruff check` / `ruff format --check` | clean |
 | `mypy` (strict) | clean — `src/`, `tests/`, `tools/`; **zero `type: ignore` in `execution/`** |
 | Runtime dependencies | `websockets`, `polymarket-client==0.6.0` — both pinned or bounded |

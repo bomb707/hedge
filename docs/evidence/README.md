@@ -6,8 +6,10 @@
 | [`P8-MEASUREMENT.md`](P8-MEASUREMENT.md) | P8, first run | **queue metrics SUPERSEDED** |
 | [`P8B-MEASUREMENT.md`](P8B-MEASUREMENT.md) | P8, correction 1 | **valid correctness evidence; performance gate failed** |
 | [`P8C-PERFORMANCE-CLOSURE.md`](P8C-PERFORMANCE-CLOSURE.md) | P8, correction 2 | **final performance closure** |
-| [`P9-REAL-MARKET-BASELINE.md`](P9-REAL-MARKET-BASELINE.md) | P9 | `REAL_PUBLIC_MARKET_DATA` |
-| [`P9-REAL-MARKET-FAULTS.md`](P9-REAL-MARKET-FAULTS.md) | P9 | `CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET` |
+| [`P9-REAL-MARKET-BASELINE.md`](P9-REAL-MARKET-BASELINE.md) | P9 | valid mechanisms; **superseded for architectural acceptance** |
+| [`P9-REAL-MARKET-FAULTS.md`](P9-REAL-MARKET-FAULTS.md) | P9 | valid mechanisms; **superseded for architectural acceptance** |
+| [`P9B-REAL-MARKET-BASELINE.md`](P9B-REAL-MARKET-BASELINE.md) | P9 corrected | `REAL_PUBLIC_MARKET_DATA` |
+| [`P9B-REAL-MARKET-FAULTS.md`](P9B-REAL-MARKET-FAULTS.md) | P9 corrected | `CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET` |
 
 Superseded documents are retained and labelled rather than deleted. A measurement that turned
 out to be wrong is part of the record of how the right one was reached, and removing it would

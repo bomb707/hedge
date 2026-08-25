@@ -244,6 +244,14 @@ async def main(out: Path, faults: tuple[Fault, ...], label: str) -> None:
                 return False
         return True
 
+    def _api_fault_active(now_ns: TimestampNs) -> bool:
+        elapsed = offset_s(now_ns)
+        return any(
+            fault.kind == "signal:API_ERROR_STATE_UPDATE"
+            and fault.start_offset_s <= elapsed < fault.end_offset_s
+            for fault in faults
+        )
+
     def frame(pipeline: MarketDataPipeline) -> HealthFrame:
         """P6's verdict, read rather than recomputed."""
         return HealthFrame(
@@ -347,8 +355,12 @@ async def main(out: Path, faults: tuple[Fault, ...], label: str) -> None:
         never lag the condition by an event - a single PLACE slipping through between a feed
         going stale and the halt being noticed would defeat the whole mechanism.
         """
+        # The monitor is the ordinary source of this signal. While an API fault is scheduled
+        # the injector owns the condition instead, or the two would contradict each other: an
+        # earlier run had the forced signal cleared by the monitor on the very next evaluation,
+        # producing a halt that lasted a single risk sequence.
         exceeded = api_errors.exceeded(now_ns)
-        if exceeded != controller.operational.api_errors_exceeded:
+        if not _api_fault_active(now_ns) and exceeded != controller.operational.api_errors_exceeded:
             emit(
                 RiskSignalKind.API_ERROR_STATE_UPDATE,
                 pipeline,

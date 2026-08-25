@@ -501,6 +501,33 @@ cycle of a measuring run, because an estimate that skipped unsampled depth chang
 on the sampling rate. Sampling is `OPERATIONAL` configuration and must never be used to make a
 latency distribution look better than it is.
 
+**The trading path captures; analysis happens downstream.** *(established P8C.)* Observation
+is split in two. The hot path records *facts* — the displayed depth at our own price, the
+reconcile plan, stage timestamps for sampled cycles — into a bounded non-blocking buffer, and
+returns. Queue estimation, classification, counting, and distributions are reconstructed by
+:class:`~maker5m.telemetry.analyzer.TelemetryAnalyzer` from that stream, in ingress order,
+producing identical results. The trading path must never wait on telemetry analysis.
+
+The split is drawn at *analysis*, not at *simulation*. Preparation, reconciliation, and the
+shadow order-table lifecycle model what production does every cycle and therefore stay hot;
+relocating them would make an OFF/ON comparison meaningless. Depth is the one measurement that
+cannot be deferred either — the book is mutable, and the size resting at our own price has to be
+sampled at the moment the cycle sees it.
+
+**Observation order is authoritative, and gaps are not bridged.** Observations carry a capture
+sequence and are folded strictly in order. Out-of-order input **fails closed**: a stream whose
+order is unknown has unknown provenance, and silently sorting it would manufacture confidence.
+A missing sequence means a dropped observation, which means an unseen depth change at our own
+price, which means the estimate cannot be continued — it becomes ``STALE``. Trading is
+unaffected by a telemetry drop; the measurement must still say so.
+
+**Sampling controls timing work, not just output.** The sampling decision is made before reduce
+and decide, via ``IngressMerger.submit(..., measure_stages=)`` and
+``MarketDataPipeline.stage_selector``, so an unsampled ordinary event takes no perf-counter
+readings at all. An action discovered after reconciliation is still recorded, with one reading
+for the action itself and its earlier stages left ``NOT_CAPTURED``. "Always observe actions"
+does not entitle a report to timestamps that were deliberately not taken, and none are imputed.
+
 **Execution queue losses and shadow slot losses are different metrics.** `execution_queue_loss_actions`
 counts reconciler decisions that give up a slot (REPLACE, CANCEL). `shadow_slot_losses` counts
 slot identities that ceased to exist, which includes closures the plan does not name, such as a

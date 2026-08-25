@@ -238,10 +238,20 @@ plus `INVARIANTS.md` and `STATUS.md`.
   overhead that was measurable rather than negligible. The queue model, the lookup structure,
   and the sampling boundary between *state maintenance* and *emission* were corrected, and the
   overhead benchmark was rebuilt as a paired, interleaved, tier-split measurement.
-- **Performance limit, reported not waived:** an ordinary unsampled production-shaped cycle
-  costs **+4.90 µs (+15.1%)**. The 5 µs limit holds; the 5 % limit does not, and the residue is
-  state maintenance that cannot be sampled away without making the queue estimate depend on the
-  sampling rate. Recorded as **not passed** rather than restated as a pass.
+- **Performance closure round** (`fix/p8-telemetry-offload`): the P8B architecture ran queue
+  analytics synchronously and cost **+4.90 µs (+15.1%)** on an unsampled cycle, reported as a
+  failed gate. Observation is now split — the trading path captures facts into a bounded
+  non-blocking buffer and returns; queue estimation, classification, counting, and distributions
+  are reconstructed downstream in ingress order. Simulation (prepare, reconcile, shadow order
+  table) deliberately stays hot so the OFF/ON comparison remains like-for-like, and sampling now
+  gates stage timing *before* reduce and decide rather than only gating output.
+- **Equivalence proven, not assumed:** the offloaded analyzer reproduces the synchronous model
+  exactly — slot counts, typed loss reasons, every action and quality counter, and the whole
+  ordered queue-ahead sequence — checked against a golden snapshot taken from `c5cec7f`.
+- **Performance limits met:** unsampled full-cycle **+955 ns (+2.9%)** against 5,000 ns and 5%;
+  process-isolated decide **+454 ns (+1.73%)** against 1,000 ns and 3%. The decide benchmark runs
+  each configuration in a fresh interpreter, because a same-process measurement cannot separate
+  instrumentation from the allocator and cache pressure it leaves behind.
 
 ---
 

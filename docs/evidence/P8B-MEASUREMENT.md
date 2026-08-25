@@ -1,5 +1,21 @@
 # P8 corrected measurement evidence
 
+> ## STATUS: VALID CORRECTNESS EVIDENCE — PERFORMANCE GATE FAILED
+>
+> The queue-lifecycle correction and O15 closure recorded here were accepted and remain the
+> authoritative correctness result for P8. Nothing in this document is superseded on those
+> grounds.
+>
+> What failed here was the **performance gate**: the telemetry overhead figures below
+> (+4,902 ns / +15.1% on an unsampled cycle, +1,968 ns / +7.7% on decide) did not meet the P8
+> limits, and were reported as failing rather than waived. Those numbers describe an
+> architecture in which queue analytics ran synchronously on the trading path.
+>
+> That architecture is replaced in [`P8C-PERFORMANCE-CLOSURE.md`](P8C-PERFORMANCE-CLOSURE.md).
+> The queue results here are reproduced **exactly** by the offloaded pipeline — proven by
+> golden-file comparison across the whole measurement, not merely re-measured — so the
+> correctness evidence carries forward unchanged while the overhead figures do not.
+
 Supersedes the queue metrics in [`P8-MEASUREMENT.md`](P8-MEASUREMENT.md), which are retained
 and labelled rather than deleted. Produced on `fix/p8-measurement-hotpath-closure` after
 independent review found three closure issues in the accepted P8 work.

@@ -20,8 +20,9 @@
 > * The **instrumentation overhead** figure here (+21.3%) was measured with a method that has
 >   since been replaced by a paired, interleaved, tier-split benchmark.
 >
-> Corrected evidence: [`P8B-MEASUREMENT.md`](P8B-MEASUREMENT.md). Correction branch
-> `fix/p8-measurement-hotpath-closure`.
+> Corrected evidence: [`P8B-MEASUREMENT.md`](P8B-MEASUREMENT.md) (correctness), then
+> [`P8C-PERFORMANCE-CLOSURE.md`](P8C-PERFORMANCE-CLOSURE.md) (performance). Correction
+> branches `fix/p8-measurement-hotpath-closure` and `fix/p8-telemetry-offload`.
 
 Measurement only. **No strategy parameter was changed to improve any number in this
 document.** Everything here describes what the current strategy *does*; nothing here has been

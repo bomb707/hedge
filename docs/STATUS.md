@@ -63,6 +63,72 @@ production.
 
 ---
 
+## P8C: the telemetry offload
+
+P8B's measurement was correct and synchronous, and that was the problem: every cycle mutated
+shadow queue slots, counted actions, classified both sides, and updated distributions before the
+trading loop could continue. **+4,902 ns (+15.1%)** on an ordinary unsampled book update, for
+work no trading decision depends on. That gate was reported as failed rather than waived.
+
+Full evidence: [`evidence/P8C-PERFORMANCE-CLOSURE.md`](evidence/P8C-PERFORMANCE-CLOSURE.md).
+
+### Observation is now split in two
+
+The trading path captures *facts* — the displayed depth at our own price, the reconcile plan,
+stage timestamps for sampled cycles — into a bounded non-blocking buffer, and returns.
+`TelemetryAnalyzer` reconstructs queue estimates, classification, counters, and distributions
+downstream, in ingress order, after the market.
+
+The split is at **analysis**, not at **simulation**. Preparation, reconciliation, and the shadow
+order-table lifecycle model what production does every cycle, so they stay hot and run in both
+benchmark arms. Charging them to telemetry is exactly the error that produced P8's earlier +133%
+and +217% figures. Depth cannot move either: the book is mutable, and the size at our own price
+has to be read at the moment the cycle sees it.
+
+Representation was measured, not assumed — a tuple of references costs 76 ns against 1,791 ns
+for the "clean" frozen dataclass, and `deque.append` beat a hand-rolled ring.
+
+### Order is authoritative, gaps are not bridged
+
+Observations carry a capture sequence and are folded strictly in order. Out-of-order input
+**fails closed**; a sequence gap means an unseen depth change at our own price, so the estimate
+goes `STALE` rather than being continued. Trading is unaffected by a telemetry drop — the loss
+is in observation, not execution — but the measurement says so.
+
+### Sampling now prevents timing work, not just output
+
+The decision is made before reduce and decide, so an unsampled ordinary event takes no
+perf-counter readings at all. An action discovered after reconciliation is still recorded, with
+one reading for the action and its earlier stages left `NOT_CAPTURED`. Nothing is imputed.
+
+### Equivalence proven, not assumed
+
+The offloaded pipeline reproduces the synchronous model **exactly** — slot counts, typed loss
+reasons, every action and quality counter, and the complete 220-element ordered queue-ahead
+sequence — checked against a golden snapshot taken by running the same tool inside a worktree at
+`c5cec7f`. Frozen at `tests/telemetry/golden/synchronous_queue_semantics.json`.
+
+### Limits met, without moving them
+
+```text
+                                      target        P8B        P8C
+unsampled full-cycle p50 overhead   <= 5,000 ns    4,902        955   MET
+unsampled full-cycle p50 overhead   <= 5%          15.1%       2.9%   MET
+decide p50 (process-isolated)       <= 1,000 ns    1,968*       454   MET
+decide p50 (process-isolated)       <= 3%           7.7%*     1.73%   MET
+```
+
+`*` P8B's decide figures were same-process and therefore contaminated by allocator and cache
+pressure; they are shown for continuity, not as a comparable measurement. P8C runs each
+configuration in a fresh interpreter across twelve alternating pairs.
+
+Hot-path capture is now **347 ns** on an unsampled cycle, from ~1,970 ns. Sampled cycles
+(+1,360 ns, +4.1%) legitimately cost more and are reported separately. The p99 tail is
+GC-dominated — disabling GC halved the instrumented p99 delta — and that is stated rather than
+smoothed away.
+
+---
+
 ## P8 correction: shadow queue lifecycle, O15, and telemetry overhead
 
 Independent review found three closure issues in the accepted P8 work. All three were real.
@@ -129,12 +195,11 @@ estimate depend on the sampling rate — while stage timestamps, distributions, 
 and the sink run only for traced cycles. Removing a discarded six-field `QueueEstimate` from
 `on_keep` alone was worth about 1 µs per side.
 
-**The performance limit is not met, and is reported as not met.** On an ordinary unsampled
-production-shaped cycle: **+4.90 µs (+15.1%)**. The 5 µs limit is satisfied; the 5% limit is
-not, and neither is the `decide` limit (+1,968 ns, +7.7%, which is second-order allocator
-pressure rather than work added inside `decide()`). The residue is the two-side state loop
-(1,570 ns) that maintains slot depth and action counts, and it cannot be sampled away without
-making `queue_ahead` depend on the sampling rate.
+**The performance limit was not met in this round, and was reported as not met.** On an
+ordinary unsampled production-shaped cycle: **+4.90 µs (+15.1%)**. The residue was the two-side
+analytical state loop (1,570 ns) that maintained slot depth and action counts synchronously.
+That loop no longer runs on the trading path at all — see the telemetry offload above, which
+closes this gate at +955 ns (+2.9%).
 
 ### Confirmed on a fresh real market
 
@@ -240,9 +305,9 @@ orders, which P8 does not place. Both stay OPEN.
 
 | | |
 |---|---|
-| **Current phase** | **P8 correction — measurement and hot-path closure** |
-| P8 implementation gate | **PASSED after correction** (31 of 32 gate conditions) |
-| P8 performance gate | **NOT PASSED** — the 5 µs limit holds, the 5 % limit does not |
+| **Current phase** | **P8 — closed after two correction rounds** |
+| P8 implementation gate | **PASSED** |
+| P8 performance gate | **PASSED** — see the telemetry offload below |
 | P7 implementation gate | **PASSED** (with the concurrency correction below) |
 | Live execution | **NOT ARMED and not armable** — P14 owns that |
 | Target-wallet empirical replay | **UNRUN / BLOCKED** |
@@ -252,8 +317,10 @@ orders, which P8 does not place. Both stay OPEN.
 | P7 boundary commit | `de96681` — `feat: add post-only execution reconciler` |
 | P7 concurrency correction | `d333aeb` — `fix: dispatch independent outcome orders concurrently` |
 | P8 boundary commit | `16bd4d4` — `feat: add queue and latency instrumentation` |
-| P8 correction branch | `fix/p8-measurement-hotpath-closure` |
-| P8 correction commits | `f96815f` O15 · `e1604bf` shadow lifecycle · `a6f903e` telemetry overhead |
+| P8 correction branch 1 | `fix/p8-measurement-hotpath-closure` (`c5cec7f`) |
+| P8 correction commits 1 | `f96815f` O15 · `e1604bf` shadow lifecycle · `a6f903e` telemetry overhead |
+| P8 correction branch 2 | `fix/p8-telemetry-offload` |
+| P8 correction commits 2 | `bbeb9b5` analytics offload · `88a7807` stage sampling · `4cb9d5f` benchmarks |
 | Last accepted milestone | P7 — execution state + reconciler, corrected (`0f17bd2`) |
 | Next milestone | P9 — awaiting acceptance of P8; not started |
 | `main` | `0f17bd2` — fast-forwarded through P7 and its correction, pushed |
@@ -358,7 +425,7 @@ construction rather than by logic — the same effect measured in P4. P8 owns en
 | | |
 |---|---|
 | Status | **green** |
-| Suite | 1 176 passed (1 065 at the P7 boundary; +111 in P8) |
+| Suite | 1 242 passed (1 065 at the P7 boundary; +177 across P8 and its two corrections) |
 | `ruff check` / `ruff format --check` | clean |
 | `mypy` (strict) | clean — `src/`, `tests/`, `tools/`; **zero `type: ignore` in `execution/`** |
 | Runtime dependencies | `websockets`, `polymarket-client==0.6.0` — both pinned or bounded |
@@ -378,9 +445,10 @@ its own documentation.
 
 ## Open strategy items
 
-Full detail in [`OPEN_ITEMS.md`](OPEN_ITEMS.md). **P8 added O15 and its correction round closed
-it**, confirmed on real market data. O08 and O09 are now *measurable* but remain **OPEN**:
-neither can be settled without real resting orders, which P8 does not place.
+Full detail in [`OPEN_ITEMS.md`](OPEN_ITEMS.md). **P8 added O15 and closed it**, confirmed on
+real market data. O08 and O09 are now *measurable* but remain **OPEN**: neither can be settled
+without real resting orders, which P8 does not place. The telemetry architecture is an
+engineering concern, not a strategy question, so it produced no new strategy open item.
 
 ```text
 O01 quote-centre source            OPEN      O08 latency for queue dominance OPEN

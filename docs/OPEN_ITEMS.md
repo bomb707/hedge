@@ -117,11 +117,28 @@ structure", which is consistent with this discrepancy being real rather than a t
 - **Must remain configurable:** `GridSizer` behind one interface with the target-selection
   rule as a swappable policy, so both readings can be replayed against the same journal
   without touching anything else. Both must be implemented as named policies.
+- **What is settled, and what is not.** The 5-share lattice and the modular fingerprint
+  (I04) are CONFIRMED and are not in question here. What remains OPEN is only the
+  *target-selection rule* that decides which lattice point each side aims at.
+- **Precedence is not evidence.** The document precedence rule makes the Canonical formula
+  the **default implementation choice** so that P3 has something to run. It does not make it
+  the observed behaviour of the target wallet, and it must never be recorded as such.
+  Neither reading may be declared the true target-selection rule until replay evidence
+  closes this item. Both are carried as named, selectable policies:
+
+```text
+GridTargetPolicy.CANONICAL   Canonical §12.1 formula          (default, not proven)
+GridTargetPolicy.OBSERVED    Detailed §12 / d3_grid.png       (alternative, not proven)
+```
+
 - **Closing experiment:** replay the target wallet's reconstructed per-market order-size
   sequences under each policy and compare size-by-size. The correct policy reproduces the
   observed sizes exactly; the wrong one diverges on the first fractional inventory state.
-  Until then, P3 ships the Canonical policy as default and the Detailed policy as a named
-  alternative, and the divergence is logged whenever the two disagree.
+  Until then P3 runs the default, logs every state where the two policies disagree, and
+  claims no correctness for either.
+- **P1 did not touch this.** The numeric kernel contains no lattice logic of any kind. Its
+  `quantize_order_size` helper is venue submission quantisation (2 decimals) and is
+  explicitly not the 5-share grid.
 
 ---
 
@@ -216,22 +233,67 @@ structure", which is consistent with this discrepancy being real rather than a t
 
 ## O10 — Venue quantity and price precision (numeric scale selection)
 
-- **Status:** OPEN · **BLOCKING for P1**
+- **Status:** **CLOSED FOR NUMERIC KERNEL** (P1, 2026-08-25) · residual validation open for P6
 - **Source:** derived requirement — Canonical §12.3, §32 ("precision"); `ARCHITECTURE_SSOT`
   §6
-- **Why it matters:** `SHARE_SCALE` and `MONEY_SCALE` are frozen at P1 and cannot be
-  changed afterwards without invalidating every recorded replay journal. If the chosen
-  scale cannot exactly represent a venue-reported fill quantity, the ledger either silently
-  rounds — violating I03 — or halts. Choosing the scale from a guess rather than from
-  measured venue behaviour is precisely the failure the exactness contract exists to
-  prevent.
-- **Must remain configurable:** nothing — this is the opposite case. The scale must be
-  **decided once, from evidence, and then frozen**, with the exactness check (non-
-  representable value ⇒ hard error, never a silent round) enforced permanently.
-- **Closing experiment:** sample real Polymarket fill and book messages for the
-  `btc-updown-5m-*` universe and determine the maximum decimal precision actually used for
-  size and price, plus whether any market in the universe uses a tick other than `0.01`.
-  Choose scales with headroom above the observed maximum.
+
+### Why this item existed
+
+`SHARE_SCALE`, `MONEY_SCALE`, and `PRICE_SCALE` are frozen at P1 and cannot change
+afterwards without invalidating every recorded replay journal and every stored ledger. If
+the chosen scale cannot exactly represent a venue-reported fill quantity, the ledger either
+silently rounds — violating I03 — or halts. Choosing the scale from a guess rather than from
+venue behaviour is precisely the failure the exactness contract exists to prevent, so P0
+recorded it as blocking rather than picking a plausible number.
+
+### Evidence used to close it
+
+From Polymarket's official CLOB implementation:
+
+```text
+COLLATERAL_TOKEN_DECIMALS   = 6
+CONDITIONAL_TOKEN_DECIMALS  = 6
+supported tick sizes        = 0.1 | 0.01 | 0.001 | 0.0001
+order builder size rounding = 2 decimal places
+```
+
+The critical distinction, which the decision turns on:
+
+```text
+ORDER INPUT QUANTIZATION  !=  AUTHORITATIVE LEDGER PRECISION
+```
+
+An order may be *submitted* with its size rounded to two decimals, but the resulting
+position and collateral movements settle in 6-decimal atomic units. The ledger is
+authoritative over what the venue actually moved, not over what we asked for. Sizing the
+scales to the submission granularity would have silently truncated real fills.
+
+### Decision
+
+```text
+SCALE_DECIMALS = 6
+
+SHARE_SCALE = 1_000_000     1 share       = 1_000_000 ShareUnits
+MONEY_SCALE = 1_000_000     1 USDC        = 1_000_000 MoneyUnits
+PRICE_SCALE = 1_000_000     probability 1 = 1_000_000 PriceUnits
+```
+
+Six decimals matches the venue's atomic units exactly and represents every documented tick
+size exactly — the finest, `0.0001`, is `100` price units, leaving two decimal digits of
+headroom below it. Frozen in `src/maker5m/numeric/scales.py`; the two-decimal submission
+quantisation lives separately in `numeric/ticks.py` and is never applied to a ledger input.
+
+### Residual requirement — still open, owned by P6
+
+> Verify real `btc-updown-5m-*` messages against the frozen scales before live execution.
+
+The evidence above is upstream implementation constants, not observed traffic for this
+specific market universe. P6 must confirm against recorded messages that (a) no fill or book
+message carries more than six decimals of size or price, and (b) no market in the universe
+uses a tick outside the documented set. The kernel already enforces this at runtime: a
+non-representable value raises `NotRepresentableError` rather than rounding, so a wrong
+assumption surfaces as a halt rather than as silent ledger corruption. That guard is what
+makes it safe to proceed to P2 before the traffic check is done.
 
 ---
 
@@ -266,5 +328,5 @@ structure", which is consistent with this discrepancy being real rather than a t
 | O07 | Fee / rebate calibration | OPEN | — |
 | O08 | Latency distribution for queue dominance | OPEN | — |
 | O09 | Spot-to-next-CLOB-level timing model | OPEN | — |
-| O10 | Venue precision / numeric scale | OPEN | **P1** |
+| O10 | Venue precision / numeric scale | **CLOSED for kernel** (P6 traffic check open) | — |
 | O11 | Authoritative resolution source | OPEN | P10 |

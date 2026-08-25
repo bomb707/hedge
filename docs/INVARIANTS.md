@@ -49,7 +49,9 @@ DOWN profitable iff n_down > total_cost + fees - rebates
 
 The `Term1 + Term2` decomposition (`C §4`) is an **analytic view** and must reproduce the
 same number as the exact settlement accounting, to the last unit, for every market. Any
-divergence is a defect in one of the two.
+divergence is a defect in one of the two. Note `C §4`'s literal `Term2 = R * (1 - a_W)` is
+wrong when the bot ends holding more of the *loser*; use the corrected general form recorded
+in `ARCHITECTURE_SSOT.md` §10 A9, which is what makes this invariant hold in both cases.
 
 ### I02 — Net inventory
 `C §3.3`, `C §5.1`

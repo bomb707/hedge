@@ -11,7 +11,7 @@ Sections are independently readable. Read only the one you are working in.
 - §3 Event flow
 - §4 Component catalogue
 - §5 Concurrency and ownership
-- §6 Numeric contract (target for P1)
+- §6 Numeric contract (FROZEN at P1)
 - §7 Determinism and replay
 - §8 Module map
 - §9 Configuration and parameter labelling
@@ -286,67 +286,135 @@ Snapshots                immutable, published to Plane 3
 
 ---
 
-## §6 Numeric contract (target for P1 — not implemented in P0)
+## §6 Numeric contract — **FROZEN at P1**
 
 Binary floating point is not acceptable for inventory, cost, or price on the hot path:
 `0.01` is not representable, accumulated `+=` over hundreds of partial fills drifts,
 equality comparison for order reconciliation becomes approximate, and replay stops being
 bit-exact. All four are direct invariant violations (I01, I03, I09, I20).
 
-### §6.1 Domain types
+Implemented in `src/maker5m/numeric/`. The scales below are **frozen**: changing them
+invalidates every recorded replay journal and every stored ledger.
 
-Three distinct integer newtypes. They are not interchangeable and must not be implicitly
-mixed; the type checker is expected to enforce this.
-
-| Type | Represents | Scale | Notes |
-|---|---|---|---|
-| `PriceTicks` | a quotable price level | integer count of the market's tick | `tick = 0.01` CONFIRMED (Canonical §8.2). `0.63 -> 63`. Grid rounding, level identity, and reconciliation equality all operate here. |
-| `ShareUnits` | a quantity of outcome tokens | integer sub-shares, `SHARE_SCALE` per share | Carries true fractional fills (I03). Signed; net inventory `I` is a `ShareUnits`. |
-| `MoneyUnits` | USD cost / PnL / fees / rebates | integer sub-dollars, `MONEY_SCALE` per dollar | Ledger arithmetic only. |
-
-`SHARE_SCALE` and `MONEY_SCALE` are fixed at P1 and then frozen; changing them later
-invalidates recorded journals. Their concrete values depend on venue precision, which is
-**OPEN (O10)** — P1 must pick them from measured venue behaviour, not from a guess.
-
-### §6.2 Scaling policy
+### §6.1 Frozen scales
 
 ```text
-price_money_per_share = PriceTicks * tick_size_money      (exact, integer)
-cost_delta            = fill_size_shares * price_money_per_share / SHARE_SCALE
+SCALE_DECIMALS = 6
+
+SHARE_SCALE = 1_000_000     1 share       = 1_000_000 ShareUnits
+MONEY_SCALE = 1_000_000     1 USDC        = 1_000_000 MoneyUnits
+PRICE_SCALE = 1_000_000     probability 1 = 1_000_000 PriceUnits
 ```
 
-- Every multiplication that reduces scale uses an **explicit, documented rounding mode**,
-  applied once, at a named boundary. Implicit rounding anywhere is a defect.
-- Cost accrual rounding direction must be chosen so the ledger is conservative and
-  *reproducible*; the same inputs must always give the same last unit.
-- No intermediate ever becomes `float`. `Decimal` is acceptable in Plane 3 analytics but
-  forbidden on the hot path (allocation and speed).
+Chosen to match the venue's atomic units (`COLLATERAL_TOKEN_DECIMALS = 6`,
+`CONDITIONAL_TOKEN_DECIMALS = 6`) and to represent every documented tick size exactly. Full
+evidence and the residual P6 traffic check are in `OPEN_ITEMS.md` O10.
 
-### §6.3 Exactness contract
+### §6.2 Order-input precision is not ledger precision
 
-1. Every venue-reported price and quantity must be **exactly representable** in these
-   types. A value that is not representable is a **hard error** that halts new quoting —
-   never a silent round. This is how a wrong `SHARE_SCALE` gets detected instead of
-   quietly corrupting the ledger.
-2. The 5-share lattice is exact: `GRID = 5 * SHARE_SCALE`. The modular fingerprint (I04)
-   is integer modular arithmetic and is therefore exactly testable.
-3. Order reconciliation equality is integer equality on `(PriceTicks, ShareUnits)` — fast
-   and unambiguous (I09).
-4. `pnl_if_up`, `pnl_if_down`, `Term1`, `Term2` are computed in `MoneyUnits` and must
-   satisfy `Term1 + Term2 == settlement PnL` exactly (I01).
-5. Float appears only at presentation boundaries: UI, logs, research. Never back-converted
-   into state.
+```text
+ORDER INPUT QUANTIZATION  !=  AUTHORITATIVE LEDGER PRECISION
+```
 
-### §6.4 Where floats remain legitimate
+The official client rounds a *submitted* order size to two decimals. That is a transport
+concern on the way out. Position and collateral movements settle in 6-decimal atomic units,
+and the ledger is authoritative over what the venue actually moved — never over what was
+asked for. Consequences, all enforced in code:
+
+- `quantize_order_size` (2 decimals, truncating toward zero) lives in `numeric/ticks.py`
+  and is **never** applied to a ledger input;
+- a `Fill` carries the venue's **collateral amount** as authoritative cost. Cost is not
+  reconstructed as `shares * price`, because order construction and atomic rounding at the
+  venue mean the two can differ. `price` is carried for analysis only;
+- neither of the above is the strategy's 5-share inventory lattice, which is P3 work and
+  appears nowhere in the numeric kernel.
+
+### §6.3 Domain types
+
+| Type | Represents | Notes |
+|---|---|---|
+| `ShareUnits` | outcome tokens, in `1/SHARE_SCALE` of a share | Signed: net inventory `I` is a `ShareUnits` (I02). Carries true fractional fills (I03). |
+| `MoneyUnits` | USDC, in `1/MONEY_SCALE` dollars | Signed: PnL is a `MoneyUnits`. Costs, fees, and rebates are separately required non-negative. |
+| `PriceUnits` | probability / share price, `1.0` is `PRICE_SCALE` | Absolute, not a tick count. A tick-count view is derived via `price_to_ticks`. |
+
+P0 provisionally named the price type `PriceTicks` (a per-market tick count). P1 replaced it
+with `PriceUnits` (an absolute fixed-point probability) because a tick count is only
+meaningful once a market's tick is known, whereas the ledger and the parser need a
+representation that is valid before any market exists. The tick grid is a *view* over
+`PriceUnits`, not the storage format.
+
+**Representation: `typing.NewType` over `int`.** The three types are distinct to the type
+checker, so a value of one domain cannot be assigned to another; because `int + int` widens
+to plain `int`, mixed-domain arithmetic also fails to type-check the moment its result is
+stored or passed anywhere annotated — which under `mypy --strict` is everywhere. At runtime
+they are ordinary `int` objects: exact, immutable, hashable, and cheap to compare.
+
+Measured on CPython 3.12: a raw `int` add is ~28 ns, re-wrapping the result through the
+`NewType` costs ~60 ns, and a frozen-dataclass wrapper costs ~232 ns. At this strategy's
+event rates — of the order of 100 fills and a few thousand book updates per 300 s market —
+the difference is far below the noise floor, so the cheaper representation was taken and no
+wrapper class is justified.
+
+### §6.4 Scaling and rounding policy
+
+```text
+shares_at_par(shares)              -> MoneyUnits    one winning share pays exactly $1.00
+notional_cost(shares, price, mode) -> MoneyUnits    explicit rounding mode, no default
+```
+
+- These two named functions are the **only** cross-domain conversions. Every other
+  operation stays inside one domain.
+- `notional_cost` is exact for every price on the documented tick grid. Where it is not,
+  the caller must name `FLOOR`, `CEILING`, or `EXACT` (which raises) — rounding is always a
+  documented decision at a named boundary, never implicit.
+- The ledger does **not** call `notional_cost`; authoritative cost comes from the venue
+  (§6.2).
+- No intermediate ever becomes `float`. `Decimal` is used nowhere: decimal strings are
+  parsed directly to integer units, so no binary floating-point error is ever introduced.
+  `Fraction` appears only in the off-hot-path Term1/Term2 decomposition.
+
+### §6.5 Exactness contract
+
+1. Every venue-reported price and quantity must be **exactly representable**. A value that
+   is not raises `NotRepresentableError` and must halt new quoting — never a silent round.
+   Excess fractional digits that are all zero carry no information and are accepted
+   (`"1.0000000"` is fine, `"1.0000001"` is not).
+2. Parsing is strict: plain decimal strings only. No exponent, no underscores, no
+   whitespace, no bare sign, no leading or trailing dot, ASCII digits only, and non-string
+   input is rejected. Adapters hand over the venue's string, never a float.
+3. The 5-share lattice is exact: `GRID = 5 * SHARE_SCALE`. The modular fingerprint (I04) is
+   integer modular arithmetic and is therefore exactly testable — at P3.
+4. Order reconciliation equality is integer equality — fast and unambiguous (I09).
+5. `pnl_if_up`, `pnl_if_down`, and the settlement result are exact `MoneyUnits`.
+   `Term1 + Term2` is an exact rational whose sum equals trading PnL exactly (§6.7).
+6. `float` appears only at presentation boundaries, through the single explicitly-named
+   `to_display_float`. It is never converted back into state.
+
+### §6.6 Where floats remain legitimate
 
 The quote-centre model (TWAP fair value, `normal_cdf`, `log`, `sqrt` — Canonical §7) is
 inherently real-valued. Policy: the centre model may compute in float, but its **output is
-immediately quantised to `PriceTicks` by one explicit, documented rounding rule**, and only
+immediately quantised to `PriceUnits` by one explicit, documented rounding rule**, and only
 the quantised value enters state, decisions, and the replay journal. Determinism is
 therefore preserved at the quantisation boundary rather than throughout the model. The
-quantisation rule is itself part of the strategy contract and must be recorded.
+quantisation rule is itself part of the strategy contract and must be recorded. This is a
+P3 concern; nothing in the P1 kernel produces a float.
 
----
+### §6.7 Term1 / Term2 exactness
+
+Average acquisition price is genuinely rational, so the two terms are computed with
+`fractions.Fraction` in `accounting/decomposition.py` — no floating-point average, and no
+premature rounding of an intermediate. Their sum is always an exact integer `MoneyUnits`
+amount:
+
+```text
+term1 + term2 == gross_payout - total_cost                (exactly)
+net_pnl       == term1 + term2 - fees + rebate            (exactly)
+```
+
+Fees and rebates sit outside the term identity because Canonical §4 defines the terms from
+share counts and prices alone. `Fraction` is slower than `int`; that is acceptable because
+this is Plane 3 analytics. The hot-path ledger stays integer-only.
 
 ## §7 Determinism and replay
 
@@ -384,10 +452,10 @@ not collide in the global namespace.
 
 ```text
 src/maker5m/
-    numeric/        PriceTicks / ShareUnits / MoneyUnits, scaling, rounding   [P1]
-    market/         MarketState, event contracts, PhaseMachine, snapshots     [P2]
+    numeric/        ShareUnits / MoneyUnits / PriceUnits, parsing, ticks     [P1 DONE]
+    market/         MarketState, event contracts, PhaseMachine, snapshots     [P2; Outcome landed in P1]
     strategy/       QuoteCentre, GridSizer, BaseLotSelector, Endgame, decide  [P3,P4]
-    accounting/     PositionLedger, CostBasis, SettlementPnL, Term1Term2      [P1,P2]
+    accounting/     LedgerState, Fill, settlement, Term1/Term2 decomposition  [P1 DONE]
     replay/         journal format, replay harness, parameter sweeps          [P5]
     feeds/          Polymarket book feed, Binance spot feed, clock            [P6]
     execution/      PostOnlyGuard, LiveOrderTable, reconciler, rate limiter   [P7]
@@ -466,6 +534,8 @@ they are in `OPEN_ITEMS.md`.
 | A6 | `rebates` in the live PnL formulas | Live state uses `estimated_rebate`; realised rebate is reconciled post-market. Canonical §3.2 vs §24.3. The two must be tracked as distinct fields, never conflated. |
 | A7 | Is the `0.11-0.89` band enforced? | No. Soft only. Canonical §8.3 and §29.9 forbid a hard cutoff. (I05) |
 | A8 | Where does the hard band live, Plane 1 or 2? | Plane 2 — it is a pure eligibility input in Canonical §32's decision function, so replay must reproduce it. Environmental risk checks stay in Plane 1. |
+
+| A9 | Canonical §4's `Term2 = R * (1 - a_W)` with `R = n_W - n_L` | **Incorrect when `n_W < n_L`**, i.e. whenever the bot ends holding more of the *loser* — which is exactly what happens when the endgame favourite does not win. Worked from the document's own example with the outcome reversed (120 UP @ 0.60, 100 DOWN @ 0.50, DOWN wins), the literal formula gives `-10 + -10 = -20` against a true settlement result of `-22`. The residual is a loser residual there: it pays nothing and cost `a_L` per share. The general form implemented is `Term1 = M*(1 - a_W - a_L)`, `Term2 = (n_W - M)*(1 - a_W) - (n_L - M)*a_L`, which reduces to Canonical's expression for `n_W >= n_L`. This is not a strategy change: Canonical §35 makes "Term 1 + Term 2 reproduces settlement PnL" a mandatory acceptance criterion, and §4 asserts the decomposition "is algebraically equivalent to the exact settlement accounting" — the correction is what makes both statements true. Both branches are regression-tested. |
 
 Anything not listed here and not in `OPEN_ITEMS.md` must be resolved by reading the frozen
 source, not by assumption.

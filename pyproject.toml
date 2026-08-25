@@ -82,7 +82,9 @@ ban-relative-imports = "all"
 [tool.mypy]
 python_version = "3.12"
 mypy_path = "src"
-packages = ["maker5m"]
+# Tests are type-checked too: they are the executable statement of the accounting
+# invariants, and an untyped test can assert the wrong thing without anyone noticing.
+files = ["src", "tests"]
 strict = true
 warn_unreachable = true
 warn_return_any = true

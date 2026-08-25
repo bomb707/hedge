@@ -30,7 +30,8 @@ packages = ["src/maker5m"]
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]
-pythonpath = ["src"]
+# "." so shared test builders are importable as tests.unit.builders
+pythonpath = ["src", "."]
 addopts = "-q --strict-markers --strict-config"
 xfail_strict = true
 filterwarnings = ["error"]

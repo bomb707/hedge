@@ -315,6 +315,51 @@ makes it safe to proceed to P2 before the traffic check is done.
 
 ---
 
+## O12 — BTC spot fixed-point scale
+
+- **Status:** OPEN · BLOCKING for P6 · raised in P2
+- **Source:** derived requirement — Canonical §24.2 (external pricing state); P2 event
+  contracts
+
+### Why it exists
+
+`PriceUnits` cannot carry a BTC price: it is a probability constrained to `[0, 1]`. External
+spot needs its own exact fixed-point representation, and that representation needs a scale.
+
+This repository holds **no authoritative evidence** for the precision of the external BTC
+feed — nothing equivalent to the published `COLLATERAL_TOKEN_DECIMALS` and tick set that
+closed O10. Freezing a scale from a guess would repeat exactly the failure O10 existed to
+prevent: a scale too coarse for a real feed value either rounds the input silently, which
+corrupts every downstream comparison, or halts the bot in production.
+
+### What P2 did instead of guessing
+
+`maker5m.market.btc_price.BtcPrice` is **self-describing**: it carries its own
+`scale_decimals` alongside its integer units. That keeps every value exact and float-free
+while leaving the scale question genuinely open. Comparison across two different scales
+normalises exactly rather than comparing raw integers, which would be meaningless.
+
+The same type carries the market strike, which is the same kind of quantity.
+
+Parsing goes through the one strict parser in the project
+(`maker5m.numeric.units.parse_fixed_point`), so a feed value with more precision than the
+chosen scale raises `NotRepresentableError` rather than rounding — the same fail-closed
+property that makes a wrong scale surface as a halt instead of as silent corruption.
+
+### What must remain configurable
+
+The scale itself, per feed. Nothing in the deterministic core assumes a value.
+
+### Closing experiment
+
+Sample real Binance (or whichever external feed is selected) BTC messages and determine the
+maximum decimal precision actually used for price. Then decide, explicitly, whether to
+promote `BtcPrice` to a single frozen global scale — which would be cheaper per event and is
+the right end state — or to keep it self-describing because more than one feed is in play.
+Promoting it is a contract change that requires a replay-journal version bump.
+
+---
+
 ## Summary table
 
 | ID | Item | Status | Blocking |
@@ -330,3 +375,4 @@ makes it safe to proceed to P2 before the traffic check is done.
 | O09 | Spot-to-next-CLOB-level timing model | OPEN | — |
 | O10 | Venue precision / numeric scale | **CLOSED for kernel** (P6 traffic check open) | — |
 | O11 | Authoritative resolution source | OPEN | P10 |
+| O12 | BTC spot fixed-point scale | OPEN | **P6** |

@@ -21,6 +21,7 @@ from maker5m.numeric import (
     format_share,
     money_from_whole,
     notional_cost,
+    parse_fixed_point,
     parse_money,
     parse_price,
     parse_share,
@@ -194,3 +195,24 @@ def test_format_price_is_exact() -> None:
 
 def test_display_float_is_the_only_exit_and_is_clearly_lossy() -> None:
     assert to_display_float(630_000) == pytest.approx(0.63)
+
+
+@pytest.mark.parametrize(
+    ("text", "decimals", "expected"),
+    [("64123", 0, 64123), ("64123.00", 0, 64123), ("1", 0, 1), ("0", 0, 0), ("-7", 0, -7)],
+)
+def test_parse_fixed_point_handles_a_zero_decimal_scale(
+    text: str, decimals: int, expected: int
+) -> None:
+    """Regression: with no fractional digits at decimals=0 the padded fraction is empty."""
+    assert parse_fixed_point(text, decimals=decimals) == expected
+
+
+def test_parse_fixed_point_at_zero_decimals_still_rejects_real_precision() -> None:
+    with pytest.raises(NotRepresentableError):
+        parse_fixed_point("64123.5", decimals=0)
+
+
+def test_parse_fixed_point_rejects_negative_decimals() -> None:
+    with pytest.raises(DomainError):
+        parse_fixed_point("1", decimals=-1)

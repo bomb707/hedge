@@ -21,23 +21,25 @@ an agent.
 
 | | |
 |---|---|
-| **Current phase** | **P1 — fixed-point numeric kernel + exact accounting** |
-| Current branch | `feature/p1-numeric-accounting` |
-| P1 boundary commit | `89f7178` — `feat: add fixed-point accounting kernel` |
-| Last accepted milestone | P0 — architecture, invariants, open items, plan, and skeleton frozen (`acc7ab2`, tip `f77b34d` on `bootstrap/phase-0`) |
-| Next milestone | **P2 — MarketState + event contracts + phase machine** |
-| Baseline commit | `0de1f7c` — pristine import of the supplied strategy sources; `main` still points here, untouched |
+| **Current phase** | **P2 — MarketState + event contracts + phase machine** |
+| Current branch | `feature/p2-market-state-events` |
+| P2 boundary commit | recorded by the immediately following commit on this branch |
+| Last accepted milestone | P1 — fixed-point numeric kernel + exact accounting (`89f7178`, tip `3966978`) |
+| Next milestone | **P3 — Strategy core: Up-space + grid sizing** (blocked on O04, see below) |
+| `main` | `3966978` — fast-forwarded to the accepted P1 HEAD, pushed. No history rewritten |
 | Remote | `origin` → `https://github.com/bomb707/hedge.git` |
 
 ### Branch policy
 
 ```text
-main                        accepted milestones only (currently still at the baseline)
-bootstrap/phase-0           accepted P0 boundary
-feature/<phase>             active phase development
+main                            latest ACCEPTED milestone
+feature/<phase>                 active phase development
+bootstrap/phase-0               retained P0 boundary
+feature/p1-numeric-accounting   retained P1 boundary
 ```
 
-No branch has been merged, rebased, squashed, or force-pushed.
+Nothing has been merged, rebased, squashed, or force-pushed. `main` reached P1 by
+fast-forward only.
 
 ---
 
@@ -45,16 +47,17 @@ No branch has been merged, rebased, squashed, or force-pushed.
 
 | Blocker | Blocks | Detail |
 |---|---|---|
-| **O04** — the two frozen sources give different DOWN-side grid targets | **P3** | Canonical §12.1 yields `-45` (size `16.37`); Detailed §12 and `d3_grid.png` show `-30` (size `1.37`) for the same worked example. The modular fingerprint passes either way, so it cannot arbitrate. **Precedence is not empirical proof** — P3 carries both as named policies and claims correctness for neither until replay evidence decides. Untouched by P1. |
+| **O04** — the two frozen sources give different DOWN-side grid targets | **P3** | Canonical §12.1 yields `-45` (size `16.37`); Detailed §12 and `d3_grid.png` show `-30` (size `1.37`) for the same worked example. The modular fingerprint passes either way, so it cannot arbitrate. **Precedence is not empirical proof** — P3 carries both as named policies and claims correctness for neither until replay evidence decides. Untouched by P1 and P2. |
+| **O12** — BTC spot fixed-point scale unknown | **P6** | New, raised in P2. No authoritative evidence for external-feed precision exists here. P2 avoided guessing by making `BtcPrice` self-describing; the scale is chosen from observed traffic at P6. |
 | **O11** — authoritative resolution source unnamed | P10 | Both sources say "prefer on-chain" without naming a source, confirmation depth, or timeout. |
 
-`O10` is no longer a blocker — see below. Nothing blocks P2.
+Nothing blocks P3 from *starting*; O04 blocks P3 from claiming correctness.
 
 ---
 
 ## Open strategy items
 
-Full detail in [`OPEN_ITEMS.md`](OPEN_ITEMS.md).
+Full detail in [`OPEN_ITEMS.md`](OPEN_ITEMS.md). **P2 resolved none of them.**
 
 ```text
 O01 quote-centre source            OPEN      O07 fee/rebate calibration      OPEN
@@ -62,29 +65,47 @@ O02 volatility sigma               OPEN      O08 latency for queue dominance OPE
 O03 base-lot L selection rule      OPEN      O09 spot-to-CLOB timing model   OPEN
 O04 grid-target selection          OPEN *    O10 venue precision / scales    CLOSED for kernel
 O05 endgame tilt magnitude         FITTED    O11 resolution source           OPEN
-O06 endgame gate magnitude         FITTED
+O06 endgame gate magnitude         FITTED    O12 BTC spot scale              OPEN * (new)
 
 * blocking
 ```
 
-Nothing here may be hard-coded as an assumption (I18).
+Nothing here may be hard-coded as an assumption (I18). The P1 A9 Term2 correction remains
+accepted; O10 remains closed for the numeric kernel with its P6 traffic-check note.
 
-### O10 — closed for the numeric kernel (P1, 2026-08-25)
+---
 
-Closed on upstream evidence, not on a guess: Polymarket's official CLOB implementation uses
-`COLLATERAL_TOKEN_DECIMALS = 6` and `CONDITIONAL_TOKEN_DECIMALS = 6`, and supports tick
-sizes `0.1 / 0.01 / 0.001 / 0.0001`. Its two-decimal order-size rounding is *submission*
-quantisation and deliberately did **not** drive the choice, because
-`ORDER INPUT QUANTIZATION != AUTHORITATIVE LEDGER PRECISION`.
+## What P2 delivered
 
-```text
-SHARE_SCALE = MONEY_SCALE = PRICE_SCALE = 1_000_000        (frozen)
-```
+- **Time as data.** `TimestampNs` / `DurationNs`, integer nanoseconds. No Plane 2 module
+  imports a clock — enforced statically, not by convention.
+- **Phase machine.** `PREARM → QUOTE → ENDGAME → SETTLING → DONE`, half-open integer
+  boundaries at `T0+3 / +240 / +280 / +300`. **The phase is derived, never stored**, so it
+  cannot drift out of agreement with the event stream. `PhaseEvent` journals a boundary and
+  is validated against the derived phase.
+- **Six normalized event contracts** — `SpotTick`, `BookUpdate`, `OwnFill`,
+  `OrderStateEvent`, `PhaseEvent`, `HealthEvent` — all `frozen=True, slots=True`.
+- **Explicit ordering.** `ingress_ordinal` is the total order; timestamps are data. Both are
+  enforced and fail closed. See `ARCHITECTURE_SSOT.md` §3.4.
+- **Fill idempotency.** A repeated fill raises rather than double-accounting (§3.5).
+- **`MarketState`** — single-owner, frozen, embedding the accepted P1 `LedgerState`.
+- **`MarketSnapshot`** — immutable Plane 3 view, deterministically produced.
+- **`BtcPrice`** — exact, float-free, self-describing while O12 is open.
 
-One residual requirement stays open and is owned by **P6**: verify real `btc-updown-5m-*`
-messages against the frozen scales before live execution. The kernel raises
-`NotRepresentableError` rather than rounding, so a wrong assumption would surface as a halt
-rather than as silent ledger corruption — which is why P2 may proceed first.
+### Architectural correction made during P2
+
+P0 documented `accounting → market`; P1 placed `Outcome` in `market` to honour it. P2 showed
+the real direction is `market → accounting` (the event stream carries `Fill`, `MarketState`
+embeds `LedgerState`), which produced a genuine import cycle. `Outcome` moved to the leaf
+module `maker5m/domain.py`; both packages re-export it, so no call site changed. Recorded in
+`ARCHITECTURE_SSOT.md` §8. **No P1 arithmetic was modified.**
+
+### One P1 bug fixed
+
+`parse_fixed_point` raised `ValueError` for `decimals=0` with no fractional part
+(`int("")`). Unreachable from P1, where the only scale is 6 decimals; reachable once the
+parser became public for `BtcPrice`. Fixed and regression-tested. Behaviour at every
+previously-reachable scale is unchanged.
 
 ---
 
@@ -93,41 +114,34 @@ rather than as silent ledger corruption — which is why P2 may proceed first.
 | | |
 |---|---|
 | Status | **green** |
-| Suite | 183 passed (28 at the P0 boundary; +155 in P1) |
+| Suite | 325 passed (183 at the P1 boundary; +142 in P2) |
 | `ruff check` | clean |
-| `ruff format --check` | clean |
-| `mypy` (strict) | clean, 31 files — now covers `tests/` as well as `src/` |
+| `ruff format --check` | clean, 57 files |
+| `mypy` (strict) | clean, 50 files — covers `src/` and `tests/` |
 
-P1 test coverage:
+P2 coverage:
 
-- **numeric primitives** — exact parsing of zero, positive, negative, and six-decimal
-  values; trailing-zero normalisation accepted; non-representable precision rejected rather
-  than rounded; malformed input rejected (exponents, underscores, whitespace, bare dot,
-  non-ASCII digits, non-string input); exact tick alignment and conversion; order-size
-  quantisation truncating toward zero;
-- **ledger** — empty, UP-only, DOWN-only, interleaved, fractional partial fills, 1 000
-  accumulated small fills with no drift, multiple costs, fees, immutability, order
-  independence, and the full validation surface;
-- **rebates** — estimated and realised kept distinct, neither accrual touching the other,
-  estimate replaceable by a recomputing model, and PnL differing correctly per mode with no
-  default mode anywhere;
-- **settlement** — UP wins, DOWN wins, break-even, both branches negative, winner
-  profitable, winner still losing;
-- **mandatory regression** — `120 UP / cost 72`, `100 DOWN / cost 50` ⇒ `-$2` if UP wins and
-  `-$22` if DOWN wins, asserting explicitly that holding 20 more shares of the winning
-  outcome is still a losing market;
-- **Term1 / Term2** — exact identity for both winners, unequal and equal inventories,
-  one-sided and empty markets, fractional inventories, exact rationals with no float;
-- **property tests** — 400 seeded random ledgers × both winners × all three rebate modes,
-  asserting the PnL identities, the term identity, settlement agreement, integer-only state,
-  and fill-order independence. Seeded `random.Random`, not Hypothesis: P1 adds no
-  dependency, and a fixed seed keeps failures reproducible. Adding Hypothesis as a dev-only
-  dependency is the right fix if this input space ever proves too narrow.
-
-Carried forward from P0 and still green: frozen-source checksums, package import,
-live-trading-disabled, required documents, and the static Plane 2 purity guard (which now
-has real modules to check — `numeric`, `market`, and `accounting` import no clock, no I/O,
-no networking, and no source of nondeterminism).
+- **phase boundaries** — every boundary tested at `−1 ns`, exactly on it, and `+1 ns`;
+  representative offsets across the window; monotonicity across 310 seconds; independence
+  from the absolute epoch; full config validation;
+- **determinism** — a >100-event stream spanning all five phases and every event type,
+  asserted to give identical final state, identical snapshots, and an identical
+  *step-by-step trajectory* across repeated runs, with stepwise reduction equal to the fold;
+- **accounting integration** — the mandatory `120/100 → −$2 / −$22` example driven through
+  the event stream; each fill counted exactly once; duplicate fill rejected with prior state
+  intact; identical payloads with distinct ids both applying;
+- **ordering** — strictly increasing ordinal enforced; equal timestamps ordered by ordinal;
+  decreasing timestamp rejected; reversed order rejected rather than silently reinterpreted;
+- **immutability** — every event, `MarketState`, `MarketDefinition`, `PhaseConfig`, and
+  `MarketSnapshot`; prior states unaffected by later transitions; the order map read-only;
+  every non-scalar snapshot field proven frozen by attempting mutation;
+- **validation** — wrong market, illegal phase claim, duplicate fill, malformed ordering,
+  negative timestamps, empty identities, identical up/down tokens, non-positive tick,
+  unknown token, out-of-range prices and sizes;
+- **purity** — the static guard now also sweeps top-level Plane 2 modules and forbids
+  filesystem, process, and persistence imports (`os`, `io`, `pathlib`, `subprocess`,
+  `threading`, `pickle`, …) alongside the existing clock, network, and nondeterminism bans.
+  No exemption was added to make anything pass.
 
 ---
 
@@ -143,13 +157,15 @@ L3  live paper                 not started  (P13)
 L4  minimum-size live          not started  (P14)
 ```
 
-**L1 is not executable here.** `DEVELOPMENT_PLAN.md` sets P1's gate as "L0 green **and** the
-arithmetic reproduces a known target-wallet market ledger exactly". No reconstructed
-target-wallet ledger exists in this repository, so that half of the gate has not been run —
-it is not passed, and it is not waived. It needs either the reconstructed per-market ledgers
-or the first recorded live-paper data from P13. The kernel is structured to make the check a
-pure data exercise when that arrives: feed the fills, compare `n_up`, `n_down`, `cost_up`,
-`cost_down`, `Term1`, `Term2`, and net PnL.
+**L1 remains UNRUN and is not relabelled.** `DEVELOPMENT_PLAN.md` sets P1's gate as "L0
+green **and** the arithmetic reproduces a known target-wallet market ledger exactly". No
+reconstructed fill-level target-wallet ledger exists in this repository, so that half of the
+P1 gate has never been executed. It is not passed and it is not waived. It needs either the
+reconstructed per-market ledgers or the first recorded live-paper data from P13.
+
+P2's own gate — "phase machine is a pure function of the event stream, and a static check
+proves Plane 2 modules import no clock, no I/O, and no network module" — **was executed and
+passed**.
 
 ---
 

@@ -25,6 +25,10 @@ SRC = Path(__file__).resolve().parents[2] / "src" / "maker5m"
 
 PLANE2_PACKAGES = ["numeric", "market", "strategy", "accounting"]
 
+# Top-level modules that are also Plane 2. Listed explicitly because they are not inside a
+# package directory and would otherwise escape the sweep.
+PLANE2_MODULES = ["domain.py"]
+
 FORBIDDEN_ROOTS = frozenset(
     {
         # ambient time
@@ -43,8 +47,20 @@ FORBIDDEN_ROOTS = frozenset(
         "aiohttp",
         "websockets",
         "websocket",
+        # filesystem and process
+        "os",
+        "io",
+        "pathlib",
+        "shutil",
+        "tempfile",
+        "subprocess",
+        "threading",
+        "multiprocessing",
+        "signal",
         # persistence
         "sqlite3",
+        "pickle",
+        "shelve",
         "logging",
         # nondeterminism
         "random",
@@ -55,7 +71,9 @@ FORBIDDEN_ROOTS = frozenset(
 
 
 def _python_files() -> list[Path]:
-    return sorted(p for pkg in PLANE2_PACKAGES for p in (SRC / pkg).rglob("*.py"))
+    packaged = [p for pkg in PLANE2_PACKAGES for p in (SRC / pkg).rglob("*.py")]
+    standalone = [SRC / name for name in PLANE2_MODULES]
+    return sorted(packaged + standalone)
 
 
 def _imported_roots(path: Path) -> set[str]:
@@ -82,3 +100,5 @@ def test_plane2_module_imports_nothing_impure(path: Path) -> None:
 def test_guard_covers_every_plane2_package() -> None:
     for pkg in PLANE2_PACKAGES:
         assert (SRC / pkg).is_dir(), f"Plane 2 package missing from the tree: {pkg}"
+    for name in PLANE2_MODULES:
+        assert (SRC / name).is_file(), f"Plane 2 module missing from the tree: {name}"

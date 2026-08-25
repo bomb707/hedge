@@ -7,7 +7,7 @@ what redemption is worth; performing it is P10 work.
 from dataclasses import dataclass
 
 from maker5m.accounting.ledger import LedgerState, RebateMode
-from maker5m.market.outcome import Outcome
+from maker5m.domain import Outcome
 from maker5m.numeric.units import MoneyUnits, shares_at_par
 
 __all__ = ["SettlementResult", "settle"]

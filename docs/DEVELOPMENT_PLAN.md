@@ -69,11 +69,14 @@ plus `INVARIANTS.md` and `STATUS.md`.
   `OrderStateEvent`, `PhaseEvent`, health events); `MarketState` with single-owner mutation;
   frozen snapshot type for Plane 3; `PhaseMachine`
   (`PREARM → QUOTE → ENDGAME → SETTLING → DONE`).
-- **Modules:** `src/maker5m/market/`.
+- **Modules:** `src/maker5m/market/`, plus the leaf `src/maker5m/domain.py`.
 - **Tests:** phase transitions at `T0+3 / +240 / +280 / +300` driven purely by event
   timestamps; no wall-clock read anywhere in `market/` or `strategy/` (enforced by a static
   check, not by convention); snapshot immutability; state carries every field required by
-  Canonical §24.
+  Canonical §24.1 that P2 owns.
+- **Contracts established here** (see `ARCHITECTURE_SSOT` §3.4-§3.6): ingress-ordinal
+  ordering, fill idempotency by event id, and the derived-phase model. P3 onwards must not
+  re-litigate them.
 - **Acceptance gate:** phase machine is a pure function of the event stream, and a static
   check proves Plane 2 modules import no clock, no I/O, and no network module.
 - **Out of scope:** feeds, real timing sources, strategy decisions.

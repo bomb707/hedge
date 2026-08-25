@@ -18,10 +18,12 @@ from maker5m.accounting.decomposition import (
 )
 from maker5m.accounting.ledger import Fill, LedgerState, RebateMode
 from maker5m.accounting.settlement import SettlementResult, settle
+from maker5m.domain import Outcome
 
 __all__ = [
     "Fill",
     "LedgerState",
+    "Outcome",
     "RebateMode",
     "SettlementResult",
     "TermDecomposition",

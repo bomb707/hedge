@@ -16,7 +16,7 @@ the fill sequence replayable and removes any possibility of hidden shared mutati
 from dataclasses import dataclass
 from enum import Enum
 
-from maker5m.market.outcome import Outcome
+from maker5m.domain import Outcome
 from maker5m.numeric.errors import DomainError
 from maker5m.numeric.scales import PRICE_SCALE
 from maker5m.numeric.units import (

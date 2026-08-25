@@ -47,6 +47,7 @@ __all__ = [
     "format_share",
     "money_from_whole",
     "notional_cost",
+    "parse_fixed_point",
     "parse_money",
     "parse_price",
     "parse_share",
@@ -145,8 +146,22 @@ def _parse_fixed_point(text: object, *, field: str, decimals: int = SCALE_DECIMA
         fraction_text = fraction_text[:decimals]
 
     factor: int = 10**decimals
-    value = int(integer_text) * factor + int(fraction_text.ljust(decimals, "0"))
+    # ``or "0"`` covers decimals == 0, where the padded fraction is the empty string.
+    value = int(integer_text) * factor + int(fraction_text.ljust(decimals, "0") or "0")
     return -value if negative else value
+
+
+def parse_fixed_point(text: str, *, decimals: int, field: str = "value") -> int:
+    """Parse a plain decimal string into integer units at an arbitrary scale.
+
+    The public form of the strict parser, for domains whose scale is not one of the three
+    frozen ones -- currently only BTC prices, whose scale is still OPEN (O12). Exposed so
+    that no second decimal parser is ever written: a parallel implementation would be a
+    parallel numeric representation, and would drift from these rules.
+    """
+    if decimals < 0:
+        raise DomainError(f"decimals must not be negative, got {decimals}")
+    return _parse_fixed_point(text, field=field, decimals=decimals)
 
 
 def _require_non_negative(value: int, *, field: str) -> None:

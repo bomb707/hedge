@@ -49,7 +49,7 @@ from dataclasses import dataclass
 from fractions import Fraction
 
 from maker5m.accounting.ledger import LedgerState
-from maker5m.market.outcome import Outcome
+from maker5m.domain import Outcome
 from maker5m.numeric.scales import PAR_MONEY, SHARE_SCALE
 from maker5m.numeric.units import MoneyUnits, ShareUnits, shares_at_par
 

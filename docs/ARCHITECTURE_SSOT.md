@@ -167,6 +167,62 @@ otherwise                              -> REPLACE
 `KEEP` is the default and the common case. Any design in which a market-data event
 routinely produces `CANCEL` is wrong.
 
+### §3.4 Event ordering contract  *(established P2)*
+
+`EventMeta.ingress_ordinal` is the **total order**, and it is the only thing that defines it.
+
+```text
+market_id         which market the event belongs to
+event_id          stable identity, used to refuse a repeated fill
+ingress_ordinal   the total order - strictly increasing, assigned at ingress
+timestamp         TimestampNs - data, drives the phase; NOT the ordering key
+```
+
+Timestamps are deliberately not the ordering key: two feeds do not share a timestamp domain,
+an exchange timestamp can tie, and a slow feed can deliver an older timestamp later.
+Ordering on them — or on Python's arrival order — would let replay reproduce a different
+sequence than production, which would silently invalidate every experiment run against a
+journal.
+
+The ingress adapter (P6) merges feeds into one stream, assigns the ordinal, and normalises
+timestamps so they are non-decreasing. The reducer enforces both and **fails closed**
+(`EventOrderError`) on a repeated or decreasing ordinal, or on a decreasing timestamp. A
+recorded stream therefore has exactly one legal interpretation.
+
+### §3.5 Fill idempotency  *(established P2)*
+
+Applying a fill twice would silently corrupt every downstream figure (I01), so the reducer
+tracks `applied_fill_ids` and **raises** `DuplicateEventError` on a repeat rather than
+ignoring it. Rejecting rather than absorbing is deliberate: a re-delivered fill means the
+ingress path is broken, and quietly swallowing it would hide that. De-duplicating a venue
+that legitimately re-sends is P6/P7 work; `EventMeta.event_id` is the mechanism it needs.
+
+Identity is the event id, never the payload — two genuinely separate fills with identical
+size and price are real volume and must both apply.
+
+### §3.6 Phase model  *(established P2)*
+
+**One source of truth: the phase is a pure function of the event timestamp.** There is no
+stored phase field on `MarketState`; `MarketState.phase` is a property over
+`phase_at(t0, last_event_timestamp, config)`. A recorded phase that could drift out of
+agreement with the stream is therefore not merely discouraged, it is unrepresentable.
+
+`PhaseEvent` exists to journal the boundary explicitly — so replay and telemetry see it, and
+so a feed layer can force the core to observe a boundary in a quiet market. The reducer
+**validates** it against the derived phase and raises `InvalidPhaseTransitionError` on any
+disagreement. A `PhaseEvent` can never move the market to a phase its own timestamp does not
+imply, and no transition is ever triggered by a wall clock.
+
+Boundaries are half-open and exact, on integer nanoseconds, with no epsilon:
+
+```text
+elapsed <   3 s   PREARM        (also every elapsed < 0: the market is pre-armed early)
+elapsed <  240 s  QUOTE
+elapsed <  280 s  ENDGAME
+elapsed <  300 s  SETTLING
+otherwise         DONE
+```
+
 ---
 
 ## §4 Component catalogue
@@ -453,7 +509,8 @@ not collide in the global namespace.
 ```text
 src/maker5m/
     numeric/        ShareUnits / MoneyUnits / PriceUnits, parsing, ticks     [P1 DONE]
-    market/         MarketState, event contracts, PhaseMachine, snapshots     [P2; Outcome landed in P1]
+    domain.py       Outcome - shared leaf primitive, imports nothing          [P2 DONE]
+    market/         events, MarketState, reducer, phase machine, snapshot     [P2 DONE]
     strategy/       QuoteCentre, GridSizer, BaseLotSelector, Endgame, decide  [P3,P4]
     accounting/     LedgerState, Fill, settlement, Term1/Term2 decomposition  [P1 DONE]
     replay/         journal format, replay harness, parameter sweeps          [P5]
@@ -477,12 +534,22 @@ Dependency direction (a module may only import downward):
 
 ```text
 bot  ->  ui, telemetry, settlement, risk, execution, feeds, replay
-              ->  strategy, accounting, market
-                          ->  numeric
+              ->  strategy
+                     ->  market
+                            ->  accounting
+                                   ->  domain, numeric
 ```
 
-`numeric` imports nothing from the project. `strategy` and `accounting` import only
-`numeric` and `market` — this is what keeps Plane 2 pure and replayable.
+`numeric` and `domain` import nothing from the project. This is what keeps Plane 2 pure and
+replayable.
+
+**Corrected in P2.** P0 placed `accounting` above `market`, and P1 put the `Outcome` enum in
+`market` to satisfy that. P2 showed the direction is the other way round: `market` needs
+`Fill` and `LedgerState` from `accounting` — the event stream carries fills and `MarketState`
+embeds the ledger — while `accounting` needed only that one enum. Keeping it there produced a
+genuine import cycle. `Outcome` now lives in the leaf module `maker5m/domain.py`, which
+imports nothing, and both packages re-export it so call sites are unchanged. This is a
+structural correction, not a change to any P1 arithmetic.
 
 ---
 

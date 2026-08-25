@@ -37,7 +37,7 @@ this sharpest: `decide()` now composes six unresolved or fitted choices at once.
 | P4 implementation gate | **PASSED** |
 | P4 empirical replication | **UNPROVEN** — composes O01, O03, O04, O05, O06, O13 at reference/fitted settings |
 | Current branch | `feature/p4-endgame-decision` |
-| P4 boundary commit | recorded by the immediately following commit on this branch |
+| P4 boundary commit | `41b61af` — `feat: add endgame strategy decision engine` |
 | Last accepted milestone | P3 — strategy pricing and grid core (`32703aa`, tip `1e5f549`) |
 | Next milestone | **P5 — Deterministic replay engine** |
 | `main` | `1e5f549` — fast-forwarded to the accepted P3 HEAD, pushed |

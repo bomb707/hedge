@@ -102,8 +102,21 @@ async def _backoff(attempt: int) -> None:
     await asyncio.sleep(delay * (0.5 + random.random() / 2))
 
 
+class ForcedDisconnectError(Exception):
+    """A deliberately induced socket close, used for P9 fault injection on a real market.
+
+    Raised inside the producer so it travels the *same* path a genuine network failure takes:
+    the socket really closes, the reconnect really happens, the subscription is really re-sent,
+    and a fresh authoritative snapshot really has to arrive. Nothing about the market data is
+    simulated - only the decision to drop the connection.
+    """
+
+
 async def _polymarket_producer(
-    queue: asyncio.Queue[_Payload], token_ids: tuple[str, ...], stop: asyncio.Event
+    queue: asyncio.Queue[_Payload],
+    token_ids: tuple[str, ...],
+    stop: asyncio.Event,
+    force_disconnect: asyncio.Event | None = None,
 ) -> None:
     """Maintain the CLOB subscription, with the documented PING heartbeat and reconnect."""
     attempt = 0
@@ -121,6 +134,9 @@ async def _polymarket_producer(
                 beat = asyncio.create_task(heartbeat())
                 try:
                     while not stop.is_set():
+                        if force_disconnect is not None and force_disconnect.is_set():
+                            force_disconnect.clear()
+                            raise ForcedDisconnectError
                         raw = await asyncio.wait_for(ws.recv(), timeout=30)
                         text = raw.decode() if isinstance(raw, bytes) else raw
                         if text.strip() == POLYMARKET_PONG:
@@ -245,6 +261,9 @@ async def capture_market(
     description: str = "",
     observer: Callable[[str, int, DecisionResult], None] | None = None,
     on_pipeline: Callable[[MarketDataPipeline], None] | None = None,
+    gate: Callable[[str, TimestampNs], bool] | None = None,
+    on_tick: Callable[[TimestampNs, MarketDataPipeline], None] | None = None,
+    force_clob_disconnect: asyncio.Event | None = None,
 ) -> CaptureResult:
     """Capture one full 5-minute market, read-only, through the production core.
 
@@ -253,6 +272,21 @@ async def capture_market(
     ``observer`` then receives ``(event_kind, raw_receive_ns, decision)`` after each decision,
     on the high-resolution latency clock. Both are optional, so the identical code path runs
     with instrumentation off for a like-for-like comparison.
+
+    The last three arguments exist for P9 fault injection **on a real market**, and all three
+    default to off so P6 and P8 runs are byte-identical to before:
+
+    * ``gate(kind, now)`` may return ``False`` to suppress one arriving payload. This is how a
+      local adapter is "paused": the venue socket stays connected and the real data keeps
+      arriving, we simply stop delivering it to ourselves, which is exactly the failure a
+      wedged consumer produces.
+    * ``on_tick(now, pipeline)`` runs once per loop iteration, so a harness can evaluate risk
+      and check staleness continuously rather than only when the queue happens to go quiet.
+    * ``force_clob_disconnect`` makes the producer really drop its socket, so the reconnect,
+      the resubscription, and the fresh snapshot are all genuine.
+
+    None of these fabricates market data. The book, the trades, and the BTC prices are real
+    throughout; only the local failure is induced.
     """
     definition = market.definition
     clock = IngressClock()
@@ -281,7 +315,7 @@ async def capture_market(
         await asyncio.sleep(0.2)
 
     tasks = [
-        asyncio.create_task(_polymarket_producer(queue, tokens, stop)),
+        asyncio.create_task(_polymarket_producer(queue, tokens, stop, force_clob_disconnect)),
         asyncio.create_task(_binance_producer(queue, symbol, stop)),
         asyncio.create_task(_phase_producer(queue, definition.t0, clock, stop)),
     ]
@@ -294,10 +328,20 @@ async def capture_market(
                 payload = await asyncio.wait_for(queue.get(), timeout=1.0)
             except TimeoutError:
                 if not warming:
-                    pipeline.check_staleness(clock.now())
+                    now = clock.now()
+                    pipeline.check_staleness(now)
+                    if on_tick is not None:
+                        on_tick(now, pipeline)
                 continue
 
             now = clock.now()
+            if gate is not None and not gate(payload.kind, now):
+                # Suppressed by fault injection. The message really arrived; we are declining
+                # to consume it, which is what a stalled local adapter looks like from here.
+                pipeline.check_staleness(now)
+                if on_tick is not None:
+                    on_tick(now, pipeline)
+                continue
             if warming and now >= definition.t0:
                 # Pre-arm is over. Whatever the trackers already hold becomes the
                 # market's opening state, so the strategy has a warm book from its very
@@ -369,6 +413,10 @@ async def capture_market(
 
             elif payload.kind == "pong":
                 pipeline.counters.pongs += 1
+
+            if on_tick is not None:
+                pipeline.check_staleness(clock.now())
+                on_tick(clock.now(), pipeline)
     finally:
         stop.set()
         for task in tasks:

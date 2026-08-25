@@ -67,7 +67,7 @@ async def test_a_place_cycle_does_have_dispatch_stages() -> None:
 
 def test_keep_and_acting_cycles_are_measured_in_separate_distributions() -> None:
     """Reporting one blended number would hide the case that matters most."""
-    from maker5m.telemetry.instrumented import LatencyBook
+    from maker5m.telemetry.analyzer import LatencyBook
 
     book = LatencyBook()
     book.keep_cycle.add(5_000)
@@ -79,7 +79,7 @@ def test_keep_and_acting_cycles_are_measured_in_separate_distributions() -> None
 
 def test_spot_and_clob_paths_are_measured_separately() -> None:
     """Canonical §29.7 turns on how fast spot alone can wake the decision path."""
-    from maker5m.telemetry.instrumented import LatencyBook
+    from maker5m.telemetry.analyzer import LatencyBook
 
     book = LatencyBook()
     assert book.by_kind("SpotTick") is book.spot_receive_to_decide

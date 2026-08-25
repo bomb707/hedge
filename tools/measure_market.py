@@ -69,13 +69,17 @@ async def main(out: Path) -> None:
     def attach(pipeline: MarketDataPipeline) -> None:
         # Opt into merger-level timing so decide() itself is measured, not just receive->decide.
         pipeline.merger.perf_clock = perf_now_ns
+        sampling = SamplingPolicy(sample_every=SAMPLE_EVERY)
+        # The sampling decision must be made before reduce and decide, or those stages cannot
+        # be timed at all. Unsampled ordinary events then take no perf-counter readings.
+        pipeline.stage_selector = lambda ordinal, kind: sampling.selects(ordinal, kind)
         runs.append(
             InstrumentedRun(
                 pipeline=pipeline,
                 engine=StrategyEngine(config),
                 rules=market.venue_rules,
                 executor=Executor(adapter=VenueAdapter(RecordingTransport())),
-                sampling=SamplingPolicy(sample_every=SAMPLE_EVERY),
+                sampling=sampling,
             )
         )
 

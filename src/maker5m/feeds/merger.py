@@ -67,6 +67,12 @@ class IngressMerger:
 
     last_reduce_ns: int = 0
     last_decide_ns: int = 0
+    stages_measured: bool = False
+    """Whether the most recent :meth:`submit` sampled its stage timings.
+
+    Read by the measurement harness so it makes the same decision the merger already made,
+    rather than recomputing the sampling predicate a second time on the hot path.
+    """
     _ordinal: int = 0
     _event_seq: int = 0
 
@@ -82,15 +88,28 @@ class IngressMerger:
         self._event_seq += 1
         return meta
 
-    def submit(self, event: Event) -> DecisionResult:
-        """Reduce, decide, and record. The whole hot path in three lines."""
-        perf = self.perf_clock
+    def submit(self, event: Event, *, measure_stages: bool = False) -> DecisionResult:
+        """Reduce, decide, and record. The whole hot path in three lines.
+
+        ``measure_stages`` is per event and defaults to ``False``, so P5 replay and ordinary
+        P6 capture behave exactly as before and pay nothing. When an instrumented run's
+        deterministic sampler selects an event, it passes ``True`` and the two readings are
+        taken; otherwise ``last_decide_ns`` is cleared to ``0``, which downstream reads as
+        NOT_CAPTURED rather than as a duration.
+
+        The same ``reduce_event`` and ``decide`` run either way. Measurement never forks the
+        trading path — only whether a clock is read around it.
+        """
+        self.stages_measured = measure_stages
+        perf = self.perf_clock if measure_stages else None
         self.state = reduce_event(self.state, event)
         if perf is not None:
             self.last_reduce_ns = perf()
         decision = self.engine.decide(self.state)
         if perf is not None:
             self.last_decide_ns = perf()
+        else:
+            self.last_decide_ns = 0
         self.steps.append(ReplayStep(event=event, decision=decision))
         return decision
 

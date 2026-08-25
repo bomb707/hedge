@@ -16,7 +16,7 @@ from maker5m.market import MarketState
 from maker5m.numeric import PriceUnits, ShareUnits, parse_price, parse_share
 from maker5m.strategy import BaseLot, StrategyEngine, default_config
 from maker5m.strategy.decision import DecisionResult, DesiredOrder, DesiredOrders
-from maker5m.telemetry import InstrumentedRun, SamplingPolicy
+from maker5m.telemetry import InstrumentedRun, SamplingPolicy, TelemetryAnalyzer
 from tests.execution.builders import market, rules, state_at
 
 
@@ -84,6 +84,7 @@ def step(
     up_bid_size: str = "0",
     up_ask: str = "0.64",
     event_kind: str = "BookUpdate",
+    healthy: bool = True,
 ) -> None:
     """Drive exactly one observed cycle with a fully specified UP book."""
     state = state_at(up_bid=up_bid, up_ask=up_ask, down_bid="0.35", down_ask="0.38")
@@ -91,6 +92,14 @@ def step(
     # A live run assigns a fresh ingress ordinal per event. Leaving it pinned at zero would
     # make `ordinal % sample_every == 0` always true and silently disable sampling.
     harness.pipeline.merger.advance_ordinal()
+    # Stage sampling is decided before reduce/decide in a live run; mirror that here.
+    harness.pipeline.merger.stages_measured = harness.sampling.selects(
+        harness.pipeline.merger.ordinal, event_kind
+    )
+    if healthy:
+        harness.pipeline.clob_health.mark_snapshot(harness.pipeline.merger.state.definition.t0)
+    else:
+        harness.pipeline.clob_health.mark_disconnected()
     set_book(harness, Outcome.UP, bid=up_bid, bid_size=up_bid_size, ask=up_ask)
     set_book(harness, Outcome.DOWN, bid="0.35", bid_size="0", ask="0.38")
 
@@ -100,3 +109,14 @@ def step(
     )
     base: DecisionResult = harness.engine.decide(state)
     harness.observe(event_kind, 0, replace(base, orders=orders))
+
+
+def analyzed(harness: InstrumentedRun) -> TelemetryAnalyzer:
+    """Fold the captured observations, the way a real run does after DONE.
+
+    Every measurement now comes from downstream analysis, so a test that wants to know what was
+    measured has to ask the analyzer rather than the harness. Re-folding the whole buffer per
+    call is wasteful and irrelevant at test sizes, and it keeps each assertion honest about
+    where the numbers come from.
+    """
+    return harness.analyze()

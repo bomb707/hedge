@@ -10,6 +10,7 @@ ordinal, reduces, and decides. That is what guarantees one legal event order for
 Nothing on this path serializes, writes a file, logs verbosely, or calls a REST endpoint.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from maker5m.feeds.diagnostics import FeedCounters
@@ -57,6 +58,14 @@ class MarketDataPipeline:
     spot_precision: PrecisionObserver = field(
         default_factory=lambda: PrecisionObserver("binance_price")
     )
+    stage_selector: Callable[[int, str], bool] | None = None
+    """Optional ``(ingress_ordinal, event_kind) -> bool`` deciding per-event stage timing.
+
+    The sampling decision has to be made *before* reduce and decide, or those stages cannot be
+    timed at all. Off by default, so P5 replay and ordinary P6 capture pay one ``is None``
+    check and nothing else.
+    """
+
     clob_health: StreamHealth = field(
         default_factory=lambda: StreamHealth(HealthComponent.CLOB_BOOK)
     )
@@ -124,6 +133,10 @@ class MarketDataPipeline:
             return None
         return self.emit_book()
 
+    def _measure(self, ingress_ordinal: int, event_kind: str) -> bool:
+        selector = self.stage_selector
+        return selector is not None and selector(ingress_ordinal, event_kind)
+
     def emit_book(self) -> DecisionResult:
         """Publish the currently observed top of book for BOTH tokens, as observed.
 
@@ -139,7 +152,8 @@ class MarketDataPipeline:
                 down_bid=self.books.down.best_bid(),
                 down_ask=self.books.down.best_ask(),
                 sequence=None,
-            )
+            ),
+            measure_stages=self._measure(meta.ingress_ordinal, "BookUpdate"),
         )
 
     def on_spot(self, price: BtcPrice) -> DecisionResult:
@@ -150,7 +164,10 @@ class MarketDataPipeline:
         if self.spot_health.awaiting_snapshot:
             self.emit_health(HealthComponent.SPOT_FEED, self.spot_health.mark_snapshot(now))
         meta = self.merger.next_meta("spot")
-        return self.merger.submit(SpotTick(meta=meta, price=price, source_sequence=None))
+        return self.merger.submit(
+            SpotTick(meta=meta, price=price, source_sequence=None),
+            measure_stages=self._measure(meta.ingress_ordinal, "SpotTick"),
+        )
 
     # -- lifecycle and health ----------------------------------------------------------------
 
@@ -159,7 +176,8 @@ class MarketDataPipeline:
     ) -> DecisionResult:
         meta = self.merger.next_meta("health")
         return self.merger.submit(
-            HealthEvent(meta=meta, component=component, status=status, detail=detail)
+            HealthEvent(meta=meta, component=component, status=status, detail=detail),
+            measure_stages=self._measure(meta.ingress_ordinal, "HealthEvent"),
         )
 
     def emit_phase(self, phase: Phase) -> DecisionResult:
@@ -180,7 +198,10 @@ class MarketDataPipeline:
                 f"time is {expected.name}"
             )
         self.emitted_phases.add(phase)
-        return self.merger.submit(PhaseEvent(meta=meta, phase=phase))
+        return self.merger.submit(
+            PhaseEvent(meta=meta, phase=phase),
+            measure_stages=self._measure(meta.ingress_ordinal, "PhaseEvent"),
+        )
 
     def on_disconnect(self, component: HealthComponent) -> DecisionResult:
         """Any disconnect invalidates continuity and forces a resnapshot."""

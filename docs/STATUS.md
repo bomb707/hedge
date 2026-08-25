@@ -40,7 +40,7 @@ this repository may be described as "confirmed strategy behaviour" merely becaus
 | P3 implementation gate | **PASSED** |
 | P3 empirical replication | **UNPROVEN** — O04 open, O01 open, O13 open |
 | Current branch | `feature/p3-strategy-core` |
-| P3 boundary commit | recorded by the immediately following commit on this branch |
+| P3 boundary commit | `32703aa` — `feat: add deterministic strategy pricing and grid core` |
 | Last accepted milestone | P2 — MarketState + events + phase machine (`fcd8ddf`, tip `c322ce5`) |
 | Next milestone | **P4 — ENDGAME controller + strategy decision engine** |
 | `main` | `c322ce5` — fast-forwarded to the accepted P2 HEAD, pushed |

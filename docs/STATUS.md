@@ -38,7 +38,7 @@ settle them with. Every journal here declares `provenance = SYNTHETIC`.
 | P5 replay-engine gate | **PASSED** |
 | Target-wallet empirical replay | **UNRUN / BLOCKED** — only `SYNTHETIC` journals exist |
 | Current branch | `feature/p5-replay` |
-| P5 boundary commit | recorded by the immediately following commit on this branch |
+| P5 boundary commit | `ab22f3b` — `feat: add deterministic replay engine` |
 | Preceding correction | `2ee8c21` — `fix: remove unsourced band-target constraint`, on `fix/p4-unsourced-config-constraint` |
 | Last accepted milestone | P4 — endgame decision engine (`41b61af`, tip `15ff368`) |
 | Next milestone | **P6 — Polymarket / BTC market-data adapters** |

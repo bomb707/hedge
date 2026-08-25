@@ -63,6 +63,8 @@ class RiskReplayOutcome:
     states: tuple[RiskState, ...] = ()
     final_state: RiskState = RiskState.RECOVERING
     sequence_gaps: tuple[int, ...] = ()
+    """Always empty on success: a gap raises rather than being reported. Retained so evidence
+    manifests can state the fact explicitly."""
     active_by_sequence: tuple[frozenset[RiskReason], ...] = field(default=())
     latched_by_sequence: tuple[frozenset[RiskReason], ...] = field(default=())
 
@@ -76,16 +78,32 @@ class RiskReplayOutcome:
         }
 
 
-def _sequence_gaps(records: Sequence[RiskRecord]) -> tuple[int, ...]:
-    """Sequences missing from a stream that must be contiguous and strictly increasing."""
-    gaps: list[int] = []
-    expected = records[0].risk_sequence if records else 0
-    for record in records:
-        while record.risk_sequence > expected:
-            gaps.append(expected)
-            expected += 1
-        expected = record.risk_sequence + 1
-    return tuple(gaps)
+def _require_complete_sequence(records: Sequence[RiskRecord]) -> None:
+    """The risk sequence must be exactly ``0, 1, 2, …`` with no exceptions.
+
+    One rule, checked positionally, catches every way a permission audit can be incomplete: a
+    lost prefix, a missing record, a duplicate, a value that goes backwards, and a whole trace
+    shifted off zero. The earlier version derived its expectation from ``records[0]``, which
+    made a truncated stream look internally contiguous — ``3, 4, 5`` verified happily — and its
+    forward-gap scan accepted ``0, 1, 1, 2`` and ``0, 1, 2, 1`` as well.
+
+    The expectation is **not** inferred from the data. A trace that starts at 5 is a trace whose
+    first five permission decisions are unaccounted for, and letting the file tell us where it
+    ought to begin is how that becomes invisible.
+
+    Partial replay is deliberately unsupported. If it is ever needed it must arrive with an
+    explicit initial sequence *and* an explicit initial :class:`RiskSnapshot`, because replaying
+    a tail without the state it inherited proves nothing.
+    """
+    for index, record in enumerate(records):
+        if record.risk_sequence != index:
+            raise RiskDivergenceError(
+                risk_sequence=index,
+                as_of_ingress_ordinal=record.as_of_ingress_ordinal,
+                field_name="risk_sequence",
+                expected=index,
+                actual=record.risk_sequence,
+            )
 
 
 def verify_risk_replay(
@@ -96,9 +114,17 @@ def verify_risk_replay(
 ) -> RiskReplayOutcome:
     """Re-derive every verdict from the recorded signals and compare, failing at the first miss.
 
-    A gap in the recorded sequence fails immediately: a permission audit missing records cannot
-    answer "why was this PLACE permitted?" for the cycles it lost, and replaying around the hole
-    would produce agreements that mean nothing.
+    The recorded sequence must be exactly ``0, 1, 2, …``. That is checked before anything is
+    replayed, and then each produced sequence is compared to its recorded one, so the number the
+    whole audit is indexed by is verified rather than assumed. A permission audit missing records
+    cannot answer "why was this PLACE permitted?" for the cycles it lost, and replaying around
+    the hole would produce agreements that mean nothing.
+
+    A bounded :class:`~maker5m.risk.trace.RiskTrace` that has dropped records therefore cannot
+    verify: its first retained sequence is greater than zero. That is the correct outcome —
+    trading may continue under the existing safety policy, but the evidence may not claim
+    deterministic full-risk replay. Nothing here renumbers the tail or invents the state it
+    inherited.
 
     The health frame is taken from each record because P6 owns feed health and the risk stream
     only observes it. Everything else — the operational conditions, the latches, the recovery
@@ -106,19 +132,9 @@ def verify_risk_replay(
     follow from them is caught rather than trusted.
     """
     ordered = list(records)
-    gaps = _sequence_gaps(ordered)
-    if gaps:
-        # A gap in the permission audit is itself the failure, and it is caught here rather
-        # than left to surface later as a puzzling state divergence. A stream missing records
-        # cannot answer "why was this PLACE permitted?" for the cycles it lost.
-        first = next(r for r in ordered if r.risk_sequence > gaps[0])
-        raise RiskDivergenceError(
-            risk_sequence=gaps[0],
-            as_of_ingress_ordinal=first.as_of_ingress_ordinal,
-            field_name="risk_sequence",
-            expected=gaps[0],
-            actual=first.risk_sequence,
-        )
+    # Checked before anything is replayed. An incomplete audit is the failure itself, not
+    # something to discover later as a puzzling state divergence.
+    _require_complete_sequence(ordered)
 
     controller = RiskController(
         engine=RiskEngine(config=config or RiskConfig(), snapshot=initial or RiskSnapshot()),
@@ -143,6 +159,10 @@ def verify_risk_replay(
         produced = controller.apply(recorded.signal, recorded.health)
 
         for name, expected, actual in (
+            # The sequence is *proved*, not merely used to address the record. Replaying a
+            # trace without checking it would leave the one number the whole audit is indexed
+            # by unverified.
+            ("risk_sequence", produced.risk_sequence, recorded.risk_sequence),
             ("state", produced.state, recorded.state),
             ("active", produced.active, recorded.active),
             ("latched", produced.latched, recorded.latched),

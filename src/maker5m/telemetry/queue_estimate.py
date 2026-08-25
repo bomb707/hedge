@@ -23,6 +23,14 @@ The model, under price-time priority
   snapshot does not restore a continuous position, and pretending otherwise would manufacture
   evidence.
 
+A slot belongs to an order, not to a price
+------------------------------------------
+An estimate is only ever opened for an order that was actually dispatched. A desired price that
+the reconciler refused to submit — post-only would cross, below minimum size, off tick — owns no
+queue position, because no order exists to hold one. Modelling intent as position would credit a
+permanently blocked quote with a queue timestamp it never had, and would inflate every front-of-
+queue statistic derived from it.
+
 Aggregate book messages cannot reveal the internal ordering of same-price cancels and arrivals,
 so the confidence never rises above ``ESTIMATED``. That ceiling is deliberate.
 
@@ -64,7 +72,15 @@ class QueueConfidence(Enum):
 
 @dataclass(frozen=True, slots=True)
 class QueueEstimate:
-    """One observation of where an order probably sits."""
+    """One observation of where a **specific** order probably sits."""
+
+    client_order_id: str
+    """The order this estimate belongs to.
+
+    Queue identity is per order, never per price level. Two orders at the same price do not
+    share a queue timestamp, and a replacement is a different order however identical its
+    price looks.
+    """
 
     price: PriceUnits
     ahead: ShareUnits
@@ -84,8 +100,14 @@ class QueueEstimate:
 
 @dataclass(slots=True)
 class QueueSlot:
-    """Tracks one order's estimated position for as long as it holds its slot."""
+    """Tracks one order's estimated position for as long as that order holds its slot.
 
+    A slot exists only while a corresponding order actually rests. It is opened when an order
+    is dispatched and closed when that order stops resting — never opened because the strategy
+    merely wished to quote somewhere.
+    """
+
+    client_order_id: str
     price: PriceUnits
     ahead: ShareUnits
     displayed_at_submit: ShareUnits
@@ -95,9 +117,17 @@ class QueueSlot:
     reached_front: bool = False
 
     @classmethod
-    def acquire(cls, *, price: PriceUnits, displayed_now: ShareUnits) -> "QueueSlot":
-        """Open a slot at ``price``, taking current displayed depth as the initial estimate."""
+    def acquire(
+        cls, *, client_order_id: str, price: PriceUnits, displayed_now: ShareUnits
+    ) -> "QueueSlot":
+        """Open a slot for one dispatched order.
+
+        ``displayed_now`` must be the depth observed immediately before dispatch: that is the
+        size the order would have queued behind. A slot inherits nothing from any earlier slot,
+        including one at the same price, because it belongs to a different order.
+        """
         return cls(
+            client_order_id=client_order_id,
             price=price,
             ahead=displayed_now,
             displayed_at_submit=displayed_now,
@@ -132,6 +162,7 @@ class QueueSlot:
 
     def estimate(self) -> QueueEstimate:
         return QueueEstimate(
+            client_order_id=self.client_order_id,
             price=self.price,
             ahead=self.ahead,
             confidence=self.confidence,

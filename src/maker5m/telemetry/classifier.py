@@ -11,6 +11,15 @@ AT_FRONT            right price, healthy estimate, estimated ahead == 0
 PRICE_OK_BUT_DEEP   right price, healthy estimate, estimated ahead > 0
 ```
 
+A slot, not a wish
+------------------
+``AT_FRONT``, ``PRICE_OK_BUT_DEEP``, and ``OFF_PRICE`` all require an order that actually rests.
+That is enforced structurally rather than by convention: there is no ``resting_price``
+parameter to pass independently, so the resting price can only come from a live
+:class:`QueueEstimate`, and a :class:`QueueEstimate` only exists while an order holds a slot.
+A desired price the reconciler refused to submit therefore *cannot* be classified as being at
+the front of anything.
+
 **No numeric "deep" threshold is invented.** Any positive estimated queue-ahead classifies as
 ``PRICE_OK_BUT_DEEP`` while the actual quantity stays visible alongside. Choosing a threshold
 is what O08 exists to answer, and inventing one here would pre-empt it.
@@ -94,7 +103,6 @@ def classify(
     action: ReconcileAction,
     side_reason: SideReason,
     desired_price: PriceUnits | None,
-    resting_price: PriceUnits | None,
     estimate: QueueEstimate | None,
     preparation: PreparationOutcome | None = None,
     rate_decision: RateDecision | None = None,
@@ -105,7 +113,11 @@ def classify(
 
     ``strategy_reason`` carries a P4 suppression cause (endgame gate, hard band, phase) when
     the strategy declined to quote, so that a NOT_QUOTING result still says *which* gate.
+
+    ``estimate`` is the queue slot of the order actually resting on this side, or ``None``.
+    The resting price is read from it, so no caller can assert a resting order without one.
     """
+    resting_price = None if estimate is None else estimate.price
     if not continuity_healthy:
         return QuoteClassification(
             ExecutionQuality.STALE,
@@ -162,7 +174,9 @@ def classify(
             resting_price,
         )
 
-    if resting_price is None:
+    if estimate is None:
+        # The strategy has a submittable price but nothing rests on this side. Wanting to quote
+        # is not quoting, and there is no queue to be at the front of.
         return QuoteClassification(
             ExecutionQuality.NOT_QUOTING, QualityReason.NO_LIVE_ORDER, desired_price, None
         )
@@ -173,13 +187,8 @@ def classify(
             QualityReason.QUOTING,
             desired_price,
             resting_price,
-            None if estimate is None else estimate.ahead,
-            None if estimate is None else estimate.confidence,
-        )
-
-    if estimate is None:
-        return QuoteClassification(
-            ExecutionQuality.STALE, QualityReason.CONTINUITY_LOST, desired_price, resting_price
+            estimate.ahead,
+            estimate.confidence,
         )
 
     quality = (

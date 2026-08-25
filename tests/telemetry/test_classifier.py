@@ -6,6 +6,7 @@ import pytest
 
 from maker5m.execution import PreparationOutcome, RateDecision, ReconcileAction, SideReason
 from maker5m.numeric import parse_price, parse_share
+from maker5m.numeric.units import PriceUnits
 from maker5m.telemetry import (
     ExecutionQuality,
     QualityReason,
@@ -19,10 +20,13 @@ PRICE = parse_price("0.63")
 
 
 def estimate(
-    ahead: str = "0", confidence: QueueConfidence = QueueConfidence.ESTIMATED
+    ahead: str = "0",
+    confidence: QueueConfidence = QueueConfidence.ESTIMATED,
+    price: PriceUnits = PRICE,
 ) -> QueueEstimate:
     return QueueEstimate(
-        price=PRICE,
+        client_order_id="shadow-1",
+        price=price,
         ahead=parse_share(ahead),
         confidence=confidence,
         displayed_at_submit=parse_share(ahead),
@@ -35,7 +39,6 @@ def at(**overrides: object) -> QuoteClassification:
         "action": ReconcileAction.KEEP,
         "side_reason": SideReason.UNCHANGED,
         "desired_price": PRICE,
-        "resting_price": PRICE,
         "estimate": estimate(),
         "preparation": PreparationOutcome.SAFE,
     }
@@ -68,7 +71,7 @@ def test_any_positive_queue_ahead_is_deep_without_an_invented_threshold() -> Non
 
 
 def test_off_price() -> None:
-    result = at(resting_price=parse_price("0.62"))
+    result = at(estimate=estimate(price=parse_price("0.62")))
     assert result.quality is ExecutionQuality.OFF_PRICE
     assert result.desired_price == PRICE
     assert result.resting_price == parse_price("0.62")
@@ -87,7 +90,7 @@ def test_not_quoting_when_no_order_is_intended() -> None:
 
 
 def test_not_quoting_when_intended_but_no_live_order() -> None:
-    result = at(action=ReconcileAction.PLACE, resting_price=None, estimate=None)
+    result = at(action=ReconcileAction.PLACE, estimate=None)
     assert result.quality is ExecutionQuality.NOT_QUOTING
     assert result.reason is QualityReason.NO_LIVE_ORDER
 

@@ -2,20 +2,25 @@
 
 from __future__ import annotations
 
+import gc
+import sys
+
 import pytest
 
 from maker5m.domain import Outcome
 from maker5m.feeds import BookTracker, parse_market_message
-from maker5m.numeric import ShareUnits, parse_price, parse_share
+from maker5m.numeric import parse_price, parse_share
 from maker5m.telemetry import QueueConfidence, QueueSlot, ShadowQueueTracker
-from maker5m.telemetry.shadow import SHADOW_LABEL
+from maker5m.telemetry.shadow import SHADOW_LABEL, ShadowLossReason
 
 UP = "token-up"
 DOWN = "token-down"
 
 
-def slot(price: str = "0.63", displayed: str = "0") -> QueueSlot:
-    return QueueSlot.acquire(price=parse_price(price), displayed_now=parse_share(displayed))
+def slot(price: str = "0.63", displayed: str = "0", order: str = "shadow-1") -> QueueSlot:
+    return QueueSlot.acquire(
+        client_order_id=order, price=parse_price(price), displayed_now=parse_share(displayed)
+    )
 
 
 # -- the model ------------------------------------------------------------
@@ -181,73 +186,167 @@ def test_an_unknown_side_is_rejected() -> None:
 # -- shadow tracking --------------------------------------------------------
 
 
+def place(
+    shadow: ShadowQueueTracker,
+    order: str = "shadow-1",
+    outcome: Outcome = Outcome.UP,
+    price: str = "0.63",
+    displayed: str = "0",
+) -> None:
+    shadow.on_place(
+        client_order_id=order,
+        outcome=outcome,
+        price=parse_price(price),
+        displayed_now=parse_share(displayed),
+    )
+
+
 def test_a_shadow_result_is_labelled_as_such() -> None:
-    """It is our strategy's intent against observed depth, not a venue queue position."""
+    """It is our strategy's own order against observed depth, not a venue queue position."""
     assert SHADOW_LABEL == "SHADOW_ESTIMATE"
 
 
-def test_a_new_desired_price_opens_a_shadow_slot() -> None:
+def test_a_place_opens_a_shadow_slot() -> None:
     shadow = ShadowQueueTracker()
-    estimate = shadow.on_desired(Outcome.UP, parse_price("0.63"), parse_share("0"))
+    shadow.on_place(
+        client_order_id="shadow-1",
+        outcome=Outcome.UP,
+        price=parse_price("0.63"),
+        displayed_now=parse_share("0"),
+    )
+    estimate = shadow.estimate(Outcome.UP)
     assert estimate is not None
     assert estimate.at_front
+    assert estimate.client_order_id == "shadow-1"
     assert shadow.acquired == 1
 
 
-def test_an_unchanged_desired_price_keeps_the_shadow_slot() -> None:
+def test_keeping_a_slot_allocates_nothing() -> None:
+    """The hot path must not build an estimate it throws away.
+
+    ``on_keep`` runs on every cycle of a measuring run, including the ordinary unsampled book
+    updates the P8 performance limit is about. Returning a six-field frozen dataclass here cost
+    roughly 1 µs per side for a value the untraced caller discarded, so the contract is that
+    keeping a slot updates state and allocates nothing. Readers ask for an estimate separately.
+    """
     shadow = ShadowQueueTracker()
-    shadow.on_desired(Outcome.UP, parse_price("0.63"), parse_share("15"))
+    place(shadow, displayed="50")
+    sizes = [parse_share(str(50 - index)) for index in range(200)]
+
+    gc.collect()
+    before = sys.getallocatedblocks()
+    for size in sizes:
+        shadow.on_keep("shadow-1", size)
+    after = sys.getallocatedblocks()
+
+    # A handful of blocks is ordinary integer churn from the counters. A dataclass per call
+    # would show up as hundreds, which is exactly what this is here to catch.
+    allocated = after - before
+    assert allocated < 20, f"on_keep allocated {allocated} blocks over 200 calls"
+    assert shadow.kept == 200
+
+
+def test_a_keep_preserves_the_shadow_slot() -> None:
+    shadow = ShadowQueueTracker()
+    place(shadow, displayed="15")
     for _ in range(10):
-        shadow.on_desired(Outcome.UP, parse_price("0.63"), parse_share("15"))
+        shadow.on_keep("shadow-1", parse_share("15"))
     assert shadow.acquired == 1
     assert shadow.kept == 10
     assert shadow.lost == 0
-
-
-def test_a_changed_desired_price_costs_the_shadow_slot() -> None:
-    shadow = ShadowQueueTracker()
-    shadow.on_desired(Outcome.UP, parse_price("0.63"), parse_share("15"))
-    shadow.on_desired(Outcome.UP, parse_price("0.62"), parse_share("3"))
-    assert shadow.lost == 1
-    assert shadow.acquired == 2
     estimate = shadow.estimate(Outcome.UP)
-    assert estimate is not None
-    assert estimate.price == parse_price("0.62")
-    assert estimate.ahead == parse_share("3")
+    assert estimate is not None and estimate.client_order_id == "shadow-1"
 
 
-def test_withdrawing_the_desired_order_closes_the_shadow_slot() -> None:
+def test_a_lost_slot_records_its_typed_reason() -> None:
     shadow = ShadowQueueTracker()
-    shadow.on_desired(Outcome.UP, parse_price("0.63"), parse_share("0"))
-    assert shadow.on_desired(Outcome.UP, None, ShareUnits(0)) is None
+    place(shadow, displayed="15")
+    shadow.on_lost("shadow-1", ShadowLossReason.PRICE_CHANGE)
     assert shadow.lost == 1
+    assert shadow.loss_reasons == {"PRICE_CHANGE": 1}
     assert shadow.estimate(Outcome.UP) is None
 
 
-def test_a_shadow_fill_reaches_the_front() -> None:
+def test_a_replacement_is_a_different_slot_identity() -> None:
+    """Two orders at the same price do not share a queue timestamp."""
     shadow = ShadowQueueTracker()
-    shadow.on_desired(Outcome.UP, parse_price("0.63"), parse_share("20"))
-    shadow.on_fill(Outcome.UP)
+    place(shadow, order="shadow-1", displayed="15")
+    shadow.on_keep("shadow-1", parse_share("3"))
+    shadow.on_lost("shadow-1", ShadowLossReason.PRICE_CHANGE)
+    place(shadow, order="shadow-2", price="0.63", displayed="15")
+
+    estimate = shadow.estimate(Outcome.UP)
+    assert estimate is not None
+    assert estimate.client_order_id == "shadow-2"
+    # It inherits nothing: not the id, and not the 12 units of consumption the old slot saw.
+    assert estimate.ahead == parse_share("15")
+
+
+def test_a_partial_fill_keeps_the_slot_and_reaches_the_front() -> None:
+    shadow = ShadowQueueTracker()
+    place(shadow, displayed="20")
+    shadow.on_fill("shadow-1")
     estimate = shadow.estimate(Outcome.UP)
     assert estimate is not None
     assert estimate.ahead == 0
+    assert estimate.client_order_id == "shadow-1"
+    assert shadow.lost == 0
+
+
+def test_a_complete_fill_ends_the_slot() -> None:
+    shadow = ShadowQueueTracker()
+    place(shadow, displayed="20")
+    shadow.on_fill("shadow-1", fully_filled=True)
+    assert shadow.estimate(Outcome.UP) is None
+    assert shadow.loss_reasons == {"FULLY_FILLED": 1}
 
 
 def test_shadow_slots_invalidate_on_continuity_loss() -> None:
     shadow = ShadowQueueTracker()
-    shadow.on_desired(Outcome.UP, parse_price("0.63"), parse_share("20"))
+    place(shadow, displayed="20")
     shadow.invalidate()
     estimate = shadow.estimate(Outcome.UP)
     assert estimate is not None
     assert estimate.confidence is QueueConfidence.UNKNOWN
+    # The order still rests, so the slot is not lost - only its confidence is.
+    assert shadow.lost == 0
 
 
 def test_up_and_down_shadow_slots_are_independent() -> None:
     shadow = ShadowQueueTracker()
-    shadow.on_desired(Outcome.UP, parse_price("0.63"), parse_share("15"))
-    shadow.on_desired(Outcome.DOWN, parse_price("0.36"), parse_share("0"))
+    place(shadow, order="up-1", outcome=Outcome.UP, price="0.63", displayed="15")
+    place(shadow, order="down-1", outcome=Outcome.DOWN, price="0.36", displayed="0")
     up_estimate = shadow.estimate(Outcome.UP)
     down_estimate = shadow.estimate(Outcome.DOWN)
     assert up_estimate is not None and down_estimate is not None
     assert up_estimate.ahead == parse_share("15")
     assert down_estimate.ahead == 0
+
+
+def test_keeping_an_unknown_order_does_nothing() -> None:
+    """A slot only exists for an order that was actually placed."""
+    shadow = ShadowQueueTracker()
+    shadow.on_keep("never-placed", parse_share("5"))
+    assert shadow.kept == 0
+    assert shadow.acquired == 0
+
+
+def test_shadow_loss_totals_reconcile_to_their_reasons() -> None:
+    shadow = ShadowQueueTracker()
+    for index, reason in enumerate(
+        (
+            ShadowLossReason.PRICE_CHANGE,
+            ShadowLossReason.SIZE_CHANGE,
+            ShadowLossReason.PRICE_CHANGE,
+            ShadowLossReason.UNSAFE_REPLACEMENT,
+        )
+    ):
+        order = f"shadow-{index}"
+        place(shadow, order=order, displayed="5")
+        shadow.on_lost(order, reason)
+    assert shadow.lost == sum(shadow.loss_reasons.values())
+    assert shadow.loss_reasons == {
+        "PRICE_CHANGE": 2,
+        "SIZE_CHANGE": 1,
+        "UNSAFE_REPLACEMENT": 1,
+    }

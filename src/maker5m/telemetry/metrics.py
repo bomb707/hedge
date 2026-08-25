@@ -57,6 +57,17 @@ class ActionCounters:
 
     ``KEEP`` is never counted as a queue loss — it is the opposite, and conflating them would
     make the most important behaviour in the system look like churn.
+
+    Two different things used to share the name "lost", and their totals disagreed (887 against
+    1,049) while being presented side by side as though they measured the same quantity. They
+    are now named apart and counted apart:
+
+    * ``execution_queue_loss_actions`` — reconciler decisions that give up a slot: REPLACE and
+      CANCEL. A property of the *plan*.
+    * ``shadow_slot_losses`` — shadow slot identities that ceased to exist, counted by the
+      shadow tracker and including closures the plan does not name, such as a complete fill.
+
+    Each reconciles exactly to its own typed reason counts, which is asserted by test.
     """
 
     actions: dict[str, int] = field(default_factory=dict)
@@ -64,10 +75,8 @@ class ActionCounters:
     reasons: dict[str, int] = field(default_factory=dict)
     cycles_with_live_order: int = 0
     keeps_with_live_order: int = 0
-    queue_slots_acquired: int = 0
-    queue_slots_kept: int = 0
-    queue_slots_lost: int = 0
-    queue_loss_reasons: dict[str, int] = field(default_factory=dict)
+    execution_queue_loss_actions: int = 0
+    execution_queue_loss_reasons: dict[str, int] = field(default_factory=dict)
 
     def count_action(self, action: str) -> None:
         self.actions[action] = self.actions.get(action, 0) + 1
@@ -76,9 +85,12 @@ class ActionCounters:
         self.quality[quality] = self.quality.get(quality, 0) + 1
         self.reasons[reason] = self.reasons.get(reason, 0) + 1
 
-    def count_queue_loss(self, reason: str) -> None:
-        self.queue_slots_lost += 1
-        self.queue_loss_reasons[reason] = self.queue_loss_reasons.get(reason, 0) + 1
+    def count_execution_queue_loss(self, reason: str) -> None:
+        """One reconciler action that gives up a live order's slot. Never called for KEEP."""
+        self.execution_queue_loss_actions += 1
+        self.execution_queue_loss_reasons[reason] = (
+            self.execution_queue_loss_reasons.get(reason, 0) + 1
+        )
 
     @property
     def keep_ratio(self) -> float | None:
@@ -103,8 +115,6 @@ class ActionCounters:
             "cycles_with_live_order": self.cycles_with_live_order,
             "keeps_with_live_order": self.keeps_with_live_order,
             "keep_ratio": self.keep_ratio,
-            "queue_slots_acquired": self.queue_slots_acquired,
-            "queue_slots_kept": self.queue_slots_kept,
-            "queue_slots_lost": self.queue_slots_lost,
-            "queue_loss_reasons": dict(sorted(self.queue_loss_reasons.items())),
+            "execution_queue_loss_actions": self.execution_queue_loss_actions,
+            "execution_queue_loss_reasons": dict(sorted(self.execution_queue_loss_reasons.items())),
         }

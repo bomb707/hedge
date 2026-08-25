@@ -40,7 +40,7 @@ from maker5m.telemetry.sampling import (
     SAMPLING_STATUS,
     SamplingPolicy,
 )
-from maker5m.telemetry.shadow import SHADOW_LABEL, ShadowQueueTracker
+from maker5m.telemetry.shadow import SHADOW_LABEL, ShadowLossReason, ShadowQueueTracker
 from maker5m.telemetry.sink import DEFAULT_CAPACITY, TelemetrySink
 
 __all__ = [
@@ -60,6 +60,7 @@ __all__ = [
     "QueueSlot",
     "QuoteClassification",
     "SamplingPolicy",
+    "ShadowLossReason",
     "ShadowQueueTracker",
     "Stage",
     "TelemetrySink",

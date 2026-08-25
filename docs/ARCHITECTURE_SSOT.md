@@ -632,8 +632,24 @@ The stream lives **beside** the P5 journal, never inside it. Feed health is not 
 journals decode and re-encode byte-identically.
 
 ``verify_risk_replay`` re-derives every verdict from the recorded signals and fails closed at the
-first divergence, naming the risk sequence, the ingress ordinal, and both values. A gap in the
-sequence fails immediately: an audit missing records cannot explain the cycles it lost.
+first divergence, naming the risk sequence, the ingress ordinal, and both values.
+
+**The sequence contract is exact and absolute:** a full risk trace must satisfy
+``record[i].risk_sequence == i``. The expectation is never inferred from the first retained
+record, because a trace beginning at 5 is a trace whose first five permission decisions are
+unaccounted for. One rule rejects a lost prefix, a missing record, a duplicate, a backwards
+value, and a whole trace shifted off zero, and the produced sequence is compared to the recorded
+one so the index the audit is built on is proved rather than assumed.
+
+Partial replay is deliberately unsupported. It would need an explicit initial sequence *and* an
+explicit initial ``RiskSnapshot``: replaying a tail without the state it inherited proves
+nothing.
+
+Consequently a bounded ``RiskTrace`` that has **dropped** records cannot verify — its first
+retained sequence exceeds zero. That is correct. Drop-oldest is right for the hot path; a dropped
+trace is **audit incomplete**. Trading may continue under the existing safety policy, but the
+evidence may not claim deterministic full-risk replay, and nothing renumbers the tail or invents
+the state it inherited.
 
 **No silent repair.** Reconciliation compares and reports; it never overwrites the ledger with
 whatever the venue currently says. A missed fill and a duplicated fill look identical from a

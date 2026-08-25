@@ -478,6 +478,26 @@ async def main(out: Path, faults: tuple[Fault, ...], label: str) -> None:
         "risk": timeline.summary(),
         "risk_trace": controller.summary(),
         "risk_replay": replay.summary(),
+        "risk_sequence_integrity": {
+            "first_risk_sequence": records[0].risk_sequence if records else None,
+            "last_risk_sequence": records[-1].risk_sequence if records else None,
+            "record_count": len(records),
+            "distinct_sequences": len({record.risk_sequence for record in records}),
+            "duplicates": len(records) - len({record.risk_sequence for record in records}),
+            "gaps": len(replay.sequence_gaps),
+            "dropped": controller.trace.dropped,
+            "contiguous_from_zero": (
+                bool(records)
+                and records[0].risk_sequence == 0
+                and records[-1].risk_sequence == len(records) - 1
+                and len({record.risk_sequence for record in records}) == len(records)
+            ),
+            "note": (
+                "verify_risk_replay requires record[i].risk_sequence == i and compares the "
+                "produced sequence to the recorded one, so a passing replay is itself the "
+                "proof that this trace starts at zero and is contiguous with no duplicates."
+            ),
+        },
         "risk_records_head": [record.summary() for record in records[:5]],
         "risk_records_transitions": [
             record.summary()

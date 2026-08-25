@@ -67,6 +67,85 @@ production.
 
 ---
 
+## P9C: the risk sequence had to be proved, not just used
+
+Independent review accepted everything about P9B except one narrow audit-integrity defect in the
+replay verifier. Evidence:
+[`evidence/P9C-RISK-AUDIT-CLOSURE.md`](evidence/P9C-RISK-AUDIT-CLOSURE.md).
+
+### The defect
+
+The verifier addressed records *by* their risk sequence without ever verifying it.
+
+```python
+expected = records[0].risk_sequence if records else 0
+```
+
+The expectation came from the data, so a trace whose prefix had been lost — `3, 4, 5` — verified
+as "internally contiguous". The scan only looked for values that skipped ahead, so `0, 1, 1, 2`
+and `0, 1, 2, 1` passed too. And `verify_risk_replay` checked `state`, `active`, `latched`,
+`allows_place`, and `allows_cancel` against each record while never comparing the sequence it
+produced against the sequence recorded.
+
+### The contract now
+
+**`record[i].risk_sequence == i`**, positional and absolute, checked before any replay. The
+expectation is not inferred from the file: a trace starting at 5 is a trace whose first five
+permission decisions are unaccounted for. `produced.risk_sequence` is then compared to
+`recorded.risk_sequence` alongside the verdict fields.
+
+Partial replay stays unsupported — it would need an explicit initial sequence *and* an explicit
+initial `RiskSnapshot`, since a tail without the state it inherited proves nothing.
+
+A bounded `RiskTrace` that has **dropped** records therefore cannot verify. That is correct:
+drop-oldest is right for the hot path, and a dropped trace is **audit incomplete**. Trading may
+continue under the existing safety policy; the evidence may not claim deterministic full-risk
+replay. Nothing renumbers the tail or invents the state it inherited.
+
+### Malformed traces, all rejected
+
+```text
+valid            0,1,2,3…      PASS
+lost prefix      3,4,5…        FAIL  expected 0, actual 3
+missing middle   0,1,3,4…      FAIL  expected 2, actual 3
+duplicate        0,1,1,2…      FAIL  expected 2, actual 1
+backwards        0,1,2,1…      FAIL  expected 3, actual 1
+shifted          100,101,102…  FAIL  expected 0, actual 100
+tampered index   verdicts OK   FAIL  on risk_sequence
+overflowed trace cap 16/100    FAIL  expected 0, actual 84
+```
+
+The tests discriminate: restoring the previous verifier fails seven of them. Two further tests
+pin what must not change — several distinct risk sequences may legally share one
+`as_of_ingress_ordinal`, and the out-of-order and reconciliation rules are untouched.
+
+### Fresh real market
+
+`btc-updown-5m-1787692200`, `CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET`, 159,952 cycles, 155,549
+CLOB and 7,548 BTC messages, **0 orders sent**.
+
+```text
+first risk sequence        0
+last risk sequence   159,972
+record count         159,973      distinct 159,973
+duplicates 0    gaps 0    dropped 0    contiguous_from_zero true
+verify_risk_replay   PASS
+non-evaluation signals    18
+
+11 halts, 33 transitions, EVERY one through RECOVERING
+PLACE  473, ALL in SAFE.  Zero while HALTED, zero while RECOVERING.
+CANCEL 361 in SAFE, 3 while HALTED   keep_ratio 0.99534
+```
+
+The passing replay is itself the proof of integrity: a trace that started late, skipped,
+repeated, or went backwards could not have reached that line.
+
+Risk behaviour is unchanged — the change is confined to `risk/replay.py`. The P9B market
+findings stand; only P9B's *sequence-integrity claim* is superseded, and both P9B traces were in
+fact complete and contiguous from zero, which the verifier of the day simply could not prove.
+
+---
+
 ## P9B: staleness ownership and the ordered risk audit
 
 Independent review accepted the risk model, the overlay, the halt semantics, the real-market
@@ -583,7 +662,7 @@ orders, which P8 does not place. Both stay OPEN.
 | **Current phase** | **P9 — risk / health / recovery, corrected** |
 | P9 implementation gate | **PASSED** |
 | P9 real-market integration gate | **PASSED** — fresh baseline + controlled-fault markets |
-| P9 deterministic-risk-audit gate | **PASSED** — ordered stream, replay verified, zero gaps |
+| P9 deterministic-risk-audit gate | **PASSED** — exact sequence contract, replay verified on real data |
 | P9 authenticated execution gate | **UNRUN / DEFERRED TO P14** |
 | P8 implementation gate | **PASSED** |
 | P8 performance gate | **PASSED** — see the telemetry offload below |
@@ -605,6 +684,8 @@ orders, which P8 does not place. Both stay OPEN.
 | P9 correction branch | `fix/p9-risk-ordering-staleness` |
 | P9 correction boundary | `3ab5fa3` — `docs: record corrected P9 real-market evidence` |
 | P9 correction commits | `ea2625e` staleness authority + ordered risk stream · `5478da5` NamedTuple hot types · `3ab5fa3` evidence |
+| P9C audit-closure branch | `fix/p9-risk-sequence-integrity` |
+| P9C boundary commit | `PENDING` — recorded in the follow-up commit |
 | P9 commits | `4be0032` risk engine · `6576de0` recovery + runner · `1584dee` stale recovery fix · `b2e715e` real-market evidence · `4c2ab1d` full fault market |
 | Last accepted milestone | P7 — execution state + reconciler, corrected (`0f17bd2`) |
 | Next milestone | P9 — awaiting acceptance of P8; not started |
@@ -710,7 +791,7 @@ construction rather than by logic — the same effect measured in P4. P8 owns en
 | | |
 |---|---|
 | Status | **green** |
-| Suite | 1 387 passed (1 242 at the P8C boundary; +145 across P9 and its correction) |
+| Suite | 1 404 passed (1 242 at the P8C boundary; +162 across P9 and its two corrections) |
 | `ruff check` / `ruff format --check` | clean |
 | `mypy` (strict) | clean — `src/`, `tests/`, `tools/`; **zero `type: ignore` in `execution/`** |
 | Runtime dependencies | `websockets`, `polymarket-client==0.6.0` — both pinned or bounded |

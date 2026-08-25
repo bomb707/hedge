@@ -25,6 +25,22 @@ architectural acceptance.
 | Orders sent | **0** |
 | Raw data | `p9b-faults-btc-updown-5m-1787679300.json` |
 
+> **Risk-sequence verifier: SUPERSEDED FOR AUDIT-INTEGRITY ACCEPTANCE.**
+>
+> Everything this run *observed* stands: the BTC-stale halt, the induced CLOB disconnect, the
+> genuine venue disconnect, the recoveries, the latching behaviour, and zero PLACE outside
+> `SAFE` are all valid real-market evidence and none of it is withdrawn.
+>
+> What is superseded is the **verifier's** claim about sequence integrity. It derived its
+> expectation from `records[0]`, so a trace whose prefix had been lost would have verified as
+> internally contiguous, and it accepted duplicate and backwards sequences. It also never
+> compared the sequence it produced against the sequence recorded. The trace below is in fact
+> complete and contiguous from zero — that is checkable from the raw manifest — but the
+> verifier of the day could not have proved it.
+>
+> Closed on `fix/p9-risk-sequence-integrity`, with a fresh real market in
+> [`P9C-RISK-AUDIT-CLOSURE.md`](P9C-RISK-AUDIT-CLOSURE.md).
+
 ## The risk audit stream
 
 | Metric | Value |

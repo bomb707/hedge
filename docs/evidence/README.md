@@ -6,6 +6,8 @@
 | [`P8-MEASUREMENT.md`](P8-MEASUREMENT.md) | P8, first run | **queue metrics SUPERSEDED** |
 | [`P8B-MEASUREMENT.md`](P8B-MEASUREMENT.md) | P8, correction 1 | **valid correctness evidence; performance gate failed** |
 | [`P8C-PERFORMANCE-CLOSURE.md`](P8C-PERFORMANCE-CLOSURE.md) | P8, correction 2 | **final performance closure** |
+| [`P9-REAL-MARKET-BASELINE.md`](P9-REAL-MARKET-BASELINE.md) | P9 | `REAL_PUBLIC_MARKET_DATA` |
+| [`P9-REAL-MARKET-FAULTS.md`](P9-REAL-MARKET-FAULTS.md) | P9 | `CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET` |
 
 Superseded documents are retained and labelled rather than deleted. A measurement that turned
 out to be wrong is part of the record of how the right one was reached, and removing it would
@@ -13,6 +15,17 @@ leave the history reading as though the first answer had been correct.
 
 Files named `*-SUPERSEDED-*` are runs kept for the same reason; each is explained in the
 manifest that replaced it.
+
+## Provenance labels
+
+From P9 forward every market-facing manifest states its provenance explicitly
+(`ARCHITECTURE_SSOT.md` §4.4):
+
+* `REAL_PUBLIC_MARKET_DATA` — real venue and real BTC data, no interference.
+* `CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET` — real market data throughout, with a deliberately
+  induced *local* failure. Never described as a venue incident.
+* `UNRUN / DEFERRED` — the condition cannot yet be demonstrated against real venue or account
+  behaviour. No mock is substituted.
 
 ---
 

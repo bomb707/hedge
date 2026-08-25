@@ -11,6 +11,10 @@ commit is the audit trail.
 including a real authenticated write adapter, and **it cannot be armed**: `VenueAdapter.arm_live`
 raises before any credential is read or any socket is opened.
 
+P9 adds operational safety only, and its two real-market runs placed **zero** orders. The risk
+package cannot construct an order at all — a halt empties intent, and there is no SELL, hedge,
+flatten, merge, split, or convert anywhere in it.
+
 P8 adds measurement only. The instrumented market run placed **zero** orders: no credential was
 requested, no authenticated socket was opened, and the order side is a shadow simulation whose
 figures are labelled `SHADOW_ESTIMATE`.
@@ -60,6 +64,121 @@ implementation deadlocks rather than merely running slowly — no wall-clock tim
 
 The synchronous `run_cycle` is retained for unit tests and is documented as test support, not
 production.
+
+---
+
+## P9: risk, health, and recovery
+
+The governing rule, from Canonical §28 and Detailed §38: **if the bot cannot trust its own
+state, stop new quoting, reconcile, and resume only when safe.** Detailed §38 closes with the
+sentence the whole phase turns on — *accuracy is more important than continuing to trade*.
+
+Evidence: [`evidence/P9-REAL-MARKET-BASELINE.md`](evidence/P9-REAL-MARKET-BASELINE.md) and
+[`evidence/P9-REAL-MARKET-FAULTS.md`](evidence/P9-REAL-MARKET-FAULTS.md).
+
+### Three gates, deliberately not merged into one word
+
+```text
+implementation          PASSED    all twelve conditions exist, trip, and recover
+real-market integration PASSED    one healthy live market + one live market with
+                                  controlled local faults
+authenticated execution UNRUN / DEFERRED TO P14
+```
+
+The third covers taker fill, real order uncertainty, real account position and cost
+reconciliation, and real write-API behaviour. None of it can be claimed: no credential exists,
+no authenticated socket has been opened, and no order of any size has been sent. The mechanisms
+are implemented and unit-tested; their **empirical** status is unrun, and a mock result would
+not change that.
+
+### What it is, and three things it is not
+
+`RiskState` is `SAFE` / `HALTED` / `RECOVERING` — one verdict carrying its typed reasons, not a
+bag of unrelated booleans. Twelve reasons: Canonical §28.1's eleven plus Detailed §38's taker
+fill. A fresh engine starts `RECOVERING`, because before anything is observed permission must
+not be the default.
+
+* **Not a stop-loss.** Canonical §28 opens by saying the target strategy does not use one. No
+  SELL, hedge, flatten, merge, split, convert, or directional rescue exists in the package —
+  asserted structurally over function, class, and attribute names. A halt withdraws quotes and
+  **holds the balances** (I15).
+* **Not `band_hard`.** P4 owns the one-sided wall and it stays a wall: at `I >= +band_hard` UP
+  is blocked while DOWN remains a legitimate order (I17).
+* **Not part of the strategy.** `StrategyEngine.decide` is untouched and has no stale-feed,
+  drift, API-error, or order-state branch. A healthy verdict returns the **identical**
+  `DecisionResult` object, not an equal copy.
+
+### Halt and recovery semantics
+
+A halt turns desired intent into *nothing*, which is exactly what P7's minimal-action
+reconciler needs to plan `CANCEL` for anything resting — withdrawal falls out of the existing
+rule rather than needing a code path that knows how to retreat. `CANCEL` is permitted
+throughout; `PLACE` and the placement half of `CANCEL_THEN_PLACE` are not. An `UNKNOWN` order is
+`WAIT`ed on, never cancelled again and never replaced.
+
+`HALTED → RECOVERING → SAFE`, always. `SAFE` needs no active condition, nothing latched, **and**
+two consecutive clear evaluations. Unknown order state, position mismatch, cost-ledger
+mismatch, and taker fill latch past their own condition: an unknown order does not become known
+because a socket reconnected. A CLOB reconnect alone never restores `SAFE` — the condition
+clears only when P6 reports `HEALTHY` and is no longer awaiting a snapshot.
+
+### Real market: baseline
+
+`btc-updown-5m-1787672100`, 154,882 cycles, 148,204 CLOB and 9,777 BTC messages, 0 malformed,
+0 reconnects, 0 observation drops, **0 orders**.
+
+```text
+SAFE       154,876 cycles   99.996%
+HALTED           5 cycles   one halt, at T0, explained below
+RECOVERING       1 cycle
+PLACE          399, ALL in SAFE          keep_ratio 0.99608
+RiskEngine.evaluate  p50 9,549 ns   p99 59,052 ns
+```
+
+The single halt is `SPOT_STALE` at ingress ordinal 2 and is **correct, not a false positive**:
+during pre-arm, spot payloads are parsed for precision but deliberately not routed through
+`on_spot`, so at `T0` the bot has not yet seen a BTC price through its own pipeline and the feed
+status is genuinely `UNKNOWN`. Refusing to quote a BTC-referenced market before seeing a BTC
+price is the behaviour the engine is supposed to have. It cleared in 457 ms.
+
+### Real market: controlled local faults
+
+`btc-updown-5m-1787673300`, 136,928 cycles. Market data real throughout; the faults are induced
+**local** failures and are labelled as such, never as venue incidents.
+
+```text
+fault                 inject ord   halt ord   reaction   reason                       SAFE ord
+btc_stale                  27,143     30,263   4,806 ms  SPOT_STALE                     41,775
+clob_disconnect            77,730     77,732      39 ms  CLOB_CONTINUITY_UNCERTAIN      77,738
+continuity_uncertain      118,224    118,225       0 ms  CLOB_CONTINUITY_UNCERTAIN     118,228
+
+PLACE  353, ALL in SAFE      0 while HALTED      0 while RECOVERING
+CANCEL 272 in SAFE, 2 while HALTED, 1 while RECOVERING   -- resting quotes withdrawn
+```
+
+The 4,806 ms reaction to `btc_stale` **is** the 5 s staleness threshold, not a delay; halting
+sooner would mean halting on ordinary quiet periods. The 1,050 ms `clob_disconnect` halt is the
+genuine reconnect round trip — socket close, backoff, reconnect, resubscribe, fresh
+authoritative snapshot — and `SAFE` was unreachable for its whole duration.
+
+Every halt passed through `RECOVERING`. No direct `HALTED → SAFE` transition occurred, and no
+halt was unexplained.
+
+### The defect fault injection found
+
+The **first** fault run halted correctly on `btc_stale` and then never recovered, staying
+`HALTED` for 132,717 of 160,917 cycles and masking the two later faults entirely.
+`StreamHealth` had no path out of `STALE`: `mark_message` updated only the timestamp, and
+`mark_snapshot` was reachable only while `awaiting_snapshot` was set — which `STALE` does not
+set. One quiet BTC feed would have halted the bot for the rest of a market.
+
+Fixed in `1584dee`. `DISCONNECTED` and `SEQUENCE_GAP` are deliberately still not cleared by a
+message, because they set `awaiting_snapshot` and one message after a continuity break says
+nothing about the messages that were missed.
+
+**A green unit-test suite did not catch this.** It appeared the moment a real adapter was paused
+during a real market, which is precisely the case for the evidence policy now recorded in
+[`ARCHITECTURE_SSOT.md`](ARCHITECTURE_SSOT.md) §4.4.
 
 ---
 
@@ -337,7 +456,10 @@ orders, which P8 does not place. Both stay OPEN.
 
 | | |
 |---|---|
-| **Current phase** | **P8 — closed after two correction rounds** |
+| **Current phase** | **P9 — risk / health / recovery** |
+| P9 implementation gate | **PASSED** |
+| P9 real-market integration gate | **PASSED** — baseline + controlled-fault markets |
+| P9 authenticated execution gate | **UNRUN / DEFERRED TO P14** |
 | P8 implementation gate | **PASSED** |
 | P8 performance gate | **PASSED** — see the telemetry offload below |
 | P7 implementation gate | **PASSED** (with the concurrency correction below) |
@@ -353,9 +475,11 @@ orders, which P8 does not place. Both stay OPEN.
 | P8 correction commits 1 | `f96815f` O15 · `e1604bf` shadow lifecycle · `a6f903e` telemetry overhead |
 | P8 correction branch 2 | `fix/p8-telemetry-offload` |
 | P8 correction commits 2 | `bbeb9b5` analytics offload · `88a7807` stage sampling · `4cb9d5f` benchmarks |
+| Current branch | `feature/p9-risk-recovery` |
+| P9 boundary commit | `PENDING` — recorded in the follow-up commit |
 | Last accepted milestone | P7 — execution state + reconciler, corrected (`0f17bd2`) |
 | Next milestone | P9 — awaiting acceptance of P8; not started |
-| `main` | `0f17bd2` — fast-forwarded through P7 and its correction, pushed |
+| `main` | `3cefd82` — fast-forwarded through the accepted P8C boundary, pushed |
 | Remote | `origin` → `https://github.com/bomb707/hedge.git` |
 
 Nothing merged by merge commit, rebased, squashed, or force-pushed. `main` advances by
@@ -457,7 +581,7 @@ construction rather than by logic — the same effect measured in P4. P8 owns en
 | | |
 |---|---|
 | Status | **green** |
-| Suite | 1 242 passed (1 065 at the P7 boundary; +177 across P8 and its two corrections) |
+| Suite | 1 342 passed (1 242 at the P8C boundary; +100 in P9) |
 | `ruff check` / `ruff format --check` | clean |
 | `mypy` (strict) | clean — `src/`, `tests/`, `tools/`; **zero `type: ignore` in `execution/`** |
 | Runtime dependencies | `websockets`, `polymarket-client==0.6.0` — both pinned or bounded |
@@ -479,8 +603,12 @@ its own documentation.
 
 Full detail in [`OPEN_ITEMS.md`](OPEN_ITEMS.md). **P8 added O15 and closed it**, confirmed on
 real market data. O08 and O09 are now *measurable* but remain **OPEN**: neither can be settled
-without real resting orders, which P8 does not place. The telemetry architecture is an
-engineering concern, not a strategy question, so it produced no new strategy open item.
+without real resting orders, which P8 does not place.
+
+**P9 closed none and added none.** Operational safety observations do not resolve strategy
+parameters, and the risk thresholds are `OPERATIONAL` engineering configuration rather than
+reconstructed constants — so they get no open item either. The telemetry and risk architectures
+are engineering concerns, not questions about the reconstructed strategy.
 
 ```text
 O01 quote-centre source            OPEN      O08 latency for queue dominance OPEN

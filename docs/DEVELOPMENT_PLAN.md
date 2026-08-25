@@ -227,10 +227,21 @@ plus `INVARIANTS.md` and `STATUS.md`.
 - **Contracts established here** (see `ARCHITECTURE_SSOT` §4.3): two clock domains kept apart,
   instrumentation excluded from deterministic state, a non-blocking bounded sink, mutable trace
   builders, and queue values that are always estimates with a stated bias.
-- **Measured, not asserted:** the OFF/ON overhead comparison is executed and both the initial
-  mis-scoped result and the corrected one are recorded.
+- **Measured, not asserted:** the OFF/ON overhead comparison is executed and every superseded
+  result is recorded alongside the reason it was wrong.
 - **Out of scope:** closing O08/O09 (that is P15, and needs live-paper data); any strategy
   change prompted by what the measurements show.
+- **Correction round** (`fix/p8-measurement-hotpath-closure`): independent review found three
+  closure issues, all upheld — shadow queue slots keyed on desired price rather than the
+  executable order lifecycle, so a `POST_ONLY_BLOCK`ed quote could own and age a queue slot;
+  `LiveOrderTable.current()` scanning retained history on every cycle (O15); and instrumentation
+  overhead that was measurable rather than negligible. The queue model, the lookup structure,
+  and the sampling boundary between *state maintenance* and *emission* were corrected, and the
+  overhead benchmark was rebuilt as a paired, interleaved, tier-split measurement.
+- **Performance limit, reported not waived:** an ordinary unsampled production-shaped cycle
+  costs **+4.90 µs (+15.1%)**. The 5 µs limit holds; the 5 % limit does not, and the residue is
+  state maintenance that cannot be sampled away without making the queue estimate depend on the
+  sampling rate. Recorded as **not passed** rather than restated as a pass.
 
 ---
 

@@ -63,9 +63,109 @@ production.
 
 ---
 
-## P8: what measurement found
+## P8 correction: shadow queue lifecycle, O15, and telemetry overhead
+
+Independent review found three closure issues in the accepted P8 work. All three were real.
+The original evidence is retained and labelled, not rewritten
+([`evidence/P8-MEASUREMENT.md`](evidence/P8-MEASUREMENT.md)); corrected evidence is in
+[`evidence/P8B-MEASUREMENT.md`](evidence/P8B-MEASUREMENT.md).
+
+### 1. Shadow queue slots followed desired price, not the order lifecycle
+
+`ShadowQueueTracker.on_desired(outcome, desired_price, depth)` opened and advanced a slot
+whenever the strategy *wanted* a price — including every side the reconciler had just refused
+to submit. The first P8 market produced **119,116** `POST_ONLY_BLOCK` sides, so this was not a
+corner case: blocked intent acquired queue estimates, aged them, banked every depth decrease at
+that level as consumption ahead of it, and reported itself at the front of a queue no order had
+ever joined.
+
+Slots now follow the executable lifecycle and are keyed by **client order id**, never by
+`(outcome, price)`:
+
+```text
+PLACE                    acquire, at the depth displayed immediately before dispatch
+KEEP                     preserve, update from current depth
+partial fill + KEEP      preserve the same identity; ahead becomes zero
+CANCEL                   close
+REPLACE                  close and grant nothing - P7 is CANCEL_THEN_PLACE, so the
+                         replacement's slot begins only when a later cycle reaches PLACE
+BLOCKED / WAIT / NOTHING no slot whatsoever
+continuity loss          slot survives, confidence does not
+```
+
+`classify()` no longer takes a `resting_price` argument at all: the resting price is read from
+the queue estimate, and an estimate exists only while an order holds a slot. `AT_FRONT` is
+therefore structurally unreachable without a real shadow order, rather than merely unlikely.
+
+The regression suite was checked for discrimination the same way the P7 concurrency test was:
+restoring the desired-price model makes **5** of the 13 lifecycle tests fail, including the
+mandatory post-only regression.
+
+### 2. O15 — `current()` scanned all retained history
+
+Measured, then fixed. `LiveOrderTable` now maintains an incremental per-outcome index of
+occupying order ids, updated on every lifecycle transition and never rebuilt by rescanning.
+History retention is untouched — it is required for idempotency — and the occupancy index sits
+alongside it.
+
+```text
+retained terminal orders        0     200     1,049      10,000
+before (ns per cycle)       1,311  52,097   251,406   2,512,039
+after  (ns per cycle)         477     467       498         461
+```
+
+Slope: **251.0 ns per retained order before, -0.0016 after**. At 10,000 retained orders the
+lookup is ~5,450x cheaper and no longer grows at all.
+
+### 3. Instrumentation overhead was real, and was described too kindly
+
+The previous report's +21.3% was measured by a method that had already produced three wrong
+answers. It is replaced by a paired, interleaved, warmed, per-repeat, tier-split benchmark run
+against a production-shaped steady-state stream as well as the replay corpus.
+
+State maintenance and emission are now separated: shadow slot transitions and action counters
+run on every cycle of a measuring run — skipping them for unsampled events would make the queue
+estimate depend on the sampling rate — while stage timestamps, distributions, classification
+and the sink run only for traced cycles. Removing a discarded six-field `QueueEstimate` from
+`on_keep` alone was worth about 1 µs per side.
+
+**The performance limit is not met, and is reported as not met.** On an ordinary unsampled
+production-shaped cycle: **+4.90 µs (+15.1%)**. The 5 µs limit is satisfied; the 5% limit is
+not, and neither is the `decide` limit (+1,968 ns, +7.7%, which is second-order allocator
+pressure rather than work added inside `decide()`). The residue is the two-side state loop
+(1,570 ns) that maintains slot depth and action counts, and it cannot be sampled away without
+making `queue_ahead` depend on the sampling rate.
+
+### Confirmed on a fresh real market
+
+`btc-updown-5m-1787658900`, 117,772 cycles, `live_trading_enabled: false`, **0 orders sent**,
+0 telemetry drops. Full evidence: [`evidence/P8B-MEASUREMENT.md`](evidence/P8B-MEASUREMENT.md).
+
+```text
+reconcile_duration p50   171,659 ns  ->   14,882 ns    -91.3%   (O15 CLOSED)
+receive_to_reconcile p50 323,138 ns  ->  240,367 ns    -25.6%
+keep_ratio                 0.99339   ->    0.99568
+shadow slots acquired        1,049   ->        462     = PLACE actions exactly
+queue_ahead p99          249 shares  -> 367 shares     phantom-slot optimism removed
+```
+
+Reconciliation is now the **smallest** stage on the critical path, below `decide` (66,105 ns)
+and `prepare` (17,764 ns). Slots acquired equalling PLACE actions exactly is the defining
+property of the corrected model.
+
+Two counts that need reading carefully: `BLOCKED` is exact over every side (**97,534 of
+235,544, 41.4%**), while the quality classification is now sampled 1-in-10, so
+`POST_ONLY_BLOCK` reads 10,117. The finding is unchanged and still **not acted on** — no
+spread was introduced. `OFF_PRICE` is 0 for a structural reason: shadow acknowledgement is
+instantaneous, so no order can rest at a stale price while a replacement is in flight. It is
+unit-tested at the classifier and needs real dispatch latency (P13/P14) to occur in a run.
+
+---
+
+## P8: what measurement found (first run — read with the correction above)
 
 Instrumentation only. **No strategy parameter was changed to improve any number below.**
+Queue figures in this section are superseded; latency, actions, and `keep_ratio` stand.
 Full evidence: [`evidence/P8-MEASUREMENT.md`](evidence/P8-MEASUREMENT.md).
 
 Measured against one real market, `btc-updown-5m-1787652900`, 137,752 cycles,
@@ -140,8 +240,9 @@ orders, which P8 does not place. Both stay OPEN.
 
 | | |
 |---|---|
-| **Current phase** | **P8 — Queue and latency instrumentation** |
-| P8 implementation gate | **PASSED** |
+| **Current phase** | **P8 correction — measurement and hot-path closure** |
+| P8 implementation gate | **PASSED after correction** (31 of 32 gate conditions) |
+| P8 performance gate | **NOT PASSED** — the 5 µs limit holds, the 5 % limit does not |
 | P7 implementation gate | **PASSED** (with the concurrency correction below) |
 | Live execution | **NOT ARMED and not armable** — P14 owns that |
 | Target-wallet empirical replay | **UNRUN / BLOCKED** |
@@ -151,6 +252,8 @@ orders, which P8 does not place. Both stay OPEN.
 | P7 boundary commit | `de96681` — `feat: add post-only execution reconciler` |
 | P7 concurrency correction | `d333aeb` — `fix: dispatch independent outcome orders concurrently` |
 | P8 boundary commit | `16bd4d4` — `feat: add queue and latency instrumentation` |
+| P8 correction branch | `fix/p8-measurement-hotpath-closure` |
+| P8 correction commits | `f96815f` O15 · `e1604bf` shadow lifecycle · `a6f903e` telemetry overhead |
 | Last accepted milestone | P7 — execution state + reconciler, corrected (`0f17bd2`) |
 | Next milestone | P9 — awaiting acceptance of P8; not started |
 | `main` | `0f17bd2` — fast-forwarded through P7 and its correction, pushed |
@@ -275,8 +378,9 @@ its own documentation.
 
 ## Open strategy items
 
-Full detail in [`OPEN_ITEMS.md`](OPEN_ITEMS.md). **P8 closed none and added one: O15**, a
-measured execution-layer latency defect. O08 and O09 are now *measurable* but remain OPEN.
+Full detail in [`OPEN_ITEMS.md`](OPEN_ITEMS.md). **P8 added O15 and its correction round closed
+it**, confirmed on real market data. O08 and O09 are now *measurable* but remain **OPEN**:
+neither can be settled without real resting orders, which P8 does not place.
 
 ```text
 O01 quote-centre source            OPEN      O08 latency for queue dominance OPEN
@@ -286,7 +390,7 @@ O04 grid-target selection          OPEN      O11 resolution source           OPE
 O05 endgame tilt magnitude         FITTED    O12 BTC spot scale              CLOSED
 O06 endgame gate magnitude         FITTED    O13 tick tie-breaking           OPEN
 O07 fee/rebate calibration         OPEN      O14 strike chaining unverified  OPEN
-                                             O15 current() linear in orders  OPEN
+                                             O15 current() linear in orders  CLOSED
 ```
 
 Replacement sequencing and the rate budget are labelled `OPERATIONAL`, not strategy OPEN

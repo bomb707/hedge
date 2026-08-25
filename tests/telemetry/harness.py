@@ -88,6 +88,9 @@ def step(
     """Drive exactly one observed cycle with a fully specified UP book."""
     state = state_at(up_bid=up_bid, up_ask=up_ask, down_bid="0.35", down_ask="0.38")
     harness.pipeline.merger.state = state
+    # A live run assigns a fresh ingress ordinal per event. Leaving it pinned at zero would
+    # make `ordinal % sample_every == 0` always true and silently disable sampling.
+    harness.pipeline.merger.advance_ordinal()
     set_book(harness, Outcome.UP, bid=up_bid, bid_size=up_bid_size, ask=up_ask)
     set_book(harness, Outcome.DOWN, bid="0.35", bid_size="0", ask="0.38")
 

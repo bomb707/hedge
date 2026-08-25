@@ -1,5 +1,28 @@
 # P8 measurement evidence
 
+> ## SUPERSEDED FOR QUEUE-METRIC ACCEPTANCE
+>
+> Independent review found a correctness defect in the shadow queue model used for this run.
+> Slots followed the **desired price** rather than the executable order lifecycle, so a quote
+> the reconciler refused to submit still acquired a slot, aged it, and credited itself with
+> every subsequent depth decrease at that level. This run recorded **119,116**
+> `POST_ONLY_BLOCK` sides, so the effect is large, not marginal.
+>
+> Therefore, from this document:
+>
+> * `queue_ahead` (all quantiles), `AT_FRONT`, `PRICE_OK_BUT_DEEP`, and every shadow slot
+>   count are **superseded** and must not be used for acceptance. They are retained because
+>   deleting a wrong measurement is worse than labelling it.
+> * The **latency** figures, the action counters, and `keep_ratio` do not depend on the queue
+>   model and remain valid, with one correction noted below: `execution_queue_loss_actions`
+>   (887) and shadow slot losses (1,049) were reported side by side as though they were the
+>   same metric. They are different metrics and are now named apart.
+> * The **instrumentation overhead** figure here (+21.3%) was measured with a method that has
+>   since been replaced by a paired, interleaved, tier-split benchmark.
+>
+> Corrected evidence: [`P8B-MEASUREMENT.md`](P8B-MEASUREMENT.md). Correction branch
+> `fix/p8-measurement-hotpath-closure`.
+
 Measurement only. **No strategy parameter was changed to improve any number in this
 document.** Everything here describes what the current strategy *does*; nothing here has been
 acted upon. The reductions these numbers argue for are recorded as open items, not applied.
@@ -48,7 +71,7 @@ sending an order, and P8 sends none. It is absent from this table rather than es
 All values come from `time.perf_counter_ns()` only. No exchange timestamp is subtracted from a
 local timestamp anywhere in the measurement path; the two clock domains are never mixed.
 
-## Queue position (`SHADOW_ESTIMATE`)
+## Queue position (`SHADOW_ESTIMATE`) — SUPERSEDED, see the banner above
 
 | Metric | n | p50 | p90 | p95 | p99 | max |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -74,6 +97,10 @@ our price. A decrease measured against the previous observation may include size
 bias is not otherwise corrected. Increases are ignored, since new same-price orders join behind us.
 
 ## Action and quality counters
+
+The `KEEP` / `NOTHING` / `BLOCKED` / `PLACE` / `REPLACE` / `CANCEL` counts and `keep_ratio`
+below are unaffected by the queue defect. The `AT_FRONT` and `PRICE_OK_BUT_DEEP` quality counts
+**are** affected and are superseded.
 
 | Action | Count |
 | --- | ---: |
@@ -105,7 +132,7 @@ survives, unmodified, through better than 99.3% of the cycles in which it exists
 `AT_FRONT` means the estimate places us at zero depth ahead. `PRICE_OK_BUT_DEEP` carries **no
 invented depth threshold** — it means the desired price is quotable and the estimate is non-zero.
 
-## Instrumentation overhead
+## Instrumentation overhead — method superseded
 
 Deterministic benchmark, same corpus and same ordering both times, 40 repeats × 39 events =
 1,560 cycles per configuration. Raw data: `p8-instrumentation-overhead.json`.

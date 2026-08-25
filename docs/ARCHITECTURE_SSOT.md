@@ -481,6 +481,33 @@ is the direction that would flatter the strategy.
 ``PRICE_OK_BUT_DEEP`` with the quantity visible alongside. Choosing a threshold is what O08
 exists to answer.
 
+**A queue slot belongs to an order, not to a price.** *(corrected after P8 review.)* Slot
+identity is the client order id. A slot opens only when an order is actually dispatched, at the
+depth displayed immediately before dispatch, and it inherits nothing from any earlier slot —
+including one at the same price, because that was a different order. It closes when the order
+stops resting. `BLOCKED`, `WAIT`, and `NOTHING` open no slot at all, and a `REPLACE` closes the
+old slot without granting a new one, since P7's policy is CANCEL_THEN_PLACE and the
+replacement's queue position begins only when a later cycle reaches PLACE.
+
+The first P8 implementation keyed slots on desired price and advanced them on strategy intent.
+Against real data that gave 119,116 post-only-blocked sides a queue estimate each. Enforced
+structurally rather than by convention: `classify()` has no `resting_price` parameter, so the
+resting price can only come from a live estimate, and `AT_FRONT` is unreachable without one.
+
+**State maintenance and emission are sampled differently.** Deterministic sampling may thin
+*emission* — stage timestamps written to a trace, distribution samples, classification, the
+sink. It must never thin *state*: shadow slot transitions and depth observations run on every
+cycle of a measuring run, because an estimate that skipped unsampled depth changes would depend
+on the sampling rate. Sampling is `OPERATIONAL` configuration and must never be used to make a
+latency distribution look better than it is.
+
+**Execution queue losses and shadow slot losses are different metrics.** `execution_queue_loss_actions`
+counts reconciler decisions that give up a slot (REPLACE, CANCEL). `shadow_slot_losses` counts
+slot identities that ceased to exist, which includes closures the plan does not name, such as a
+complete fill. Both reconcile exactly to their own typed reason counts. They must never be
+reported under one name: doing so produced two different totals, 887 and 1,049, presented as
+though they measured the same thing.
+
 ---
 
 ## §5 Concurrency and ownership

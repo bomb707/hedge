@@ -566,46 +566,69 @@ option 2, O02).
 
 ## O15 — `LiveOrderTable.current()` is linear in orders ever placed
 
-**Status: OPEN — measured in P8, deliberately not fixed in P8.**
+**Status: CLOSED.** Measured in P8, corrected and confirmed on real market data in
+`fix/p8-measurement-hotpath-closure`.
 
-`LiveOrderTable.current(outcome)` delegates to `occupying(outcome)`, which filters and sorts
-**every order the table has ever held** — terminal orders included — on every call. The
+`LiveOrderTable.current(outcome)` delegated to `occupying(outcome)`, which filtered and sorted
+**every order the table had ever held** — terminal orders included — on every call. The
 reconciler calls it once per side, so twice per cycle.
 
-### Evidence (P8, direct measurement)
+### Evidence
 
-One live order plus N retained terminal orders, nanoseconds per cycle for two `current()` calls:
+One live order plus N retained terminal orders, nanoseconds per cycle for two `current()`
+calls. Both implementations measured on the *same* table so the comparison is like-for-like
+(`tools/live_order_lookup_bench.py`):
 
-| Retained terminal orders | ns per cycle |
-| ---: | ---: |
-| 0 | 1,212 |
-| 200 | 52,401 |
-| 1,049 | 265,267 |
-| 2,000 | 516,257 |
+| Retained terminal orders | before | after |
+| ---: | ---: | ---: |
+| 0 | 1,311 | 477 |
+| 200 | 52,097 | 467 |
+| 1,049 | 251,406 | 498 |
+| 10,000 | 2,512,039 | 461 |
 
-Linear, ~258 ns per retained order per cycle. The instrumented market run
-`btc-updown-5m-1787652900` placed **1,049** orders in a single 5-minute market, so late-market
-cycles spend on the order of **265 µs** re-scanning dead orders. That is larger than the whole
-measured `receive_to_reconcile` p50 of 323 µs and explains why `reconcile_duration` (p50
-171 µs) dominates the critical path.
+Least-squares slope: **253.5 ns per retained order before, −0.0011 after** — flat.
 
-This is a production hot-path cost, not an instrumentation artefact: the shadow run exercises
-exactly the reconciler production uses.
+The instrumented market run `btc-updown-5m-1787652900` placed **1,049** orders in a single
+5-minute market, so late-market cycles were spending on the order of 251 µs re-scanning dead
+orders. That is larger than the whole measured `receive_to_reconcile` p50 of 323 µs and
+explains why `reconcile_duration` (p50 171 µs) dominated the critical path.
 
-### Why it is not fixed here
+### The fix, and what it deliberately does not do
 
-P8's mandate is to measure, not to optimize. Fixing it changes an execution-layer data
-structure accepted at P7, which deserves its own boundary with its own tests rather than being
-folded into a measurement phase.
+History is **not** pruned. Terminal orders remain retained for idempotency, late
+acknowledgements, and auditability. The table additionally keeps an incremental per-outcome
+index of the orders currently occupying each side, updated transactionally on every lifecycle
+transition and never rebuilt by rescanning. Index membership is recomputed from the order's
+status rather than toggled, so an unusual transition back into an occupying state restores the
+index correctly instead of leaving it silently wrong.
 
-### Closing experiment
+Replacement-race semantics are unchanged: where several orders occupy one side, the earliest by
+client order id is returned, now as an explicit total order over a small set.
 
-Retire terminal orders from the scanned set — an open-orders index per outcome, or eviction on
-transition to a terminal lifecycle — while preserving `occupying()`'s existing ordering and its
-transient multi-order replacement-race semantics exactly. Re-run
-`tools/instrumentation_overhead.py` and the table above; the per-cycle cost must become
-independent of orders ever placed. The P7 reconciler test suite must pass unchanged, since this
-is a performance change and must not alter a single decision.
+### Closure conditions (§12 of the correction brief)
+
+| # | Condition | Status |
+| --- | --- | --- |
+| 1 | Full historical order retention remains | **MET** — 10,000 terminal orders still addressable |
+| 2 | `current()` no longer O(history) | **MET** — structural test proves it never walks `orders` |
+| 3 | Race / multiple-occupying semantics deterministic | **MET** — earliest-by-id, tested repeatedly |
+| 4 | 10k-terminal-history regression passes | **MET** |
+| 5 | Measured cost no longer grows with retained history | **MET** — slope −0.0011 ns/order |
+| 6 | Fresh real run: reconcile latency no longer dominated by the lookup | **MET** — see below |
+
+### Condition 6: confirmed on a fresh real market
+
+`btc-updown-5m-1787658900`, 117,772 cycles, `live_trading_enabled: false`, 0 orders sent:
+
+| Stage p50 (ns) | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| `reconcile_duration` | 171,659 | **14,882** | **−91.3%** |
+| `receive_to_reconcile` | 323,138 | **240,367** | −25.6% |
+
+Reconciliation has gone from the largest stage on the critical path to the smallest — it is now
+below both `decide_duration` (66,105) and `prepare_duration` (17,764). All six conditions are
+met, so **O15 is CLOSED**. Full evidence:
+[`evidence/P8B-MEASUREMENT.md`](evidence/P8B-MEASUREMENT.md).
 
 ---
 
@@ -627,4 +650,4 @@ is a performance change and must not alter a single decision.
 | O12 | BTC spot fixed-point scale | **CLOSED** — self-describing representation retained | — |
 | O13 | Quote-centre tick tie-breaking | OPEN | — (reference policy in use) |
 | O14 | Strike chaining unverified / no strike published | OPEN | strike-dependent models |
-| O15 | `LiveOrderTable.current()` linear in orders ever placed | OPEN | latency (measured P8) |
+| O15 | `LiveOrderTable.current()` linear in orders ever placed | **CLOSED** — indexed, confirmed on real data | — |

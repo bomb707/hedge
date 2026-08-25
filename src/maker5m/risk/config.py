@@ -5,16 +5,18 @@ timeout, no clock-drift limit, and no API error budget — Canonical §28.1 name
 and says nothing about where the lines sit. Choosing values is an engineering decision, and
 labelling them CONFIRMED or FITTED would claim evidence that does not exist.
 
-Where P6 already owns a threshold, it is reused rather than restated: the staleness limits are
-imported from :mod:`maker5m.feeds.health`, so there is exactly one definition of "stale" and no
-possibility of two timers disagreeing.
+**Feed staleness thresholds are deliberately absent.** P6 owns them, along with the monitor that
+applies them and the ``STALE`` transition they produce. P9 consumes the resulting health status
+and nothing else. An earlier version of this file copied ``DEFAULT_CLOB_STALE_AFTER`` and
+``DEFAULT_SPOT_STALE_AFTER`` in, which meant two places could answer "is this stream stale?" and
+disagree — with the wrong one invisible until it mattered. A structural test now forbids the
+import.
 """
 
 from dataclasses import dataclass
 from typing import Final
 
 from maker5m.domain import ParameterStatus
-from maker5m.feeds.health import DEFAULT_CLOB_STALE_AFTER, DEFAULT_SPOT_STALE_AFTER
 from maker5m.market.timebase import DurationNs, millis, seconds
 
 __all__ = ["DEFAULT_CLOCK_DRIFT_LIMIT", "RISK_CONFIG_STATUS", "RiskConfig"]
@@ -35,10 +37,11 @@ DEFAULT_API_ERROR_THRESHOLD: Final[int] = 5
 
 @dataclass(frozen=True, slots=True)
 class RiskConfig:
-    """Thresholds and recovery criteria. All OPERATIONAL, none reconstructed."""
+    """Thresholds P9 genuinely owns. All OPERATIONAL, none reconstructed.
 
-    clob_stale_after: DurationNs = DEFAULT_CLOB_STALE_AFTER
-    spot_stale_after: DurationNs = DEFAULT_SPOT_STALE_AFTER
+    Feed staleness is not here on purpose — see the module docstring.
+    """
+
     clock_drift_limit_ns: DurationNs = DEFAULT_CLOCK_DRIFT_LIMIT
     api_error_window: DurationNs = DEFAULT_API_ERROR_WINDOW
     api_error_threshold: int = DEFAULT_API_ERROR_THRESHOLD

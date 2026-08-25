@@ -92,9 +92,7 @@ def test_a_healthy_verdict_is_a_no_op_on_intent() -> None:
         now_ns=NOW,
         clob_status=HealthStatus.HEALTHY,
         clob_awaiting_snapshot=False,
-        clob_last_message_at=NOW,
         spot_status=HealthStatus.HEALTHY,
-        spot_last_message_at=NOW,
     )
     for _ in range(RiskConfig().recovery_confirmations + 1):
         verdict = risk.evaluate(inputs)

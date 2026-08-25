@@ -37,9 +37,7 @@ def healthy(**overrides: object) -> RiskInputs:
         now_ns=NOW,
         clob_status=HealthStatus.HEALTHY,
         clob_awaiting_snapshot=False,
-        clob_last_message_at=NOW,
         spot_status=HealthStatus.HEALTHY,
-        spot_last_message_at=NOW,
     )
     return dataclasses.replace(base, **overrides)  # type: ignore[arg-type]
 

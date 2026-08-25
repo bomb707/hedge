@@ -35,9 +35,7 @@ def healthy(**overrides: object) -> RiskInputs:
         now_ns=NOW,
         clob_status=HealthStatus.HEALTHY,
         clob_awaiting_snapshot=False,
-        clob_last_message_at=NOW,
         spot_status=HealthStatus.HEALTHY,
-        spot_last_message_at=NOW,
     )
     return dataclasses.replace(base, **overrides)  # type: ignore[arg-type]
 
@@ -77,18 +75,13 @@ def test_a_fresh_engine_starts_unsafe() -> None:
 CONDITIONS: list[tuple[str, dict[str, object], RiskReason]] = [
     ("clob stale status", {"clob_status": HealthStatus.STALE}, RiskReason.CLOB_STALE),
     (
-        "clob quiet past threshold",
-        {"clob_last_message_at": TimestampNs(NOW - seconds(30))},
-        RiskReason.CLOB_STALE,
+        "clob sequence gap",
+        {"clob_status": HealthStatus.SEQUENCE_GAP},
+        RiskReason.CLOB_CONTINUITY_UNCERTAIN,
     ),
     (
         "clob disconnected",
         {"clob_status": HealthStatus.DISCONNECTED},
-        RiskReason.CLOB_CONTINUITY_UNCERTAIN,
-    ),
-    (
-        "clob sequence gap",
-        {"clob_status": HealthStatus.SEQUENCE_GAP},
         RiskReason.CLOB_CONTINUITY_UNCERTAIN,
     ),
     (
@@ -98,8 +91,8 @@ CONDITIONS: list[tuple[str, dict[str, object], RiskReason]] = [
     ),
     ("spot stale status", {"spot_status": HealthStatus.STALE}, RiskReason.SPOT_STALE),
     (
-        "spot quiet past threshold",
-        {"spot_last_message_at": TimestampNs(NOW - seconds(30))},
+        "spot unknown",
+        {"spot_status": HealthStatus.UNKNOWN},
         RiskReason.SPOT_STALE,
     ),
     (
@@ -175,10 +168,14 @@ def test_an_absent_order_stream_is_not_a_fault() -> None:
     assert RiskReason.ORDER_STATE_UNCERTAIN not in decision.active
 
 
-def test_a_stream_that_has_never_spoken_is_not_yet_stale() -> None:
-    reasons = active_reasons(healthy(clob_last_message_at=None, spot_last_message_at=None), CONFIG)
-    assert RiskReason.CLOB_STALE not in reasons
-    assert RiskReason.SPOT_STALE not in reasons
+def test_staleness_is_read_from_p6_never_computed() -> None:
+    """P9 has no last-message clock of its own; P6's status is simply believed."""
+    import dataclasses
+
+    fields = {f.name for f in dataclasses.fields(RiskInputs)}
+    assert not any("last_message" in name for name in fields), sorted(fields)
+    assert RiskReason.CLOB_STALE not in active_reasons(healthy(), CONFIG)
+    assert RiskReason.SPOT_STALE not in active_reasons(healthy(), CONFIG)
 
 
 # -- multiple faults --------------------------------------------------------------------------
@@ -288,6 +285,14 @@ def test_evaluation_is_pure_and_repeatable() -> None:
         assert again.active == first.active
         assert again.latched == first.latched
         assert again.snapshot == first.snapshot
+
+
+def test_the_risk_config_owns_no_feed_staleness_threshold() -> None:
+    """P6 owns that question, its monitor, and its OPERATIONAL numbers."""
+    import dataclasses
+
+    names = {f.name for f in dataclasses.fields(RiskConfig)}
+    assert not any("stale" in name for name in names), sorted(names)
 
 
 def test_thresholds_are_configuration_not_constants() -> None:

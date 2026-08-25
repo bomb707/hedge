@@ -81,10 +81,7 @@ class RiskInputs:
 
     clob_status: HealthStatus = HealthStatus.UNKNOWN
     clob_awaiting_snapshot: bool = True
-    clob_last_message_at: TimestampNs | None = None
-
     spot_status: HealthStatus = HealthStatus.UNKNOWN
-    spot_last_message_at: TimestampNs | None = None
 
     order_stream_status: HealthStatus = HealthStatus.UNKNOWN
     order_stream_required: bool = False
@@ -175,31 +172,29 @@ class RiskDecision:
         }
 
 
-def _stale(last_at: TimestampNs | None, now_ns: TimestampNs, threshold: int) -> bool:
-    """Quiet for longer than the threshold. A stream that has never spoken is not yet stale."""
-    if last_at is None:
-        return False
-    return now_ns - last_at > threshold
-
-
 def active_reasons(inputs: RiskInputs, config: RiskConfig) -> frozenset[RiskReason]:
-    """Every Canonical §28.1 condition that is true right now. Pure."""
+    """Every Canonical §28.1 condition that is true right now. Pure.
+
+    Feed staleness is **read, never computed**. P6 owns the question "has this stream been quiet
+    too long?" — it holds the ``StalenessMonitor``, the ``OPERATIONAL`` thresholds, and the
+    ``mark_stale`` transition, and its ``check_staleness`` runs on the capture loop's idle path
+    so silence is detected without waiting for a market event. P9 owns only "what do we do when
+    P6 says it is stale?".
+
+    An earlier version of this function carried its own ``last_message_at`` comparison against
+    its own copy of the threshold. Two authorities for one question is one too many: they can
+    disagree, and the one that is wrong is invisible until it matters.
+    """
     reasons: set[RiskReason] = set()
 
-    # Market data. P6 already owns what "stale" and "continuity lost" mean; this consumes its
-    # verdict rather than running a second timer with different semantics.
     if inputs.clob_status in _UNTRUSTED_CLOB or inputs.clob_awaiting_snapshot:
         reasons.add(RiskReason.CLOB_CONTINUITY_UNCERTAIN)
-    if inputs.clob_status is HealthStatus.STALE or _stale(
-        inputs.clob_last_message_at, inputs.now_ns, config.clob_stale_after
-    ):
+    if inputs.clob_status is HealthStatus.STALE:
         reasons.add(RiskReason.CLOB_STALE)
 
-    if inputs.spot_status in _UNTRUSTED_SPOT:
-        reasons.add(RiskReason.SPOT_STALE)
-    if inputs.spot_status is HealthStatus.STALE or _stale(
-        inputs.spot_last_message_at, inputs.now_ns, config.spot_stale_after
-    ):
+    # The spot feed has no snapshot concept, so every way of not being trustworthy — quiet,
+    # disconnected, or never yet seen — is the same condition.
+    if inputs.spot_status is HealthStatus.STALE or inputs.spot_status in _UNTRUSTED_SPOT:
         reasons.add(RiskReason.SPOT_STALE)
 
     if inputs.order_stream_required and inputs.order_stream_status in _UNTRUSTED_ORDER_STREAM:

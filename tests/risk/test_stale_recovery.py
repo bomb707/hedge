@@ -86,9 +86,7 @@ def test_the_risk_engine_lifts_a_spot_halt_once_data_resumes() -> None:
             now_ns=now,
             clob_status=HealthStatus.HEALTHY,
             clob_awaiting_snapshot=False,
-            clob_last_message_at=now,
             spot_status=spot_status,
-            spot_last_message_at=spot_at,
         )
 
     for offset in range(3):

@@ -32,13 +32,19 @@ from maker5m.market.events import HealthComponent, HealthStatus
 from maker5m.market.timebase import NANOS_PER_SECOND, TimestampNs
 from maker5m.risk import (
     ApiErrorMonitor,
+    HealthFrame,
     RiskConfig,
+    RiskController,
     RiskDecision,
     RiskEngine,
-    RiskInputs,
+    RiskProvenance,
     RiskReason,
+    RiskRecord,
+    RiskSignal,
+    RiskSignalKind,
     RiskState,
     risk_adjust,
+    verify_risk_replay,
 )
 from maker5m.safety import LIVE_TRADING_ENABLED
 from maker5m.strategy import BaseLot, StrategyEngine, default_config
@@ -77,14 +83,22 @@ INJECTED_FAULTS: tuple[Fault, ...] = (
     Fault("continuity_uncertain", 190, 191, "force_resnapshot"),
     # Conditions a live venue cannot be asked to produce. Real market data keeps flowing
     # throughout; only the signal is injected. Spaced so each halt and recovery is separable.
-    Fault("clock_drift", 210, 214, "signal:clock_drift"),
-    Fault("order_state_uncertain", 222, 226, "signal:order_state_uncertain"),
-    Fault("position_mismatch", 234, 238, "signal:position_mismatch"),
-    Fault("cost_ledger_mismatch", 248, 252, "signal:cost_ledger_mismatch"),
-    Fault("api_error_rate", 262, 266, "signal:api_errors_exceeded"),
-    Fault("rate_limit_uncertain", 274, 278, "signal:rate_limit_uncertain"),
-    Fault("resolution_ambiguous", 286, 290, "signal:resolution_ambiguous"),
+    Fault("clock_drift", 210, 214, "signal:CLOCK_HEALTH_UPDATE"),
+    Fault("order_state_uncertain", 222, 228, "signal:ORDER_RECONCILIATION_RESULT"),
+    Fault("position_mismatch", 236, 242, "signal:POSITION_RECONCILIATION_RESULT"),
+    Fault("cost_ledger_mismatch", 250, 256, "signal:COST_RECONCILIATION_RESULT"),
+    Fault("api_error_rate", 264, 268, "signal:API_ERROR_STATE_UPDATE"),
+    Fault("rate_limit_uncertain", 276, 280, "signal:RATE_LIMIT_STATE_UPDATE"),
+    Fault("resolution_ambiguous", 288, 292, "signal:RESOLUTION_SAFETY_UPDATE"),
 )
+
+LATCHING_SIGNALS: dict[str, RiskReason] = {
+    "ORDER_RECONCILIATION_RESULT": RiskReason.ORDER_STATE_UNCERTAIN,
+    "POSITION_RECONCILIATION_RESULT": RiskReason.POSITION_MISMATCH,
+    "COST_RECONCILIATION_RESULT": RiskReason.COST_LEDGER_MISMATCH,
+}
+"""Signals whose reason outlives its condition, and therefore needs an explicit reconciliation
+signal before SAFE can return."""
 
 
 @dataclass(slots=True)
@@ -95,9 +109,11 @@ class RiskTimeline:
     cycles_by_state: dict[str, int] = field(default_factory=dict)
     halts_by_reason: dict[str, int] = field(default_factory=dict)
     evaluate_ns: Distribution = field(default_factory=lambda: Distribution("risk_evaluate_ns"))
+    signal_ns: Distribution = field(default_factory=lambda: Distribution("risk_signal_ns"))
     places_by_state: dict[str, int] = field(default_factory=dict)
     cancels_by_state: dict[str, int] = field(default_factory=dict)
     fault_events: list[dict[str, object]] = field(default_factory=list)
+    actions: list[dict[str, object]] = field(default_factory=list)
     previous: RiskState | None = None
 
     def record(
@@ -105,6 +121,7 @@ class RiskTimeline:
         state: RiskState,
         active: frozenset[RiskReason],
         latched: frozenset[RiskReason],
+        risk_sequence: int,
         ordinal: int,
         now_ns: TimestampNs,
     ) -> None:
@@ -115,6 +132,7 @@ class RiskTimeline:
                 {
                     "from": None if self.previous is None else self.previous.value,
                     "to": key,
+                    "risk_sequence": risk_sequence,
                     "ingress_ordinal": ordinal,
                     "at_ns": int(now_ns),
                     "active": sorted(reason.value for reason in active),
@@ -128,6 +146,22 @@ class RiskTimeline:
                     )
             self.previous = state
 
+    def note_action(self, action: str, state: str, risk_sequence: int, ordinal: int) -> None:
+        """Attribute one shadow execution action to the exact verdict that permitted it.
+
+        This is what makes "why was this PLACE permitted?" answerable without reconstructing
+        hidden booleans: the risk sequence names the record, and the record carries the state,
+        the active reasons, and the signal that produced them.
+        """
+        self.actions.append(
+            {
+                "action": action,
+                "risk_state": state,
+                "risk_sequence": risk_sequence,
+                "ingress_ordinal": ordinal,
+            }
+        )
+
     def note_fault(self, name: str, phase: str, ordinal: int, now_ns: TimestampNs) -> None:
         self.fault_events.append(
             {"fault": name, "phase": phase, "ingress_ordinal": ordinal, "at_ns": int(now_ns)}
@@ -139,9 +173,12 @@ class RiskTimeline:
             "halts_by_reason": dict(sorted(self.halts_by_reason.items())),
             "transitions": self.transitions,
             "fault_events": self.fault_events,
+            "actions_sample": self.actions[:50],
+            "actions_recorded": len(self.actions),
             "shadow_places_by_state": dict(sorted(self.places_by_state.items())),
             "shadow_cancels_by_state": dict(sorted(self.cancels_by_state.items())),
             "risk_evaluate_ns": self.evaluate_ns.summary(),
+            "risk_signal_ns": self.signal_ns.summary(),
         }
 
 
@@ -162,12 +199,16 @@ async def main(out: Path, faults: tuple[Fault, ...], label: str) -> None:
     config = default_config(BaseLot.of(15))
     t0_ns = market.definition.t0
 
-    risk = RiskEngine(config=RiskConfig())
+    provenance = (
+        RiskProvenance.REAL_PUBLIC_MARKET_DATA
+        if not faults
+        else RiskProvenance.CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET
+    )
+    controller = RiskController(engine=RiskEngine(config=RiskConfig()), provenance=provenance)
     api_errors = ApiErrorMonitor.from_config(RiskConfig())
     timeline = RiskTimeline()
     runs: list[InstrumentedRun] = []
     force_disconnect = asyncio.Event()
-    active_faults: set[str] = set()
     fired: set[str] = set()
     resolved: set[str] = set()
 
@@ -188,24 +229,13 @@ async def main(out: Path, faults: tuple[Fault, ...], label: str) -> None:
             )
         )
 
-    def injected_signals(now_ns: TimestampNs) -> dict[str, object]:
-        """Risk inputs currently forced by a ``signal:`` fault."""
-        elapsed = offset_s(now_ns)
-        out: dict[str, object] = {}
-        for fault in faults:
-            if not fault.kind.startswith("signal:"):
-                continue
-            if fault.start_offset_s <= elapsed < fault.end_offset_s:
-                field_name = fault.kind.split(":", 1)[1]
-                out[field_name] = (
-                    int(RiskConfig().clock_drift_limit_ns) * 4
-                    if field_name == "clock_drift"
-                    else True
-                )
-        return out
-
     def gate(kind: str, now_ns: TimestampNs) -> bool:
-        """Suppress spot delivery while a ``pause_spot`` fault is scheduled."""
+        """Suppress spot delivery while a ``pause_spot`` fault is scheduled.
+
+        The Binance socket stays connected and real trades keep arriving; we simply decline to
+        consume them, which is what a wedged local adapter looks like from inside. P6's
+        staleness monitor then does the detecting, because P6 owns that question entirely.
+        """
         elapsed = offset_s(now_ns)
         for fault in faults:
             if fault.kind != "pause_spot":
@@ -214,15 +244,57 @@ async def main(out: Path, faults: tuple[Fault, ...], label: str) -> None:
                 return False
         return True
 
+    def frame(pipeline: MarketDataPipeline) -> HealthFrame:
+        """P6's verdict, read rather than recomputed."""
+        return HealthFrame(
+            clob_status=pipeline.clob_health.status,
+            clob_awaiting_snapshot=pipeline.clob_health.awaiting_snapshot,
+            spot_status=pipeline.spot_health.status,
+            order_stream_status=HealthStatus.UNKNOWN,
+            order_stream_required=False,
+        )
+
+    def emit(
+        kind: RiskSignalKind,
+        pipeline: MarketDataPipeline,
+        now_ns: TimestampNs,
+        **payload: object,
+    ) -> RiskRecord:
+        """Apply one ordered risk signal. The only path that may change permission."""
+        signal = RiskSignal(
+            kind=kind,
+            as_of_ingress_ordinal=pipeline.merger.ordinal,
+            timestamp=now_ns,
+            provenance=provenance,
+            **payload,  # type: ignore[arg-type]
+        )
+        start = perf_now_ns()
+        record = controller.apply(signal, frame(pipeline))
+        timeline.signal_ns.add(perf_now_ns() - start)
+        timeline.record(
+            record.state,
+            record.active,
+            record.latched,
+            record.risk_sequence,
+            signal.as_of_ingress_ordinal,
+            now_ns,
+        )
+        return record
+
     last_evaluated = [-1]
 
     def run_faults(now_ns: TimestampNs, pipeline: MarketDataPipeline) -> None:
+        """Advance the fault schedule, emitting every change as an ordered risk signal."""
         elapsed = offset_s(now_ns)
         ordinal = pipeline.merger.ordinal
         for fault in faults:
+            signal_kind = (
+                RiskSignalKind[fault.kind.split(":", 1)[1]]
+                if fault.kind.startswith("signal:")
+                else None
+            )
             if fault.name not in fired and elapsed >= fault.start_offset_s:
                 fired.add(fault.name)
-                active_faults.add(fault.name)
                 timeline.note_fault(fault.name, "injected", ordinal, now_ns)
                 if fault.kind == "drop_clob":
                     force_disconnect.set()
@@ -230,59 +302,82 @@ async def main(out: Path, faults: tuple[Fault, ...], label: str) -> None:
                     pipeline.on_uncertain(
                         HealthComponent.CLOB_BOOK, "controlled local fault injection"
                     )
-            if (
-                fault.name in active_faults
-                and fault.name not in resolved
-                and elapsed >= fault.end_offset_s
-            ):
+                elif signal_kind is RiskSignalKind.CLOCK_HEALTH_UPDATE:
+                    emit(
+                        signal_kind,
+                        pipeline,
+                        now_ns,
+                        value_ns=int(RiskConfig().clock_drift_limit_ns) * 4,
+                        detail="controlled local fault injection",
+                    )
+                elif signal_kind is not None:
+                    emit(
+                        signal_kind,
+                        pipeline,
+                        now_ns,
+                        flag=True,
+                        detail="controlled local fault injection",
+                    )
+            if fault.name in fired and fault.name not in resolved and elapsed >= fault.end_offset_s:
                 resolved.add(fault.name)
-                active_faults.discard(fault.name)
                 timeline.note_fault(fault.name, "released", ordinal, now_ns)
-                latching = {
-                    "signal:order_state_uncertain": RiskReason.ORDER_STATE_UNCERTAIN,
-                    "signal:position_mismatch": RiskReason.POSITION_MISMATCH,
-                    "signal:cost_ledger_mismatch": RiskReason.COST_LEDGER_MISMATCH,
-                }.get(fault.kind)
+                if signal_kind is RiskSignalKind.CLOCK_HEALTH_UPDATE:
+                    emit(signal_kind, pipeline, now_ns, value_ns=0, detail="fault released")
+                elif signal_kind is not None:
+                    emit(signal_kind, pipeline, now_ns, flag=False, detail="fault released")
+                latching = LATCHING_SIGNALS.get(fault.kind.split(":", 1)[-1])
                 if latching is not None:
-                    # These outlive their condition on purpose, so releasing the signal is not
-                    # enough. A reconciliation result has to be recorded deliberately, which is
-                    # what the operator would be doing after establishing which side was wrong.
-                    risk.reconciled(latching)
+                    # Releasing the condition is not enough for these: the reason outlives it
+                    # and only an explicit reconciliation result clears the latch. That signal
+                    # stands in for an operator who has established which side was wrong, and
+                    # it is recorded in the risk stream like everything else.
+                    emit(
+                        RiskSignalKind.RECONCILIATION_CONFIRMED,
+                        pipeline,
+                        now_ns,
+                        reason=latching,
+                        detail="controlled local reconciliation",
+                    )
                     timeline.note_fault(fault.name, "reconciled", ordinal, now_ns)
 
     def evaluate_now(pipeline: MarketDataPipeline, now_ns: TimestampNs) -> RiskDecision:
-        """Evaluate the verdict against health as it stands right now.
+        """Take a verdict against health as it stands right now, and record it.
 
         Called from ``observe`` immediately before the intent is adjusted, so the verdict can
         never lag the condition by an event - a single PLACE slipping through between a feed
         going stale and the halt being noticed would defeat the whole mechanism.
         """
-        signals = injected_signals(now_ns)
-        inputs = RiskInputs(
-            now_ns=now_ns,
-            clob_status=pipeline.clob_health.status,
-            clob_awaiting_snapshot=pipeline.clob_health.awaiting_snapshot,
-            clob_last_message_at=pipeline.clob_health.last_message_at,
-            spot_status=pipeline.spot_health.status,
-            spot_last_message_at=pipeline.spot_health.last_message_at,
-            order_stream_status=HealthStatus.UNKNOWN,
-            order_stream_required=False,
-            api_errors_exceeded=bool(signals.get("api_errors_exceeded"))
-            or api_errors.exceeded(now_ns),
-            clock_drift_ns=int(signals.get("clock_drift", 0)),  # type: ignore[call-overload]
-            order_state_uncertain=bool(signals.get("order_state_uncertain")),
-            position_mismatch=bool(signals.get("position_mismatch")),
-            cost_ledger_mismatch=bool(signals.get("cost_ledger_mismatch")),
-            rate_limit_uncertain=bool(signals.get("rate_limit_uncertain")),
-            resolution_ambiguous=bool(signals.get("resolution_ambiguous")),
-        )
+        exceeded = api_errors.exceeded(now_ns)
+        if exceeded != controller.operational.api_errors_exceeded:
+            emit(
+                RiskSignalKind.API_ERROR_STATE_UPDATE,
+                pipeline,
+                now_ns,
+                flag=exceeded,
+                detail="api error monitor",
+            )
         start = perf_now_ns()
-        decision = risk.evaluate(inputs)
+        record = controller.evaluate(
+            frame(pipeline),
+            as_of_ingress_ordinal=pipeline.merger.ordinal,
+            now_ns=now_ns,
+        )
         timeline.evaluate_ns.add(perf_now_ns() - start)
-        ordinal = pipeline.merger.ordinal
-        last_evaluated[0] = ordinal
-        timeline.record(decision.state, decision.active, decision.latched, ordinal, now_ns)
-        return decision
+        last_evaluated[0] = pipeline.merger.ordinal
+        timeline.record(
+            record.state,
+            record.active,
+            record.latched,
+            record.risk_sequence,
+            record.as_of_ingress_ordinal,
+            now_ns,
+        )
+        return RiskDecision(
+            state=record.state,
+            active=record.active,
+            latched=record.latched,
+            snapshot=controller.engine.snapshot,
+        )
 
     def on_tick(now_ns: TimestampNs, pipeline: MarketDataPipeline) -> None:
         """Advance the fault schedule, and evaluate when no event produced a verdict.
@@ -310,8 +405,10 @@ async def main(out: Path, faults: tuple[Fault, ...], label: str) -> None:
         after = run.executor.orders.open_count
         if after > before:
             timeline.places_by_state[state] = timeline.places_by_state.get(state, 0) + 1
+            timeline.note_action("PLACE", state, controller.sequence, pipeline.merger.ordinal)
         elif after < before:
             timeline.cancels_by_state[state] = timeline.cancels_by_state.get(state, 0) + 1
+            timeline.note_action("CANCEL", state, controller.sequence, pipeline.merger.ordinal)
 
     result = await capture_market(
         market,
@@ -327,13 +424,16 @@ async def main(out: Path, faults: tuple[Fault, ...], label: str) -> None:
 
     run = runs[0]
     measurement = run.summary()
-    provenance = (
-        "REAL_PUBLIC_MARKET_DATA" if not faults else "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET"
-    )
+
+    # Prove the recorded permissions follow from the recorded signals, before writing any of
+    # them down as evidence. A trace that cannot be replayed is not an audit.
+    records = list(controller.trace)
+    replay = verify_risk_replay(records, config=controller.config)
+
     manifest: dict[str, object] = {
         "phase": "P9",
         "kind": label.upper(),
-        "provenance": provenance,
+        "provenance": provenance.value,
         "note": (
             "Real public Polymarket CLOB and real Binance BTC data throughout. "
             + (
@@ -364,10 +464,22 @@ async def main(out: Path, faults: tuple[Fault, ...], label: str) -> None:
         "cycles": measurement["cycles"],
         "observations": measurement["observations"],
         "risk": timeline.summary(),
+        "risk_trace": controller.summary(),
+        "risk_replay": replay.summary(),
+        "risk_records_head": [record.summary() for record in records[:5]],
+        "risk_records_transitions": [
+            record.summary()
+            for index, record in enumerate(records)
+            if index == 0 or record.state is not records[index - 1].state
+        ],
+        "risk_signals_non_evaluation": [
+            record.summary()
+            for record in records
+            if record.signal.kind is not RiskSignalKind.RISK_EVALUATION
+        ],
         "risk_config": {
             "status": RiskConfig().status.value,
-            "clob_stale_after_ns": int(RiskConfig().clob_stale_after),
-            "spot_stale_after_ns": int(RiskConfig().spot_stale_after),
+            "feed_staleness_owner": "P6 (maker5m.feeds.health) - P9 holds no threshold",
             "clock_drift_limit_ns": int(RiskConfig().clock_drift_limit_ns),
             "api_error_window_ns": int(RiskConfig().api_error_window),
             "api_error_threshold": RiskConfig().api_error_threshold,

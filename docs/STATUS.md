@@ -23,7 +23,7 @@ an agent.
 |---|---|
 | **Current phase** | **P1 — fixed-point numeric kernel + exact accounting** |
 | Current branch | `feature/p1-numeric-accounting` |
-| P1 boundary commit | recorded by the immediately following commit on this branch |
+| P1 boundary commit | `89f7178` — `feat: add fixed-point accounting kernel` |
 | Last accepted milestone | P0 — architecture, invariants, open items, plan, and skeleton frozen (`acc7ab2`, tip `f77b34d` on `bootstrap/phase-0`) |
 | Next milestone | **P2 — MarketState + event contracts + phase machine** |
 | Baseline commit | `0de1f7c` — pristine import of the supplied strategy sources; `main` still points here, untouched |

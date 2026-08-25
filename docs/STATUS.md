@@ -150,7 +150,7 @@ orders, which P8 does not place. Both stay OPEN.
 | Venue-tick correction | `55977f4` — `fix: update current venue tick capabilities` |
 | P7 boundary commit | `de96681` — `feat: add post-only execution reconciler` |
 | P7 concurrency correction | `d333aeb` — `fix: dispatch independent outcome orders concurrently` |
-| P8 boundary commit | `PENDING` — recorded in the follow-up commit |
+| P8 boundary commit | `16bd4d4` — `feat: add queue and latency instrumentation` |
 | Last accepted milestone | P7 — execution state + reconciler, corrected (`0f17bd2`) |
 | Next milestone | P9 — awaiting acceptance of P8; not started |
 | `main` | `0f17bd2` — fast-forwarded through P7 and its correction, pushed |

@@ -125,7 +125,10 @@ class MarketDataPipeline:
             return None
 
         now = self.merger.clock()
-        self.clob_health.mark_message(now)
+        was_stale = self.clob_health.status is HealthStatus.STALE
+        recovered = self.clob_health.mark_message(now)
+        if was_stale and not self.clob_health.awaiting_snapshot:
+            self.emit_health(HealthComponent.CLOB_BOOK, recovered, "resumed")
         if parsed.kind is MarketEventKind.BOOK and self.books.ready:
             self.emit_health(HealthComponent.CLOB_BOOK, self.clob_health.mark_snapshot(now))
         if self.clob_health.awaiting_snapshot:
@@ -160,9 +163,14 @@ class MarketDataPipeline:
         """A spot tick alone drives a full decision. Invariant I11, no CLOB message needed."""
         self.counters.spot_messages += 1
         now = self.merger.clock()
-        self.spot_health.mark_message(now)
+        was_stale = self.spot_health.status is HealthStatus.STALE
+        recovered = self.spot_health.mark_message(now)
         if self.spot_health.awaiting_snapshot:
             self.emit_health(HealthComponent.SPOT_FEED, self.spot_health.mark_snapshot(now))
+        elif was_stale:
+            # Publish the recovery, so the halt that the STALE event caused can be lifted by
+            # the same ordered health stream that caused it.
+            self.emit_health(HealthComponent.SPOT_FEED, recovered, "resumed")
         meta = self.merger.next_meta("spot")
         return self.merger.submit(
             SpotTick(meta=meta, price=price, source_sequence=None),

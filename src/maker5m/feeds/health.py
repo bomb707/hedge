@@ -42,8 +42,23 @@ class StreamHealth:
     awaiting_snapshot: bool = True
     last_message_at: TimestampNs | None = None
 
-    def mark_message(self, at: TimestampNs) -> None:
+    def mark_message(self, at: TimestampNs) -> HealthStatus:
+        """A message arrived. If the stream was only *quiet*, it is healthy again.
+
+        ``STALE`` means "has said nothing for too long", and a message is the direct refutation
+        of that — for a feed with no snapshot concept, resumed data *is* the recovery evidence.
+
+        ``DISCONNECTED`` and ``SEQUENCE_GAP`` are deliberately not cleared here. Both set
+        ``awaiting_snapshot``, and a single message after a continuity break says nothing about
+        the messages that were missed; only a fresh authoritative snapshot does.
+
+        Found by P9 fault injection on a real market: pausing the BTC adapter halted correctly
+        and then never recovered, because nothing led back out of ``STALE``.
+        """
         self.last_message_at = at
+        if self.status is HealthStatus.STALE and not self.awaiting_snapshot:
+            self.status = HealthStatus.HEALTHY
+        return self.status
 
     def mark_disconnected(self) -> HealthStatus:
         """A disconnect always invalidates continuity."""

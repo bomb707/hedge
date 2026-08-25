@@ -537,6 +537,92 @@ though they measured the same thing.
 
 ---
 
+### §4.4 Empirical evidence policy — **BINDING FROM P9 FORWARD**
+
+Real Polymarket and real BTC data are **required** for every claim about market behaviour, feed
+health, staleness under production conditions, recovery against venue feeds, timing, queue
+behaviour, quote behaviour, fills, profitability, OPEN-item closure, or phase empirical
+acceptance.
+
+Synthetic market streams, generated order books, mock BTC feeds, and fabricated market histories
+**must not** be used to pass an empirical acceptance gate. They may exist only as **supporting
+unit tests** for pure arithmetic, deterministic invariants, boundary conditions that cannot be
+waited for, fail-closed parsing, and local state-machine correctness — and they must say so.
+Every such test in this repository carries the words ``SUPPORTING UNIT TEST ONLY``.
+
+For safety failures that would be unreasonable to wait for, the permitted technique is
+**controlled fault injection on a real live market pipeline**: a real venue stream, a real BTC
+stream, and a deliberately induced *local* failure. The market state stays real; only our own
+adapter, socket, or clock is interfered with. Evidence from such a run is labelled
+``CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET`` and must never be described as an observed venue
+incident.
+
+Where a condition cannot yet be demonstrated against real venue or account behaviour, the
+status is ``UNRUN / DEFERRED``. Substituting a mock and calling it validated is the specific
+failure this rule exists to prevent.
+
+---
+
+### §4.5 Risk, health, and recovery contracts  *(established P9)*
+
+**One verdict, not a bag of booleans.** ``RiskState`` is ``SAFE`` / ``HALTED`` / ``RECOVERING``,
+carrying the typed reasons that produced it. A fresh engine starts ``RECOVERING``: before
+anything has been observed the book is unknown, the spot feed is unknown, and no snapshot
+exists, so permission is never the default.
+
+**The risk engine is not a trading strategy.** Canonical §28 opens by stating the target
+strategy does not use a conventional stop-loss. There is no SELL, hedge, flatten, merge, split,
+convert, or directional rescue anywhere in ``maker5m.risk``, asserted structurally over function,
+class, and attribute names. A halt withdraws quotes and **holds the balances exactly as they
+are** (invariant I15).
+
+**The risk engine is not ``band_hard``.** P4 owns the one-sided inventory wall and it stays a
+wall: at ``I >= +band_hard`` UP is blocked while DOWN remains a legitimate order (I17). Turning
+the wall into a global halt would convert a safety bound into the mean-reversion control
+Canonical §28 explicitly refuses.
+
+**Risk is an overlay, never a branch inside the strategy.** The pipeline is
+``reduce -> decide -> evaluate -> risk_adjust -> prepare -> reconcile``. ``StrategyEngine.decide``
+has no stale-feed, clock-drift, API-error, or order-state branch, and a healthy verdict returns
+the **identical** ``DecisionResult`` object rather than an equal copy. The original decision is
+what reaches telemetry and the P5 journal, so a replay can still distinguish "the strategy
+declined to quote" from "safety refused to let it".
+
+**Evaluation is pure.** ``evaluate(previous, inputs, config)`` reads no clock, no network, no
+filesystem, and nothing random; ``now_ns`` and every threshold arrive as arguments, so a replay
+produces the same halts as the run that recorded it (I20).
+
+**Feed health is consumed, not re-derived.** P6 already defines what ``STALE``,
+``DISCONNECTED``, and ``SEQUENCE_GAP`` mean and owns the thresholds. P9 maps them to halts. There
+is one definition of stale and no second timer to disagree with it.
+
+**Recovery is explicit and never optimistic.** ``HALTED -> RECOVERING -> SAFE``. Returning to
+``SAFE`` requires *all* of: no active condition, nothing latched awaiting reconciliation, and a
+configured number of consecutive clear evaluations. One healthy message clears nothing on its
+own. A CLOB reconnect is not enough — the condition only clears when P6 reports ``HEALTHY`` and
+is no longer awaiting a snapshot, which is exactly the "fresh authoritative snapshot"
+requirement.
+
+**Some reasons outlive their condition.** Unknown order state, position mismatch, cost-ledger
+mismatch, and taker fill latch until an explicit reconciliation result arrives. An unknown order
+does not become known because the socket reconnected, and a position mismatch does not become a
+match because the next snapshot happened to agree.
+
+**No silent repair.** Reconciliation compares and reports; it never overwrites the ledger with
+whatever the venue currently says. A missed fill and a duplicated fill look identical from a
+balance alone and have opposite corrections, so the two diagnoses are reported apart and neither
+is applied automatically. Detailed §38: *accuracy is more important than continuing to trade*.
+
+**Cost basis comes from executions, never from quantity times price.** The same 100 shares can
+have been bought at one price or at twenty, and a reconstruction from a current mid would be
+confident, wrong, and unfalsifiable.
+
+**Thresholds are ``OPERATIONAL``.** The frozen sources name the *conditions* and establish no
+stale timeout, drift limit, error budget, or recovery criterion. Labelling any of them
+``CONFIRMED`` or ``FITTED`` would claim evidence that does not exist (I18).
+
+---
+
 ## §5 Concurrency and ownership
 
 ```text

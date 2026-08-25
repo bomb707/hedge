@@ -255,6 +255,14 @@ plus `INVARIANTS.md` and `STATUS.md`.
 
 ---
 
+> **Empirical evidence policy, binding from P9 forward.** Real Polymarket and real BTC data are
+> required for every market-facing claim. Synthetic streams, generated books, and mock feeds may
+> support unit tests only, must be labelled `SUPPORTING UNIT TEST ONLY`, and can never pass an
+> empirical gate. Safety failures may be demonstrated by **controlled local fault injection on a
+> real live pipeline**, labelled as such and never described as a venue incident. Anything not
+> yet demonstrable against real venue or account behaviour is reported `UNRUN / DEFERRED`. See
+> `ARCHITECTURE_SSOT.md` §4.4.
+
 ## P9 — Risk / health / recovery
 
 - **Goal:** the bot refuses to create new risk when it cannot trust its own state.
@@ -268,7 +276,15 @@ plus `INVARIANTS.md` and `STATUS.md`.
   disconnect restores consistent state; **no halt path ever flattens inventory** (I15).
 - **Acceptance gate:** every condition in Canonical §28.1 has a test that trips it, and no
   halt path sells, hedges, or flattens.
-- **Out of scope:** settlement, redemption.
+- **Three separate gates, never merged into one word.** The *implementation* gate is software
+  correctness. The *real-market integration* gate needs a healthy live market plus a second live
+  market carrying controlled local faults. The *authenticated execution* gate — taker fill, real
+  order uncertainty, real account and cost reconciliation, real write-API behaviour — stays
+  **UNRUN / DEFERRED TO P14**, because no credential exists and no order has been sent.
+- **`band_hard` is not re-implemented.** P4 owns the one-sided wall; P9 verifies it is respected
+  and does not build a competing global inventory halt (I17).
+- **Out of scope:** settlement, redemption; closing any strategy open item. Safety observations
+  do not resolve strategy parameters.
 
 ---
 

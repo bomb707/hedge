@@ -1,0 +1,240 @@
+{
+  "api_errors": {
+    "failures_retained": 0,
+    "threshold": 5,
+    "total_failures": 0,
+    "total_successes": 0,
+    "window_ns": 30000000000
+  },
+  "clock_health": {
+    "last_offset_ns": -120976739,
+    "max_abs_offset_ns": 1069653150,
+    "samples": 156342
+  },
+  "credentials_used": "none",
+  "cycles": 154882,
+  "execution_counters": {
+    "actions": {
+      "BLOCKED": 129831,
+      "CANCEL": 268,
+      "KEEP": 137104,
+      "NOTHING": 41749,
+      "PLACE": 540,
+      "REPLACE": 272
+    },
+    "cycles_with_live_order": 137644,
+    "execution_queue_loss_actions": 540,
+    "execution_queue_loss_reasons": {
+      "DESIRED_WITHDRAWN": 1,
+      "PRICE_CHANGED": 272,
+      "UNSAFE_REPLACEMENT": 267
+    },
+    "keep_ratio": 0.9960768358954986,
+    "keeps_with_live_order": 137104,
+    "quality": {
+      "AT_FRONT": 10550,
+      "NOT_QUOTING": 17899,
+      "PRICE_OK_BUT_DEEP": 3983
+    },
+    "reasons": {
+      "CENTRE_UNAVAILABLE": 3136,
+      "NO_LIVE_ORDER": 272,
+      "PHASE_NOT_QUOTING": 1042,
+      "POST_ONLY_BLOCK": 13449,
+      "QUOTING": 14533
+    }
+  },
+  "faults_scheduled": [],
+  "feed_counters": {
+    "clob_best_bid_ask": 0,
+    "clob_books": 3038,
+    "clob_last_trade_price": 1464,
+    "clob_messages": 148204,
+    "clob_price_changes": 142063,
+    "clob_tick_size_changes": 0,
+    "clob_unhandled": 0,
+    "malformed": 0,
+    "pongs": 33,
+    "reconnects": 0,
+    "spot_messages": 9777,
+    "telemetry_dropped": 0,
+    "unhandled_kinds": {}
+  },
+  "kind": "BASELINE",
+  "latency_ns": {
+    "acting_cycle": {
+      "count": 81,
+      "label": "acting_cycle",
+      "max": 2796615,
+      "p50": 174791,
+      "p90": 653331,
+      "p95": 1031351,
+      "p99": 2796615
+    },
+    "clob_receive_to_decide": {
+      "count": 14494,
+      "label": "clob_receive_to_decide",
+      "max": 5085500,
+      "p50": 176243,
+      "p90": 577809,
+      "p95": 681615,
+      "p99": 1068149
+    },
+    "decide_duration": {
+      "count": 15493,
+      "label": "decide_duration",
+      "max": 3334893,
+      "p50": 46537,
+      "p90": 150313,
+      "p95": 168389,
+      "p99": 226844
+    },
+    "fill_receive_to_decide": {
+      "count": 0,
+      "label": "fill_receive_to_decide"
+    },
+    "keep_cycle": {
+      "count": 363,
+      "label": "keep_cycle",
+      "max": 2950398,
+      "p50": 149595,
+      "p90": 629967,
+      "p95": 793926,
+      "p99": 2684604
+    },
+    "phase_receive_to_decide": {
+      "count": 4,
+      "label": "phase_receive_to_decide",
+      "max": 368857,
+      "p50": 270998,
+      "p90": 368857,
+      "p95": 368857,
+      "p99": 368857
+    },
+    "prepare_duration": {
+      "count": 15493,
+      "label": "prepare_duration",
+      "max": 3282727,
+      "p50": 13631,
+      "p90": 50862,
+      "p95": 58147,
+      "p99": 86459
+    },
+    "queue_ahead": {
+      "count": 14533,
+      "label": "queue_ahead",
+      "max": 1490460000,
+      "p50": 0,
+      "p90": 136960000,
+      "p95": 280320000,
+      "p99": 995220000
+    },
+    "receive_to_reconcile": {
+      "count": 15493,
+      "label": "receive_to_reconcile",
+      "max": 5232792,
+      "p50": 198510,
+      "p90": 656113,
+      "p95": 742536,
+      "p99": 1149325
+    },
+    "reconcile_duration": {
+      "count": 15493,
+      "label": "reconcile_duration",
+      "max": 487936,
+      "p50": 11018,
+      "p90": 36146,
+      "p95": 39131,
+      "p99": 51730
+    },
+    "spot_receive_to_decide": {
+      "count": 995,
+      "label": "spot_receive_to_decide",
+      "max": 671658,
+      "p50": 108556,
+      "p90": 329968,
+      "p95": 411939,
+      "p99": 534593
+    }
+  },
+  "live_trading_enabled": false,
+  "market_id": "0x58f83dacf7b98643ad5103c0704be5e3a76f8c2cf20ff0706bb2e048df3bebc9",
+  "note": "Real public Polymarket CLOB and real Binance BTC data throughout. No faults injected.",
+  "observations": {
+    "accepted": 154882,
+    "buffered": 154882,
+    "capacity": 320000,
+    "dropped": 0,
+    "gaps_seen_downstream": 0,
+    "lost_downstream": 0
+  },
+  "orders_sent": 0,
+  "phase": "P9",
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "risk": {
+    "cycles_by_state": {
+      "HALTED": 5,
+      "RECOVERING": 1,
+      "SAFE": 154876
+    },
+    "fault_events": [],
+    "halts_by_reason": {
+      "SPOT_STALE": 1
+    },
+    "risk_evaluate_ns": {
+      "count": 154882,
+      "label": "risk_evaluate_ns",
+      "max": 376985381,
+      "p50": 9549,
+      "p90": 31159,
+      "p95": 40022,
+      "p99": 59052
+    },
+    "shadow_cancels_by_state": {
+      "SAFE": 297
+    },
+    "shadow_places_by_state": {
+      "SAFE": 399
+    },
+    "transitions": [
+      {
+        "active": [
+          "SPOT_STALE"
+        ],
+        "at_ns": 1787672100005415187,
+        "from": null,
+        "ingress_ordinal": 2,
+        "latched": [],
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787672100046798724,
+        "from": "HALTED",
+        "ingress_ordinal": 8,
+        "latched": [],
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787672100060067438,
+        "from": "RECOVERING",
+        "ingress_ordinal": 9,
+        "latched": [],
+        "to": "SAFE"
+      }
+    ]
+  },
+  "risk_config": {
+    "api_error_threshold": 5,
+    "api_error_window_ns": 30000000000,
+    "clob_stale_after_ns": 10000000000,
+    "clock_drift_limit_ns": 250000000,
+    "recovery_confirmations": 2,
+    "spot_stale_after_ns": 5000000000,
+    "status": "OPERATIONAL"
+  },
+  "run_utc": "2026-08-25T15:40:10Z",
+  "slug": "btc-updown-5m-1787672100",
+  "t0_ns": 1787672100000000000
+}

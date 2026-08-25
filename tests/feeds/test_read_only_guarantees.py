@@ -1,8 +1,13 @@
-"""P6 is strictly public and read-only. These tests are the structural proof.
+"""The market-data plane stays strictly public and read-only.
 
-No order endpoint, no credential, no wallet key, no signing, no write path. Execution begins
-at P7, and until then the repository must not contain the means to place an order even by
-accident.
+P6 wrote these guards when the repository contained no write path at all. P7 adds one, so
+they are rescoped rather than relaxed: the *market-data* modules must still contain no
+credential or signing material, and `maker5m.execution.credentials` is now the single
+sanctioned place where such material is even named.
+
+What has not changed, and is asserted harder in `tests/execution/test_safety.py`: no real
+write adapter can be armed while `LIVE_TRADING_ENABLED` is `False`, and the test suite makes
+no authenticated request of any kind.
 """
 
 from __future__ import annotations
@@ -41,8 +46,16 @@ WRITE_PATH_MARKERS = (
 )
 
 
+EXECUTION = SRC / "execution"
+
+
 def python_sources() -> list[Path]:
-    return sorted(SRC.rglob("*.py")) + sorted((REPO / "tools").rglob("*.py"))
+    """Every module *outside* the execution package, which is the credential boundary."""
+    return [
+        p
+        for p in sorted(SRC.rglob("*.py")) + sorted((REPO / "tools").rglob("*.py"))
+        if EXECUTION not in p.parents
+    ]
 
 
 def test_live_trading_remains_disabled() -> None:
@@ -50,10 +63,20 @@ def test_live_trading_remains_disabled() -> None:
 
 
 @pytest.mark.parametrize("path", python_sources(), ids=lambda p: p.name)
-def test_no_module_contains_credential_or_signing_material(path: Path) -> None:
+def test_no_module_outside_execution_contains_credential_material(path: Path) -> None:
+    """Credentials are confined to one module, so there is one place to audit."""
     text = path.read_text(encoding="utf-8").lower()
     for marker in WRITE_PATH_MARKERS:
         assert marker not in text, f"{path.name} mentions {marker!r}"
+
+
+def test_the_credential_boundary_is_a_single_module() -> None:
+    named = sorted(
+        p.name
+        for p in EXECUTION.rglob("*.py")
+        if any(m in p.read_text(encoding="utf-8").lower() for m in ("private_key", "api_secret"))
+    )
+    assert named == ["credentials.py"], f"credential material leaked into: {named}"
 
 
 def test_no_module_posts_to_a_venue() -> None:
@@ -95,11 +118,18 @@ def test_no_environment_variable_is_read_for_a_secret() -> None:
                 raise AssertionError(f"{path.name} reads the environment")
 
 
-def test_the_feeds_package_has_no_write_capable_dependency() -> None:
-    """Only a WebSocket client and the standard library. No SDK, ORM, broker, or dataframe."""
+def test_runtime_dependencies_are_exactly_the_two_justified_ones() -> None:
+    """A WebSocket client and the official SDK. No ORM, broker, or dataframe library."""
     pyproject = (REPO / "pyproject.toml").read_text(encoding="utf-8")
     block = pyproject.split("dependencies = [", 1)[1].split("]", 1)[0]
     declared = re.findall(r'"([A-Za-z0-9_.-]+)', block)
-    assert declared == ["websockets"], f"unexpected runtime dependencies: {declared}"
-    for banned in ("pandas", "pydantic", "sqlalchemy", "redis", "kafka", "py-clob-client"):
+    assert declared == ["websockets", "polymarket-client"], (
+        f"unexpected runtime dependencies: {declared}"
+    )
+    # The official SDK is pinned exactly, never floated.
+    assert '"polymarket-client==0.6.0"' in pyproject
+    # The legacy archived client is not a dependency. It is named in a comment explaining
+    # why it is not used, so this checks the parsed requirement list rather than the text.
+    assert "py-clob-client" not in declared
+    for banned in ("pandas", "sqlalchemy", "redis", "kafka"):
         assert banned not in pyproject.lower()

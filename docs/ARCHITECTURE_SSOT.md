@@ -311,16 +311,17 @@ Owns the market lifecycle and is the top-level event pump.
   accounting for every market.
 - Must never: approximate, round inventory to integers, or treat residual as profit.
 
-### ExecutionEngine — Plane 1
-- Sub-parts: `PostOnlyGuard`, `DesiredOrderBuilder`, `OrderReconciler` (the diff itself is
-  Plane 2 and pure), `LiveOrderTable`, `CancelReplace`, `RateLimiter` (token bucket),
-  `QueueTracker`.
-- Enforces post-only locally *and* at the venue API where supported (I06); an intentional
-  taker fill is a defect and a risk event (I07).
+### ExecutionEngine — Plane 1  *(built P7)*
+- Sub-parts: `prepare_order` (intent → venue submission), the post-only guard, `reconcile`
+  (pure), `LiveOrderTable`, `ReplacementTracker`, `TokenBucket`, `VenueAdapter`.
+- Enforces post-only locally *and* at the venue (I06); an intentional taker fill is
+  surfaced as an invariant violation, never absorbed (I07).
 - Preserves queue priority by keeping unchanged orders (I09); no fixed requote delay (I10).
-- Maintains client order IDs, idempotency, retry, and in-flight/ack reconciliation so that
-  "unknown order state" is a detectable condition rather than a silent divergence.
+- Maintains client order IDs, idempotency, and in-flight/unknown state so that "unknown
+  order state" is a detectable condition rather than a silent divergence.
 - Must never: cancel because a market-data event merely arrived.
+- Live trading is hard-disabled: a real write adapter cannot be constructed while
+  `LIVE_TRADING_ENABLED` is `False`, checked before any credential or socket is touched.
 
 ### RiskEngine — Plane 1 (checks) + Plane 2 (hard band)
 - The `band_hard` inventory limit is a **pure eligibility input** and belongs in Plane 2 so
@@ -395,6 +396,50 @@ its currently legal order-price increment, recorded in `VenueMarketRules` for P7
 submission-legality checks. It never mutates `MarketDefinition.tick`: the replica quotes on
 its documented `0.01` grid unless an empirical strategy revision says otherwise. They happen
 to coincide today; that is not relied upon.
+
+### §4.2 Execution contracts  *(established P7)*
+
+**The venue adapter rejects an illegal intent; it never alters one.** Price is passed through
+untouched. Off-grid, out-of-range, crossing, or below-minimum all **block**. Moving a price by
+one tick changes which queue the order joins, and queue position is where the edge lives
+(Canonical §10.1) — so a helpful adjustment in transport would silently be a different
+strategy.
+
+**Size is the one thing that must change**, because the venue accepts two decimals while the
+strategy legitimately produces six after fractional fills. It is truncated toward zero, never
+rounded up, and both quantities are preserved on `PreparedOrder`. P3's lattice is not bent to
+fit transport: the ledger stays authoritative over what actually filled, and the next fill
+produces a fresh desired size.
+
+**Post-only is a type, not a setting.** `OrderSide` has one member, `VenueOrderType` has one
+member, and `POST_ONLY` is a constant `True`. SELL, FOK, FAK, market orders, and a
+`post_only=False` retry are not representable. This matters because the SDK's
+`create_limit_order` defaults `post_only=False` and accepts `Literal["BUY","SELL"]` — the
+narrow gate makes those permissive defaults unreachable.
+
+**The post-only race is expected and never answered with a taker fallback.** Local validation
+uses the observed same-outcome ask; the venue flag handles the gap between validation and
+arrival. On a post-only rejection the order state is recorded and the next deterministic cycle
+decides afresh — never a retry with `post_only=False`, never a price change inside an error
+handler.
+
+**KEEP is the default, and the comparison is on *remaining* size.** A partially-filled order
+whose remainder equals the newly desired size is a KEEP. Comparing the original size would
+cancel a good order after every partial fill and hand away its queue slot for nothing. There
+is no age-based, timer-based, or event-count-based replacement anywhere.
+
+**Replacement is `CANCEL_THEN_PLACE`, labelled `OPERATIONAL`.** The sources do not establish
+network sequencing, so this is an engineering choice: it avoids duplicate exposure and stays
+inside Canonical §23's two-order model. `PLACE_THEN_CANCEL` is declared for P8/P13 to measure
+but raises if selected. Every pending replacement is bound to the decision generation that
+created it; if a newer decision supersedes it, the cancel acknowledgement reconciles against
+*current* desired state rather than placing an obsolete price.
+
+**The SDK is a boundary, not the architecture.** `polymarket-client==0.6.0` owns EIP-712
+signing, L1/L2 auth, wire serialization, and the authenticated transports. It owns nothing
+above that line. Its metadata cache is prewarmed during pre-arm so the hot path is
+`sign → POST`; `post_order` returns `AcceptedOrder | RejectedOrder` immediately and
+`wait_for_order_fill_settlement` is deliberately never called.
 
 ---
 
@@ -676,7 +721,7 @@ src/maker5m/
     accounting/     LedgerState, Fill, settlement, Term1/Term2 decomposition  [P1 DONE]
     replay/         schema, canonical codec, recorder, verifier, sweeps       [P5 DONE]
     feeds/          Polymarket book feed, Binance spot feed, clock            [P6]
-    execution/      PostOnlyGuard, LiveOrderTable, reconciler, rate limiter   [P7]
+    execution/      prepare, guard, live orders, reconciler, rate limit, SDK  [P7 DONE]
     risk/           hard band, staleness, consistency, kill switch            [P9]
     settlement/     resolution verification, redemption                       [P10]
     telemetry/      decision/fill logs, latency, queue, PnL metrics           [P8,P11]

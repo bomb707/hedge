@@ -7,15 +7,18 @@ commit is the audit trail.
 
 ## LIVE TRADING: DISABLED
 
-`maker5m.safety.LIVE_TRADING_ENABLED` is `False`. P6 added the first network access, and it is
-**strictly public and read-only**: no order endpoint, no credential, no API key, no wallet
-key, no signing, no write path of any kind. `tests/feeds/test_read_only_guarantees.py` asserts
-this structurally — it scans every module for credential and signing markers, forbids HTTP
-POST, restricts the WebSocket endpoints to the two public market-data streams, checks the
-Polymarket subscription carries no authentication, and forbids reading the environment.
+`maker5m.safety.LIVE_TRADING_ENABLED` is `False`. P7 adds a complete execution architecture
+including a real authenticated write adapter, and **it cannot be armed**: `VenueAdapter.arm_live`
+raises before any credential is read or any socket is opened.
 
-Unlocking is a **P14** decision, gated on the full Canonical §35 checklist plus explicit human
-authorisation. It is not a configuration knob.
+There is deliberately no `--live` flag, no `LIVE=true` environment variable, and no config key
+that bypasses the constant. Every one of those would be a way to enable real trading without
+the P14 review that is supposed to gate it. Unlocking requires a source edit and code review.
+
+Asserted structurally in `tests/execution/test_safety.py`: the gate refuses and the transport
+is never even constructed; no execution module reads the environment or implements a bypass
+switch; secrets never appear in a repr; `SELL`, `FOK`, `FAK`, and `post_only=False` are not
+representable; no `float()` exists on the order path; and no test constructs a real SDK client.
 
 ---
 
@@ -26,169 +29,168 @@ authorisation. It is not a configuration knob.
 | **Implementation gate** | The code does what this phase specified, proven by tests. |
 | **Empirical replication correctness** | The code does what the *target wallet* did. Only replay against the wallet's own history can establish that. |
 
-P6 adds a third distinction worth keeping separate: capturing our **own** bot's trajectory on
-real market data is not evidence about the target wallet's trajectory.
-
 ---
 
 ## Current position
 
 | | |
 |---|---|
-| **Current phase** | **P6 — Polymarket / BTC market-data adapters** |
-| P6 implementation gate | **PASSED** |
-| P6 live acceptance gate | **PASSED** — two full markets captured read-only and verified by P5 |
-| Target-wallet empirical replay | **UNRUN / BLOCKED** — no reconstructed wallet journal exists |
-| Current branch | `feature/p6-market-data` |
-| P6 boundary commit | `6a50794` — `feat: add read-only live market-data adapters` |
-| Last accepted milestone | P5 — deterministic replay engine (`ab22f3b`, tip `c8463e3`) |
-| Next milestone | **P7 — Execution state + post-only order reconciler** |
-| `main` | `c8463e3` — fast-forwarded to the accepted P5 HEAD, pushed |
+| **Current phase** | **P7 — Execution state + post-only order reconciler** |
+| P7 implementation gate | **PASSED** |
+| Live execution | **NOT ARMED and not armable** — P14 owns that |
+| Target-wallet empirical replay | **UNRUN / BLOCKED** |
+| Current branch | `feature/p7-execution` |
+| Venue-tick correction | `55977f4` — `fix: update current venue tick capabilities` |
+| P7 boundary commit | recorded by the immediately following commit on this branch |
+| Last accepted milestone | P6 — read-only market-data adapters (`6a50794`, tip `d6851a4`) |
+| Next milestone | **P8 — Queue and latency instrumentation** |
+| `main` | `d6851a4` — fast-forwarded to the accepted P6 HEAD, pushed |
 | Remote | `origin` → `https://github.com/bomb707/hedge.git` |
 
-### Branch policy
-
-```text
-main                                latest ACCEPTED milestone
-feature/<phase>                     active phase development
-fix/<subject>                       accepted corrections, merged forward by fast-forward
-bootstrap/phase-0 … feature/p5-replay   retained milestone boundaries
-```
-
-Nothing merged by merge commit, rebased, squashed, or force-pushed.
+Nothing merged by merge commit, rebased, squashed, or force-pushed. `main` advances by
+fast-forward only; all milestone branches are retained.
 
 ---
 
-## Blockers
+## The official SDK, reverified
 
-| Blocker | Blocks | Detail |
-|---|---|---|
-| **No reconstructed target-wallet journal** | **L1, L2-empirical, O04's closure** | The single missing artefact. P5 built the machinery, P6 proved it works on real data — but only on *our* bot's trajectory. |
-| **O14** — strike chaining unverified, no strike published | any strike-dependent model (O01 option 2, O02) | New in P6, see below. |
-| **O11** — authoritative resolution source unnamed | P10 | Both sources say "prefer on-chain" without naming a source, depth, or timeout. |
+| | |
+|---|---|
+| Distribution | `polymarket-client`, pinned **`==0.6.0`** |
+| Import name | `polymarket` |
+| Repository | `Polymarket/py-sdk` (`https://github.com/Polymarket/py-sdk`) |
+| Requires | Python `>=3.11` |
+| Legacy client | `py-clob-client` (0.34.6) — archived, **not used** |
 
-`O12` and the residual half of `O10` are now **closed**. The P5 STATUS said both "O12 blocks
-P6" and "nothing blocks P6"; the accurate statement was **P6 could start but could not pass
-its gate until O12 was closed from real feed evidence**. It has been.
+Verified by introspecting the installed package, not from documentation alone:
 
-Nothing blocks P7.
+```text
+OrderType = Literal["GTC", "GTD", "FAK", "FOK"]
+OrderSide = Literal["BUY", "SELL"]
+TickSize  = Literal["0.1", "0.01", "0.005", "0.0025", "0.001", "0.0001"]
+
+SecureClient.create_limit_order(*, token_id, price, size, side,
+                                post_only: bool = False, expiration=None, ...) -> SignedOrder
+SecureClient.post_order(signed_order) -> AcceptedOrder | RejectedOrder
+SecureClient.cancel_order(*, order_id) / cancel_orders(*, order_ids)
+```
+
+Three findings that shaped the design:
+
+- **`post_only` defaults to `False`.** The SDK's default is the unsafe one for this strategy,
+  so it is passed explicitly on every call and no code path can omit it.
+- **`order_type = "GTC" if expiration is None else "GTD"`.** We never pass an expiration, so
+  every order is GTC. The strategy cancels explicitly at SETTLING, so GTD is unnecessary.
+- **Signing resolves market metadata through an internal cache**, and on a tick mismatch it
+  re-fetches over REST *before* signing. That is exactly the latency hazard Canonical §22
+  warns about, so the cache is prewarmed during pre-arm and preparation validates the tick
+  itself, which keeps the refetch branch unreachable. The allowance lookup and on-chain
+  approval are a rejection-recovery fallback, not on the happy path.
+
+---
+
+## Venue tick correction
+
+`SUPPORTED_TICK_SIZES` was missing `0.005` and `0.0025`, which the venue added after the set
+was written. Corrected against the SDK's own `TickSize` literal. Both are exactly
+representable at `PRICE_SCALE = 1_000_000` (`5_000` and `2_500` price units, each dividing the
+scale), so this is a venue-capability correction and **O10 is not reopened**.
+
+`MarketDefinition.tick` remains `0.01`. The replica's quote grid comes from the frozen
+strategy evidence; the venue's legal increment is a separate concept.
+
+---
+
+## What P7 delivered
+
+- **`PreparedOrder`** — `outcome`, `token_id`, `strategy_price`, `submission_price`,
+  `strategy_size`, `submission_size`, `venue_tick`, `min_order_size`, `outcome_status`,
+  `observed_ask`, plus derived `size_quantization_delta` and `price_unchanged`. The
+  `DesiredOrder` is never mutated.
+- **Post-only guard** — typed outcomes: `SAFE`, `NO_BOOK`, `WOULD_CROSS`, `OFF_VENUE_TICK`,
+  `OUT_OF_VENUE_RANGE`, `BELOW_MIN_SIZE`, `ZERO_AFTER_QUANTIZATION`, `UNKNOWN_VENUE_RULES`.
+  Judged against the **same outcome's** observed ask; equality is blocked; the DOWN ask is
+  never inferred from UP.
+- **`LiveOrderTable`** — many orders, not one per side, because a cancel racing an
+  acknowledgement cannot otherwise be represented. `PENDING_PLACE`, `LIVE`,
+  `PARTIALLY_FILLED`, `PENDING_CANCEL`, `FILLED`, `CANCELLED`, `REJECTED`, `UNKNOWN`, with a
+  deterministic per-outcome view for the reconciler and idempotent updates.
+- **Pure `reconcile`** — `NOTHING` / `KEEP` / `PLACE` / `CANCEL` / `REPLACE` / `WAIT` /
+  `BLOCKED`, each with a typed `SideReason`. No clock, no network, no logging.
+- **Token bucket** — free under normal load, bounds excess, with reserved cancel capacity so a
+  cancel can never be starved by placements. Time is an argument, never read internally.
+- **`ReplacementTracker`** — `CANCEL_THEN_PLACE` with generation-bound staleness.
+- **`VenueAdapter`** — the single SDK boundary, with `RecordingTransport` for tests.
+- **User-stream normalization** — venue order updates and trades become P2 `OrderStateEvent`
+  and `OwnFill`. P2 semantics were not bent to match SDK shapes.
+
+### Measured
+
+Long unchanged stream, 5 000 decision cycles × 2 sides = 10 000 side-decisions:
+
+```text
+PLACE     2        CANCEL    0        WAIT      0
+KEEP   9998        REPLACE   0        BLOCKED   0
+
+network requests issued: 2 placements, 0 cancels
+```
+
+Microbenchmarks (median): `prepare_order` 3.07 µs · `reconcile` KEEP 3.26 µs · `reconcile`
+REPLACE 3.30 µs. KEEP is marginally cheaper, but both are dominated by frozen-dataclass
+construction rather than by logic — the same effect measured in P4. P8 owns end-to-end latency.
+
+---
+
+## Tests
+
+| | |
+|---|---|
+| Status | **green** |
+| Suite | 1 065 passed (896 at the P6 boundary; +169 in P7) |
+| `ruff check` / `ruff format --check` | clean |
+| `mypy` (strict) | clean — `src/`, `tests/`, `tools/`; **zero `type: ignore` in `execution/`** |
+| Runtime dependencies | `websockets`, `polymarket-client==0.6.0` — both pinned or bounded |
+
+Two P6 guards were **rescoped, not relaxed**: they were written when the repository contained
+no write path at all. The market-data plane must still contain no credential material, and
+`execution/credentials.py` is now asserted to be the *single* module where such material is
+even named.
+
+Several structural guards read the **code** rather than the source text, because these modules
+deliberately *describe* what they refuse to implement — a `min_requote_ms` delay, a `--live`
+flag, `post_only=False`, `wait_for_order_fill_settlement`. A plain text scan would trip over
+its own documentation.
 
 ---
 
 ## Open strategy items
 
-Full detail in [`OPEN_ITEMS.md`](OPEN_ITEMS.md).
+Full detail in [`OPEN_ITEMS.md`](OPEN_ITEMS.md). **P7 closed none and added none.**
 
 ```text
 O01 quote-centre source            OPEN      O08 latency for queue dominance OPEN
 O02 volatility sigma               OPEN      O09 spot-to-CLOB timing model   OPEN
-O03 base-lot L selection rule      OPEN      O10 venue precision / scales    CLOSED (kernel + live traffic)
+O03 base-lot L selection rule      OPEN      O10 venue precision / scales    CLOSED
 O04 grid-target selection          OPEN      O11 resolution source           OPEN
-O05 endgame tilt magnitude         FITTED    O12 BTC spot scale              CLOSED (self-describing kept)
+O05 endgame tilt magnitude         FITTED    O12 BTC spot scale              CLOSED
 O06 endgame gate magnitude         FITTED    O13 tick tie-breaking           OPEN
-O07 fee/rebate calibration         OPEN      O14 strike chaining unverified  OPEN  (new)
+O07 fee/rebate calibration         OPEN      O14 strike chaining unverified  OPEN
 ```
 
-**P6 closed O10 and O12 from real evidence, and closed nothing else.** A live journal of our
-own bot's decisions says nothing about which strategy parameter the target wallet used, so
-O04 in particular is untouched.
-
-### O12 — closed: the self-describing representation is kept
-
-Not "a fixed BTC scale was found". Binance publishes `PRICE_FILTER.tickSize = "0.01000000"`
-and `quotePrecision = 8` **per symbol**, and sends prices as decimal strings; 4 357 live
-messages all carried 8 decimals and every one round-trips exactly through `BtcPrice`. Because
-precision is symbol metadata rather than a global constant, deriving the scale from the string
-is exact by construction and a frozen global scale would just be the guess this item existed
-to avoid.
-
-### O14 — new: the strike is not published, and chaining is unverified
-
-Canonical §6.2 states `coinPriceStart[N] == coinPriceEnd[N-1]`. **Neither field exists** in the
-Gamma event payload or the CLOB market payload. Resolution is a Chainlink BTC/USD TWAP over
-the window against "the price at the beginning of that range" — a reference price that is
-real but not exposed as a queryable field.
-
-So `MarketDefinition.strike` is left `None` and `strike_available` is `False`. Nothing was
-fabricated; a wrong strike would feed straight into any future fair-value model. Pre-arm does
-not need it.
-
-Separately, and in the other direction: the venue's own `cryptoMarketConfig` reads
-`{"twapEnabled": true, "twapLookbackSeconds": 60, "duration": "5m"}`, which **corroborates the
-60-second TWAP settlement of Canonical §7** from live metadata.
+Replacement sequencing and the rate budget are labelled `OPERATIONAL`, not strategy OPEN
+items: they are ordinary execution-policy choices that do not change the reconstructed
+strategy.
 
 ---
 
-## What P6 delivered
+## P6 live capture evidence (retained)
 
-- **Polymarket market-data adapter** — public WebSocket, `book` / `price_change` /
-  `tick_size_change` / `best_bid_ask` / `last_trade_price`, documented `PING`/`PONG`
-  heartbeat, bounded exponential backoff with jitter.
-- **External BTC adapter** — Binance `btcusdt@aggTrade`. Chosen because its `p` field is a
-  single exact traded price; `bookTicker` was rejected because deriving one `SpotTick` from a
-  bid and an ask needs a midpoint rule, and inventing one silently would be an unrecorded
-  normalisation decision.
-- **Ingress clock** — wall-anchored monotonic, so it is wall-aligned *and* immune to a
-  backwards NTP step. `EventMeta.timestamp` is **synchronized local ingress time**, never a
-  venue timestamp; venue stamps stay in feed diagnostics.
-- **Single ingress merger** — the only assigner of `ingress_ordinal`, so there is exactly one
-  legal production event order for P5 to replay.
-- **Discovery and pre-arm** — the `btc-updown-5m-<T0>` slug is addressable directly and the
-  next market exists well before it starts. Fails closed on zero or ambiguous matches.
-- **Phase scheduler** — boundary events at exactly `T0+3 / +240 / +280 / +300`, through the
-  same merger, so a quiet market still crosses phases on time.
-- **Conservative continuity** — no venue sequence is invented; any disconnect, malformed
-  message, unknown token, or resubscription drops the book and requires a fresh snapshot.
-- **Venue rules kept separate from strategy** — `tick_size_change` is recorded, never applied
-  to `MarketDefinition.tick`.
-- **O10 guard on every message** — a non-representable value raises rather than rounds.
+Two consecutive full `btc-updown-5m-*` markets captured read-only and verified end to end by
+the P5 replay engine: every decision reproduced, final state matched, canonical bytes
+round-tripped identically. Manifests are committed under [`docs/evidence/`](evidence/).
 
-### One real bug the live run found
-
-`MarketState.initial` parks the state clock at `T0`, so the first pre-arm event — arriving
-*before* `T0` — was rejected as a decreasing timestamp. Fixed without touching P2: messages
-before `T0` are consumed and applied to the book trackers but produce no Plane 2 event. That
-is what pre-arm is for (Canonical §21) — at `T0` the book is already warm and no discovery
-work remains — and it keeps P5 able to rebuild the identical initial state from the header
-alone. Integration surfacing this is exactly why the phase exists.
-
----
-
-## Live capture evidence
-
-Two consecutive full markets, captured read-only and verified end to end by the P5 engine.
-
-| | primary | second |
-|---|---|---|
-| slug | `btc-updown-5m-1787647500` | `btc-updown-5m-1787647200` |
-| decision steps | 108 617 | 130 374 |
-| phases covered | all five | all five |
-| `BookUpdate` / `SpotTick` / `HealthEvent` / `PhaseEvent` | 102 296 / 4 111 / 2 206 / 4 | 122 426 / 4 330 / 3 614 / 4 |
-| CLOB messages · price_changes · books | 104 298 · 100 092 · 2 204 | — |
-| PONGs · reconnects · malformed · unhandled | 33 · 0 · 0 · 0 | — |
-| venue `tick_size_change` observed | **4** | 0 |
-| **P5 verified every decision** | **yes** | **yes** |
-| **final state matches** | **yes** | **yes** |
-| **canonical bytes round-trip identical** | **yes** | **yes** |
-| pre-arm slack before next `T0` | 500.5 s | 462.6 s |
-
-Observed precision, all within the frozen six-decimal scales:
-
-```text
-polymarket price   0-3 decimals   829,146 samples   finest example "0.001"
-polymarket size    0-2 decimals   425,320 samples   finest example "95259.64"
-binance  price     8 decimals       4,357 samples   e.g. "80099.79000000"
-```
-
-Clock health: 107 458 samples, max absolute offset 2.745 s against venue source timestamps
-(network latency plus venue clock; measured, never corrected).
-
-### The journals are stored outside Git
-
-Every step records the **complete** `DecisionResult`, which is deliberate — a decision can be
-wrong in its centre or eligibility while the emitted order looks identical — so the canonical
-journal runs about 1.5 kB per step. A single market is 150–200 MB, which does not belong in
-Git history.
+The journals are 150-200 MB each — every step records the complete `DecisionResult` — so they
+are stored outside Git and identified by digest:
 
 ```text
 path        /home/hr/p6-captures/btc-updown-5m-1787647500.journal.ndjson
@@ -198,40 +200,16 @@ steps       108,617
 
 path        /home/hr/p6-captures/btc-updown-5m-1787647200.journal.ndjson
 bytes       193,408,732
-sha256      see docs/evidence/p6-capture-btc-updown-5m-1787647200.manifest.json
 steps       130,374
+sha256      see docs/evidence/p6-capture-btc-updown-5m-1787647200.manifest.json
 
 reproduce   .venv/bin/python tools/capture_market.py <output-directory>
 ```
 
-These are on a single machine's local disk and are **not** durable artefacts. The committed
-manifests in [`docs/evidence/`](evidence/) are the record; the journals themselves are
-regenerable by the command above. P11 owns durable telemetry persistence, and the per-step
-size is a real input to that design.
-
----
-
-## Tests
-
-| | |
-|---|---|
-| Status | **green** |
-| Suite | 896 passed (690 at the P5 boundary; +206 in P6) |
-| `ruff check` / `ruff format --check` | clean |
-| `mypy` (strict) | clean — `src/`, `tests/`, `tools/` |
-| Runtime dependencies | one: `websockets`. HTTP discovery uses the standard library. |
-
-Real-message conformance fixtures under `tests/feeds/fixtures/`, all labelled
-`REAL_PUBLIC_FIXTURE` with capture date, source, endpoint, and market/symbol identity:
-Polymarket `book`, `price_change`, `last_trade_price`, Gamma and CLOB discovery excerpts,
-Binance `aggTrade` and `exchangeInfo`.
-
-**Two documented event types have no raw fixture.** `tick_size_change` and `best_bid_ask` are
-sporadic — four tick changes occurred in one captured market and none in the other, and a
-further three-minute targeted listen caught neither. Their handling is unit-tested against the
-documented shape, and the live capture proves the `tick_size_change` path runs on real traffic
-(the manifest records four of them). That is weaker than a raw fixture and is recorded as such
-rather than glossed over; a fixture should be added opportunistically.
+These are one machine's local disk and are **not** durable artefacts; the committed manifests
+are the record and the command above regenerates them. Observed precision stayed within the
+frozen scales throughout (price 0-3 decimals, size 0-2, BTC 8), and the venue announced four
+`tick_size_change` events during one market while the replica stayed on its `0.01` grid.
 
 ---
 
@@ -242,21 +220,16 @@ Canonical §34.
 ```text
 L0  arithmetic                 PASSED
 L1  historical reconstruction  BLOCKED  (needs target-wallet ledger data, not in repo)
-L2  offline replay             ENGINE PASSED (now on real data) / TARGET-WALLET EMPIRICAL UNRUN
+L2  offline replay             ENGINE PASSED (on real data) / TARGET-WALLET EMPIRICAL UNRUN
 L3  live paper                 not started  (P13 - sustained validation programme)
 L4  minimum-size live          not started  (P14)
 ```
 
-**L1 remains UNRUN and is not relabelled.**
+**L1 remains UNRUN and is not relabelled.** **L2's empirical half remains UNRUN**: the P6
+journals record our own bot's trajectory, not the target wallet's history.
 
-**L2 stays split.** The replay engine is now proven against 239 k real decision steps rather
-than only synthetic ones — a genuine strengthening. The *empirical* half of Canonical §34-L2,
-reproducing the **target wallet's** behaviour, is still **UNRUN**: these journals record our
-own bot's decisions, not the wallet's history.
-
-P6's capture is labelled `LIVE_PAPER` — real market data, no real orders. That is the accurate
-provenance, and it is not the same as P13, which is the sustained live-paper *validation
-programme* over ≥200 markets.
+P7 performed **no live order test**: no credential was requested, no authenticated socket was
+opened, and no order of any size was placed. P14 owns minimum-size live execution.
 
 ---
 

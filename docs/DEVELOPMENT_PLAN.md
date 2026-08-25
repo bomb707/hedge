@@ -203,6 +203,11 @@ plus `INVARIANTS.md` and `STATUS.md`.
   is *detected*, not assumed; a fill triggers recomputation of **both** sides (I08).
 - **Acceptance gate:** over a long synthetic stream, zero would-be taker submissions and a
   `KEEP` rate consistent with the reconciler spec; `LIVE_TRADING_ENABLED` still `False`.
+- **Contracts established here** (see `ARCHITECTURE_SSOT` §4.2): block-never-alter preparation,
+  size truncation with both quantities preserved, post-only as a type, KEEP on *remaining*
+  size, `CANCEL_THEN_PLACE` with generation-bound staleness, and the SDK as a boundary.
+- **Measured, not asserted:** 5 000 unchanged decision cycles produced 2 PLACE and 9 998 KEEP,
+  with zero CANCEL and zero REPLACE.
 - **Out of scope:** enabling live trading; queue instrumentation; risk halts.
 
 ---

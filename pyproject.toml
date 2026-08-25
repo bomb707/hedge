@@ -14,7 +14,14 @@ license = { text = "Proprietary" }
 # client for the two public market-data streams. HTTP discovery uses the standard library, so
 # no HTTP client is pulled in. Nothing here is a heavy SDK, ORM, broker, or dataframe library.
 dependencies = [
+  # P6: a maintained WebSocket client for the two public market-data streams.
   "websockets>=13",
+  # P7: the official Polymarket unified SDK, pinned exactly. It owns EIP-712 signing, L1/L2
+  # authentication, wire serialization, and the authenticated transports - reinventing those
+  # to avoid a dependency would be worse than depending on them. It owns nothing above that
+  # boundary: strategy, inventory, sizing, reconciliation, and post-only policy stay in
+  # maker5m.execution. The legacy archived py-clob-client is deliberately not used.
+  "polymarket-client==0.6.0",
 ]
 
 [project.optional-dependencies]

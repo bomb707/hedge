@@ -326,6 +326,21 @@ The check is not a one-off audit: `maker5m.feeds.exactness` runs it on **every**
 message, raising `ExactnessError` rather than rounding, so a future venue change surfaces as
 a halt instead of silent ledger corruption.
 
+### Venue tick set expanded (P7, 2026-08-25) — O10 stays closed
+
+`polymarket-client==0.6.0` declares
+`TickSize = Literal["0.1", "0.01", "0.005", "0.0025", "0.001", "0.0001"]`. The venue added
+`0.005` and `0.0025` after this repository's set was first written, and
+`SUPPORTED_TICK_SIZES` has been corrected to match.
+
+Both are **exactly representable** at `PRICE_SCALE = 1_000_000` — `5_000` and `2_500` price
+units, each dividing the scale exactly — so this is a venue-capability correction, not a
+numeric-scale failure. O10 is **not** reopened. It would only reopen if a real venue value
+could not be represented, which remains false.
+
+This does not change `MarketDefinition.tick = 0.01`: the replica's quote grid comes from the
+frozen strategy evidence, not from what the venue happens to permit.
+
 ---
 
 ## O11 — Authoritative resolution source

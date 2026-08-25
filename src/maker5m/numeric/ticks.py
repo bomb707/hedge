@@ -24,6 +24,8 @@ __all__ = [
     "SUPPORTED_TICK_SIZES",
     "TICK_0_0001",
     "TICK_0_001",
+    "TICK_0_0025",
+    "TICK_0_005",
     "TICK_0_01",
     "TICK_0_1",
     "VENUE_ORDER_SIZE_DECIMALS",
@@ -36,11 +38,33 @@ __all__ = [
 
 TICK_0_1: Final = PriceUnits(PRICE_SCALE // 10)
 TICK_0_01: Final = PriceUnits(PRICE_SCALE // 100)
+TICK_0_005: Final = PriceUnits(PRICE_SCALE // 200)
+TICK_0_0025: Final = PriceUnits(PRICE_SCALE // 400)
 TICK_0_001: Final = PriceUnits(PRICE_SCALE // 1_000)
 TICK_0_0001: Final = PriceUnits(PRICE_SCALE // 10_000)
 
-SUPPORTED_TICK_SIZES: Final = (TICK_0_1, TICK_0_01, TICK_0_001, TICK_0_0001)
-"""Tick sizes the official CLOB order builder currently supports. All exact at this scale."""
+SUPPORTED_TICK_SIZES: Final = (
+    TICK_0_1,
+    TICK_0_01,
+    TICK_0_005,
+    TICK_0_0025,
+    TICK_0_001,
+    TICK_0_0001,
+)
+"""Tick sizes the official CLOB client currently supports. All exact at this scale.
+
+Verified against ``polymarket-client==0.6.0``, which declares::
+
+    TickSize = Literal["0.1", "0.01", "0.005", "0.0025", "0.001", "0.0001"]
+
+``0.005`` and ``0.0025`` were added to the venue after this set was first written. Both are
+exactly representable at ``PRICE_SCALE = 1_000_000`` (``5_000`` and ``2_500`` price units), so
+this is a venue-capability correction and **not** a numeric-scale problem — O10 stays closed.
+
+These are the venue's *legal order price increments*. They are not the replica's quote grid,
+which remains ``0.01`` from the frozen strategy evidence (Canonical §8.2). The two concepts
+are kept apart deliberately; see :mod:`maker5m.feeds.venue`.
+"""
 
 VENUE_ORDER_SIZE_DECIMALS: Final = 2
 """Decimals the official client keeps when it quantises a *submitted* order size.

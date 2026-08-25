@@ -8,6 +8,8 @@ from maker5m.numeric import (
     SUPPORTED_TICK_SIZES,
     TICK_0_0001,
     TICK_0_001,
+    TICK_0_0025,
+    TICK_0_005,
     TICK_0_01,
     TICK_0_1,
     VENUE_ORDER_SIZE_DECIMALS,
@@ -26,11 +28,49 @@ from maker5m.numeric import (
 
 
 def test_every_documented_tick_size_is_exact() -> None:
+    """Verified against polymarket-client==0.6.0's TickSize literal."""
     assert TICK_0_1 == 100_000
     assert TICK_0_01 == 10_000
+    assert TICK_0_005 == 5_000
+    assert TICK_0_0025 == 2_500
     assert TICK_0_001 == 1_000
     assert TICK_0_0001 == 100
     assert all(is_supported_tick(t) for t in SUPPORTED_TICK_SIZES)
+
+
+def test_the_supported_set_matches_the_current_official_client() -> None:
+    """The SDK declares these six; the repository must not lag behind the venue."""
+
+    declared = ("0.1", "0.01", "0.005", "0.0025", "0.001", "0.0001")
+    expected = tuple(parse_price(text) for text in declared)
+    assert expected == SUPPORTED_TICK_SIZES
+
+
+def test_every_supported_tick_divides_the_price_scale_exactly() -> None:
+    """Which is why this is a venue-capability correction, not a scale problem (O10)."""
+    from maker5m.numeric import PRICE_SCALE
+
+    for tick in SUPPORTED_TICK_SIZES:
+        assert PRICE_SCALE % tick == 0
+
+
+@pytest.mark.parametrize(
+    ("price", "tick", "aligned"),
+    [
+        ("0.63", TICK_0_005, True),
+        ("0.63", TICK_0_0025, True),
+        ("0.631", TICK_0_005, False),
+        ("0.6325", TICK_0_0025, True),
+        ("0.6325", TICK_0_005, False),
+        ("0.005", TICK_0_005, True),
+        ("0.0025", TICK_0_0025, True),
+    ],
+)
+def test_the_newly_supported_ticks_align_by_integer_modulo(
+    price: str, tick: PriceUnits, aligned: bool
+) -> None:
+    """Grid membership is integer modulo, never a decimal-place count."""
+    assert is_price_aligned(parse_price(price), tick) is aligned
 
 
 def test_unsupported_tick_is_reported_as_such() -> None:

@@ -24,7 +24,7 @@ an agent.
 | **Current phase** | **P0 — Repository baseline + architecture freeze** |
 | Current branch | `bootstrap/phase-0` |
 | Baseline commit | `0de1f7c` — pristine import of the supplied strategy sources and figures |
-| P0 boundary commit | recorded by the immediately following commit on this branch |
+| P0 boundary commit | `acc7ab2` — `chore: establish bot architecture and strategy invariants` |
 | Last accepted milestone | P0 complete — architecture, invariants, open items, plan, and skeleton frozen |
 | Next milestone | **P1 — fixed-point numeric kernel + exact accounting** (blocked, see below) |
 | Remote | none configured — nothing has been pushed |

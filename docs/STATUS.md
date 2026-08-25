@@ -143,26 +143,40 @@ price is the behaviour the engine is supposed to have. It cleared in 457 ms.
 
 ### Real market: controlled local faults
 
-`btc-updown-5m-1787673300`, 136,928 cycles. Market data real throughout; the faults are induced
+`btc-updown-5m-1787674200`, 112,958 cycles. Market data real throughout; the faults are induced
 **local** failures and are labelled as such, never as venue incidents.
 
 ```text
-fault                 inject ord   halt ord   reaction   reason                       SAFE ord
-btc_stale                  27,143     30,263   4,806 ms  SPOT_STALE                     41,775
-clob_disconnect            77,730     77,732      39 ms  CLOB_CONTINUITY_UNCERTAIN      77,738
-continuity_uncertain      118,224    118,225       0 ms  CLOB_CONTINUITY_UNCERTAIN     118,228
+fault                  inject ord   halt ord   reaction   reason                       SAFE ord
+btc_stale                  28,087     30,822   4,754 ms   SPOT_STALE                     41,265
+clob_disconnect            68,519     68,521      25 ms   CLOB_CONTINUITY_UNCERTAIN      68,525
+continuity_uncertain       96,129     96,130       0 ms   CLOB_CONTINUITY_UNCERTAIN      96,133
+clock_drift               101,594    101,594       0 ms   CLOCK_DRIFT                   102,688
+order_state_uncertain     104,451    104,451       0 ms   ORDER_STATE_UNCERTAIN         105,365
+position_mismatch         106,331    106,331       0 ms   POSITION_MISMATCH             107,388
+cost_ledger_mismatch      108,999    108,999       0 ms   COST_LEDGER_MISMATCH          109,430
+api_error_rate            110,339    110,340      16 ms   API_ERROR_RATE                110,809
+rate_limit_uncertain      111,761    111,761       0 ms   RATE_LIMIT_UNCERTAIN          112,142
+resolution_ambiguous      112,899    112,899       0 ms   RESOLUTION_AMBIGUOUS          113,258
 
-PLACE  353, ALL in SAFE      0 while HALTED      0 while RECOVERING
-CANCEL 272 in SAFE, 2 while HALTED, 1 while RECOVERING   -- resting quotes withdrawn
+33 transitions, EVERY one through RECOVERING. No direct HALTED -> SAFE anywhere.
+PLACE  245, ALL in SAFE      0 while HALTED      0 while RECOVERING
+CANCEL 175 in SAFE, 2 while HALTED, 1 while RECOVERING   -- resting quotes withdrawn
 ```
 
-The 4,806 ms reaction to `btc_stale` **is** the 5 s staleness threshold, not a delay; halting
-sooner would mean halting on ordinary quiet periods. The 1,050 ms `clob_disconnect` halt is the
+The 4,754 ms reaction to `btc_stale` **is** the 5 s staleness threshold, not a delay; halting
+sooner would mean halting on ordinary quiet periods. The 723 ms `clob_disconnect` halt is the
 genuine reconnect round trip — socket close, backoff, reconnect, resubscribe, fresh
 authoritative snapshot — and `SAFE` was unreachable for its whole duration.
 
-Every halt passed through `RECOVERING`. No direct `HALTED → SAFE` transition occurred, and no
-halt was unexplained.
+`ORDER_STATE_UNCERTAIN`, `POSITION_MISMATCH`, and `COST_LEDGER_MISMATCH` visibly stayed
+**latched** through `RECOVERING` and only cleared when `RiskEngine.reconciled` was called
+explicitly. Releasing the signal alone did not restore `SAFE`, which is the point.
+
+**Two conditions were not induced and are not claimed.** `TAKER_FILL` is **UNRUN / DEFERRED TO
+P14** — no order was sent, so no fill occurred. `MAKER_ONLY_UNCERTAIN` has supporting unit tests
+only. `CLOB_STALE` was never reached because the CLOB never went quiet for 10 s; the same
+staleness code path was exercised by `SPOT_STALE`.
 
 ### The defect fault injection found
 

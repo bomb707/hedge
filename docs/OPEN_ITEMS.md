@@ -632,6 +632,26 @@ met, so **O15 is CLOSED**. Full evidence:
 
 ---
 
+## P9 added no open item, and closed none
+
+Operational safety observations do not resolve strategy parameters. The risk thresholds — feed
+staleness, clock drift, API error window and count, recovery confirmations — are `OPERATIONAL`
+engineering configuration under invariant I18, not reconstructed constants, so they need no
+open item either. The frozen sources name the *conditions* in Canonical §28.1 and establish no
+numbers at all for them.
+
+Two P9 facts belong in the record without being open items:
+
+* **Authenticated reconciliation is UNRUN, not unresolved.** Real taker fills, real order-state
+  uncertainty, real account position and cost reconciliation, and real write-API behaviour are
+  all **DEFERRED TO P14**. No credential exists and no order has been sent, so there is nothing
+  to be uncertain *about* yet — this is an unrun experiment, not an unanswered question about
+  the strategy.
+* **`OFF_PRICE` remains structurally unreachable in shadow mode** (recorded in the P8C
+  evidence), for the same reason: it needs real dispatch latency.
+
+---
+
 ## Summary table
 
 | ID | Item | Status | Blocking |

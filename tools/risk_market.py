@@ -58,7 +58,14 @@ class Fault:
     start_offset_s: int
     end_offset_s: int
     kind: str
-    """``pause_spot`` | ``drop_clob`` | ``force_resnapshot``"""
+    """``pause_spot`` | ``drop_clob`` | ``force_resnapshot`` | ``signal:<RiskReason>``
+
+    A ``signal:`` fault sets one risk input directly while the real CLOB and BTC streams keep
+    flowing untouched. Some conditions cannot be asked of a live venue on demand — a clock
+    cannot be made to drift, an account cannot be made to disagree — so their *integration* is
+    exercised against real market observations with the fault signal induced locally. The
+    market data stays real; only the signal is ours.
+    """
 
 
 BASELINE_FAULTS: tuple[Fault, ...] = ()
@@ -68,6 +75,15 @@ INJECTED_FAULTS: tuple[Fault, ...] = (
     Fault("btc_stale", 40, 60, "pause_spot"),
     Fault("clob_disconnect", 110, 111, "drop_clob"),
     Fault("continuity_uncertain", 190, 191, "force_resnapshot"),
+    # Conditions a live venue cannot be asked to produce. Real market data keeps flowing
+    # throughout; only the signal is injected. Spaced so each halt and recovery is separable.
+    Fault("clock_drift", 210, 214, "signal:clock_drift"),
+    Fault("order_state_uncertain", 222, 226, "signal:order_state_uncertain"),
+    Fault("position_mismatch", 234, 238, "signal:position_mismatch"),
+    Fault("cost_ledger_mismatch", 248, 252, "signal:cost_ledger_mismatch"),
+    Fault("api_error_rate", 262, 266, "signal:api_errors_exceeded"),
+    Fault("rate_limit_uncertain", 274, 278, "signal:rate_limit_uncertain"),
+    Fault("resolution_ambiguous", 286, 290, "signal:resolution_ambiguous"),
 )
 
 
@@ -172,6 +188,22 @@ async def main(out: Path, faults: tuple[Fault, ...], label: str) -> None:
             )
         )
 
+    def injected_signals(now_ns: TimestampNs) -> dict[str, object]:
+        """Risk inputs currently forced by a ``signal:`` fault."""
+        elapsed = offset_s(now_ns)
+        out: dict[str, object] = {}
+        for fault in faults:
+            if not fault.kind.startswith("signal:"):
+                continue
+            if fault.start_offset_s <= elapsed < fault.end_offset_s:
+                field_name = fault.kind.split(":", 1)[1]
+                out[field_name] = (
+                    int(RiskConfig().clock_drift_limit_ns) * 4
+                    if field_name == "clock_drift"
+                    else True
+                )
+        return out
+
     def gate(kind: str, now_ns: TimestampNs) -> bool:
         """Suppress spot delivery while a ``pause_spot`` fault is scheduled."""
         elapsed = offset_s(now_ns)
@@ -206,6 +238,17 @@ async def main(out: Path, faults: tuple[Fault, ...], label: str) -> None:
                 resolved.add(fault.name)
                 active_faults.discard(fault.name)
                 timeline.note_fault(fault.name, "released", ordinal, now_ns)
+                latching = {
+                    "signal:order_state_uncertain": RiskReason.ORDER_STATE_UNCERTAIN,
+                    "signal:position_mismatch": RiskReason.POSITION_MISMATCH,
+                    "signal:cost_ledger_mismatch": RiskReason.COST_LEDGER_MISMATCH,
+                }.get(fault.kind)
+                if latching is not None:
+                    # These outlive their condition on purpose, so releasing the signal is not
+                    # enough. A reconciliation result has to be recorded deliberately, which is
+                    # what the operator would be doing after establishing which side was wrong.
+                    risk.reconciled(latching)
+                    timeline.note_fault(fault.name, "reconciled", ordinal, now_ns)
 
     def evaluate_now(pipeline: MarketDataPipeline, now_ns: TimestampNs) -> RiskDecision:
         """Evaluate the verdict against health as it stands right now.
@@ -214,6 +257,7 @@ async def main(out: Path, faults: tuple[Fault, ...], label: str) -> None:
         never lag the condition by an event - a single PLACE slipping through between a feed
         going stale and the halt being noticed would defeat the whole mechanism.
         """
+        signals = injected_signals(now_ns)
         inputs = RiskInputs(
             now_ns=now_ns,
             clob_status=pipeline.clob_health.status,
@@ -223,7 +267,14 @@ async def main(out: Path, faults: tuple[Fault, ...], label: str) -> None:
             spot_last_message_at=pipeline.spot_health.last_message_at,
             order_stream_status=HealthStatus.UNKNOWN,
             order_stream_required=False,
-            api_errors_exceeded=api_errors.exceeded(now_ns),
+            api_errors_exceeded=bool(signals.get("api_errors_exceeded"))
+            or api_errors.exceeded(now_ns),
+            clock_drift_ns=int(signals.get("clock_drift", 0)),  # type: ignore[call-overload]
+            order_state_uncertain=bool(signals.get("order_state_uncertain")),
+            position_mismatch=bool(signals.get("position_mismatch")),
+            cost_ledger_mismatch=bool(signals.get("cost_ledger_mismatch")),
+            rate_limit_uncertain=bool(signals.get("rate_limit_uncertain")),
+            resolution_ambiguous=bool(signals.get("resolution_ambiguous")),
         )
         start = perf_now_ns()
         decision = risk.evaluate(inputs)

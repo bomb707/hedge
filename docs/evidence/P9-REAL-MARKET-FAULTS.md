@@ -14,16 +14,16 @@ No orders. No credentials. No authenticated socket. `LIVE_TRADING_ENABLED` is `F
 
 | Field | Value |
 | --- | --- |
-| Market slug | `btc-updown-5m-1787673300` |
-| Cycles | 136,928 |
-| CLOB messages | 134,725 |
-| BTC (Binance) messages | 4,824 |
+| Market slug | `btc-updown-5m-1787674200` |
+| Cycles | 112,958 |
+| CLOB messages | 110,079 |
+| BTC (Binance) messages | 5,267 |
 | Reconnects | **1** (the induced one) |
 | Malformed messages | 1 (pre-`T0`, during warm-up; counted, no event emitted) |
 | Unhandled CLOB messages | 0 |
 | Observation drops / gaps | **0 / 0** |
 | Orders sent | **0** |
-| Raw data | `p9-faults-btc-updown-5m-1787673300.json` |
+| Raw data | `p9-faults-btc-updown-5m-1787674200.json` |
 
 ## How each fault was induced
 
@@ -32,59 +32,90 @@ No orders. No credentials. No authenticated socket. `LIVE_TRADING_ENABLED` is `F
 | `btc_stale` | The consumer stops delivering spot payloads to itself for 20 s | The Binance socket stays connected and real BTC trades keep arriving |
 | `clob_disconnect` | The producer raises through its own failure path, closing the socket | The reconnect, backoff, resubscription, and book snapshot are all genuine |
 | `continuity_uncertain` | `pipeline.on_uncertain(CLOB_BOOK, …)` — the same call a malformed frame makes | The resnapshot that clears it is a real venue book message |
+| Seven `signal:` faults | One risk input forced for a 4 s window | Both venue streams keep flowing untouched throughout |
 
-## Results
+The seven signal faults cover conditions a live venue cannot be asked to produce on demand: a
+clock cannot be made to drift, an account cannot be made to disagree, and a write API that has
+never been called cannot be made to fail. Their **integration** is exercised against real market
+observations with the signal induced locally, which is what
+`CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET` means.
+
+## Results — every inducible condition, on a real market
 
 | Fault | Inject ordinal | Halt ordinal | Reaction | Reason | Halted for | SAFE ordinal |
 | --- | ---: | ---: | ---: | --- | ---: | ---: |
-| `btc_stale` | 27,143 | 30,263 | **4,806 ms** | `SPOT_STALE` | 15,840 ms | 41,775 |
-| `clob_disconnect` | 77,730 | 77,732 | **39 ms** | `CLOB_CONTINUITY_UNCERTAIN` | 1,050 ms | 77,738 |
-| `continuity_uncertain` | 118,224 | 118,225 | **0 ms** | `CLOB_CONTINUITY_UNCERTAIN` | 58 ms | 118,228 |
+| `btc_stale` | 28,087 | 30,822 | **4,754 ms** | `SPOT_STALE` | 16,821 ms | 41,265 |
+| `clob_disconnect` | 68,519 | 68,521 | **25 ms** | `CLOB_CONTINUITY_UNCERTAIN` | 723 ms | 68,525 |
+| `continuity_uncertain` | 96,129 | 96,130 | **0 ms** | `CLOB_CONTINUITY_UNCERTAIN` | 15 ms | 96,133 |
+| `clock_drift` | 101,594 | 101,594 | **0 ms** | `CLOCK_DRIFT` | 4,040 ms | 102,688 |
+| `order_state_uncertain` | 104,451 | 104,451 | **0 ms** | `ORDER_STATE_UNCERTAIN` | 4,025 ms | 105,365 |
+| `position_mismatch` | 106,331 | 106,331 | **0 ms** | `POSITION_MISMATCH` | 4,057 ms | 107,388 |
+| `cost_ledger_mismatch` | 108,999 | 108,999 | **0 ms** | `COST_LEDGER_MISMATCH` | 4,032 ms | 109,430 |
+| `api_error_rate` | 110,339 | 110,340 | **16 ms** | `API_ERROR_RATE` | 4,015 ms | 110,809 |
+| `rate_limit_uncertain` | 111,761 | 111,761 | **0 ms** | `RATE_LIMIT_UNCERTAIN` | 4,023 ms | 112,142 |
+| `resolution_ambiguous` | 112,899 | 112,899 | **0 ms** | `RESOLUTION_AMBIGUOUS` | 4,022 ms | 113,258 |
 
-Every halt passed through `RECOVERING` on its way back to `SAFE`. There were no direct
-`HALTED → SAFE` transitions.
+Thirty-three risk transitions in one market, and **every one of them passed through
+`RECOVERING`**. There is no direct `HALTED → SAFE` transition anywhere in the run.
 
-**The 4,806 ms reaction to `btc_stale` is the threshold, not a delay.** The configured spot
-staleness limit is 5 s (`OPERATIONAL`, owned by P6), so a feed that has been quiet for 4.8 s is
-not yet stale by definition. Halting sooner would mean halting on ordinary quiet periods.
+**The 4,754 ms reaction to `btc_stale` is the threshold, not a delay.** The configured spot
+staleness limit is 5 s (`OPERATIONAL`, owned by P6), so a feed quiet for 4.7 s is not yet stale
+by definition; halting sooner would mean halting on ordinary quiet periods.
 
-**The 1,050 ms `clob_disconnect` halt is the real recovery round trip** — socket close, backoff,
-reconnect, resubscribe, and a fresh authoritative book snapshot. `SAFE` was unreachable for its
-whole duration, because `CLOB_CONTINUITY_UNCERTAIN` stays active while
-`clob_health.awaiting_snapshot` is set and only `mark_snapshot` clears it.
+**The 723 ms `clob_disconnect` halt is the real recovery round trip** — socket close, backoff,
+reconnect, resubscribe, fresh authoritative book snapshot. `SAFE` was unreachable for its whole
+duration, because `CLOB_CONTINUITY_UNCERTAIN` stays active while `awaiting_snapshot` is set and
+only `mark_snapshot` clears it.
 
-`continuity_uncertain` recovered in 58 ms, *before* its scheduled one-second release window
-closed. The release marker at ordinal 118,631 is bookkeeping for the injector; the recovery had
-already happened on the next real book message.
+**The latching reasons visibly outlived their conditions.** `ORDER_STATE_UNCERTAIN`,
+`POSITION_MISMATCH`, and `COST_LEDGER_MISMATCH` each appear in the `latched` column of the
+`HALTED → RECOVERING` transition and stay there until `RiskEngine.reconciled` is called
+explicitly — which the injector does at release, standing in for an operator who has actually
+established which side was wrong. Releasing the signal alone did **not** restore `SAFE`.
+
+### Two conditions were not induced, and are not claimed
+
+| Reason | Real-market status |
+| --- | --- |
+| `TAKER_FILL` | **UNRUN / DEFERRED TO P14** — no order was sent, so no fill of any kind occurred |
+| `MAKER_ONLY_UNCERTAIN` | **UNRUN on a real market** — covered by supporting unit tests only |
+| `CLOB_STALE` | Not reached: the CLOB never went quiet for 10 s. The same staleness code path was exercised by `SPOT_STALE` |
 
 ## Risk states
 
 | State | Cycles | Share |
 | --- | ---: | ---: |
-| `SAFE` | 125,293 | 91.5% |
-| `HALTED` | 11,634 | 8.5% |
-| `RECOVERING` | 4 | 0.003% |
+| `SAFE` | 97,697 | 86.5% |
+| `HALTED` | 15,253 | 13.5% |
+| `RECOVERING` | 11 | 0.010% |
 
 | Halts by reason | Count |
 | --- | ---: |
 | `SPOT_STALE` | 2 |
 | `CLOB_CONTINUITY_UNCERTAIN` | 2 |
+| `CLOCK_DRIFT` | 1 |
+| `ORDER_STATE_UNCERTAIN` | 1 |
+| `POSITION_MISMATCH` | 1 |
+| `COST_LEDGER_MISMATCH` | 1 |
+| `API_ERROR_RATE` | 1 |
+| `RATE_LIMIT_UNCERTAIN` | 1 |
+| `RESOLUTION_AMBIGUOUS` | 1 |
 
-Four halts, all accounted for: one at `T0` because the BTC feed status is genuinely `UNKNOWN`
-before the first spot tick is routed through the pipeline (see the baseline manifest), and three
+Eleven halts, all accounted for: one at `T0` because the BTC feed status is genuinely `UNKNOWN`
+before the first spot tick is routed through the pipeline (see the baseline manifest), and ten
 induced. **No unexplained halt occurred.**
 
 ## New risk was only ever created while SAFE
 
 | Shadow action | `SAFE` | `HALTED` | `RECOVERING` |
 | --- | ---: | ---: | ---: |
-| PLACE | 353 | **0** | **0** |
-| CANCEL | 272 | **2** | **1** |
+| PLACE | 245 | **0** | **0** |
+| CANCEL | 175 | **2** | **1** |
 
-Zero placements outside `SAFE`, which is the requirement. Three cancels *did* occur outside
-`SAFE` — that is the design working: a halt empties the desired intent, P7's minimal-action
-reconciler therefore plans `CANCEL` for whatever is resting, and withdrawing a quote is
-permitted at all times because it reduces risk.
+Zero placements outside `SAFE`, across ten induced faults and 15,253 halted cycles. Three
+cancels *did* occur outside `SAFE` — that is the design working: a halt empties the desired
+intent, P7's minimal-action reconciler therefore plans `CANCEL` for whatever is resting, and
+withdrawing a quote is permitted at all times because it reduces risk.
 
 No SELL, hedge, flatten, merge, split, or convert exists anywhere in the risk package, asserted
 structurally over function, class, and attribute names. Balances were held throughout.
@@ -93,18 +124,20 @@ structurally over function, class, and attribute names. Balances were held throu
 
 | Action | Count |
 | --- | ---: |
-| `KEEP` | 111,999 |
-| `BLOCKED` | 102,414 |
-| `NOTHING` | 58,447 |
-| `PLACE` | 498 |
-| `REPLACE` | 283 |
-| `CANCEL` | 215 |
+| `NOTHING` | 82,814 |
+| `KEEP` | 73,507 |
+| `BLOCKED` | 68,923 |
+| `PLACE` | 336 |
+| `REPLACE` | 187 |
+| `CANCEL` | 149 |
 
-`keep_ratio` **0.99557**, in line with the baseline (0.99608) and P8C (0.99259).
+`keep_ratio` **0.99545**, in line with the baseline (0.99608) and P8C (0.99259). The elevated
+`NOTHING` count is the halts: an emptied intent with nothing resting plans nothing at all.
 
-`RiskEngine.evaluate` on real events: n = 136,931, p50 **12,712 ns**, p90 39,651, p95 42,112,
-p99 65,654. The `max` of 380 ms is the process being descheduled, not work — `evaluate` performs
-a bounded number of comparisons over primitives with no allocation loop.
+`RiskEngine.evaluate` on real events: n = 112,961, p50 **14,544 ns**, p90 42,108, p95 44,576,
+p99 67,582 — roughly 8% of the P8C `receive_to_reconcile` p50 of 178,857 ns. The `max` of
+~380 ms seen across these runs is the process being descheduled, not work: `evaluate` performs a
+bounded number of comparisons over primitives with no allocation loop.
 
 ## A real defect this run found
 
@@ -124,6 +157,10 @@ messages that were missed.
 **No synthetic data was involved in finding this.** It was invisible to a green unit-test suite
 and appeared the moment a real adapter was paused during a real market, which is the case for
 the evidence policy in `ARCHITECTURE_SSOT.md` §4.4.
+
+The corrected run at `btc-updown-5m-1787673300` — three faults, all recovering — is retained as
+`p9-faults-SUPERSEDED-btc-updown-5m-1787673300.json`. It is superseded only because the run
+documented above covers everything it did and seven conditions more.
 
 ## Reproducing
 

@@ -1,0 +1,724 @@
+{
+  "api_errors": {
+    "failures_retained": 0,
+    "threshold": 5,
+    "total_failures": 0,
+    "total_successes": 0,
+    "window_ns": 30000000000
+  },
+  "clock_health": {
+    "last_offset_ns": -132113664,
+    "max_abs_offset_ns": 568999765,
+    "samples": 113936
+  },
+  "credentials_used": "none",
+  "cycles": 112958,
+  "execution_counters": {
+    "actions": {
+      "BLOCKED": 68923,
+      "CANCEL": 149,
+      "KEEP": 73507,
+      "NOTHING": 82814,
+      "PLACE": 336,
+      "REPLACE": 187
+    },
+    "cycles_with_live_order": 73843,
+    "execution_queue_loss_actions": 336,
+    "execution_queue_loss_reasons": {
+      "DESIRED_WITHDRAWN": 4,
+      "PRICE_CHANGED": 187,
+      "UNSAFE_REPLACEMENT": 145
+    },
+    "keep_ratio": 0.9954498056687837,
+    "keeps_with_live_order": 73507,
+    "quality": {
+      "AT_FRONT": 5707,
+      "NOT_QUOTING": 15633,
+      "PRICE_OK_BUT_DEEP": 2146,
+      "STALE": 2
+    },
+    "reasons": {
+      "CENTRE_UNAVAILABLE": 5342,
+      "CONTINUITY_LOST": 2,
+      "NO_LIVE_ORDER": 187,
+      "PHASE_NOT_QUOTING": 2960,
+      "POST_ONLY_BLOCK": 7144,
+      "QUOTING": 7853
+    }
+  },
+  "faults_scheduled": [
+    {
+      "end_offset_s": 60,
+      "kind": "pause_spot",
+      "name": "btc_stale",
+      "start_offset_s": 40
+    },
+    {
+      "end_offset_s": 111,
+      "kind": "drop_clob",
+      "name": "clob_disconnect",
+      "start_offset_s": 110
+    },
+    {
+      "end_offset_s": 191,
+      "kind": "force_resnapshot",
+      "name": "continuity_uncertain",
+      "start_offset_s": 190
+    },
+    {
+      "end_offset_s": 214,
+      "kind": "signal:clock_drift",
+      "name": "clock_drift",
+      "start_offset_s": 210
+    },
+    {
+      "end_offset_s": 226,
+      "kind": "signal:order_state_uncertain",
+      "name": "order_state_uncertain",
+      "start_offset_s": 222
+    },
+    {
+      "end_offset_s": 238,
+      "kind": "signal:position_mismatch",
+      "name": "position_mismatch",
+      "start_offset_s": 234
+    },
+    {
+      "end_offset_s": 252,
+      "kind": "signal:cost_ledger_mismatch",
+      "name": "cost_ledger_mismatch",
+      "start_offset_s": 248
+    },
+    {
+      "end_offset_s": 266,
+      "kind": "signal:api_errors_exceeded",
+      "name": "api_error_rate",
+      "start_offset_s": 262
+    },
+    {
+      "end_offset_s": 278,
+      "kind": "signal:rate_limit_uncertain",
+      "name": "rate_limit_uncertain",
+      "start_offset_s": 274
+    },
+    {
+      "end_offset_s": 290,
+      "kind": "signal:resolution_ambiguous",
+      "name": "resolution_ambiguous",
+      "start_offset_s": 286
+    }
+  ],
+  "feed_counters": {
+    "clob_best_bid_ask": 0,
+    "clob_books": 2010,
+    "clob_last_trade_price": 974,
+    "clob_messages": 110079,
+    "clob_price_changes": 105681,
+    "clob_tick_size_changes": 4,
+    "clob_unhandled": 0,
+    "malformed": 1,
+    "pongs": 32,
+    "reconnects": 1,
+    "spot_messages": 5267,
+    "telemetry_dropped": 0,
+    "unhandled_kinds": {}
+  },
+  "kind": "FAULTS",
+  "latency_ns": {
+    "acting_cycle": {
+      "count": 49,
+      "label": "acting_cycle",
+      "max": 798526,
+      "p50": 208419,
+      "p90": 645757,
+      "p95": 710787,
+      "p99": 798526
+    },
+    "clob_receive_to_decide": {
+      "count": 10775,
+      "label": "clob_receive_to_decide",
+      "max": 39159820,
+      "p50": 251641,
+      "p90": 717862,
+      "p95": 777511,
+      "p99": 1208025
+    },
+    "decide_duration": {
+      "count": 11304,
+      "label": "decide_duration",
+      "max": 39037501,
+      "p50": 63361,
+      "p90": 160043,
+      "p95": 203535,
+      "p99": 229878
+    },
+    "fill_receive_to_decide": {
+      "count": 0,
+      "label": "fill_receive_to_decide"
+    },
+    "keep_cycle": {
+      "count": 228,
+      "label": "keep_cycle",
+      "max": 3112952,
+      "p50": 184281,
+      "p90": 644608,
+      "p95": 793148,
+      "p99": 1943523
+    },
+    "phase_receive_to_decide": {
+      "count": 4,
+      "label": "phase_receive_to_decide",
+      "max": 144573,
+      "p50": 108224,
+      "p90": 144573,
+      "p95": 144573,
+      "p99": 144573
+    },
+    "prepare_duration": {
+      "count": 11304,
+      "label": "prepare_duration",
+      "max": 2189566,
+      "p50": 11592,
+      "p90": 53659,
+      "p95": 63711,
+      "p99": 81641
+    },
+    "queue_ahead": {
+      "count": 7853,
+      "label": "queue_ahead",
+      "max": 1189850000,
+      "p50": 0,
+      "p90": 123710000,
+      "p95": 212460000,
+      "p99": 799330000
+    },
+    "receive_to_reconcile": {
+      "count": 11304,
+      "label": "receive_to_reconcile",
+      "max": 39189903,
+      "p50": 276888,
+      "p90": 764111,
+      "p95": 879360,
+      "p99": 1290301
+    },
+    "reconcile_duration": {
+      "count": 11304,
+      "label": "reconcile_duration",
+      "max": 122135,
+      "p50": 14225,
+      "p90": 37763,
+      "p95": 43074,
+      "p99": 50475
+    },
+    "spot_receive_to_decide": {
+      "count": 525,
+      "label": "spot_receive_to_decide",
+      "max": 703295,
+      "p50": 151816,
+      "p90": 444733,
+      "p95": 498412,
+      "p99": 567746
+    }
+  },
+  "live_trading_enabled": false,
+  "market_id": "0x5b7e499aafce9f0d1571bffcdcfc308fe5e52a1ba44563999ad558a93342a019",
+  "note": "Real public Polymarket CLOB and real Binance BTC data throughout. Faults are deliberately induced LOCAL failures, not observed venue incidents. The market data itself is real and uninterrupted.",
+  "observations": {
+    "accepted": 112958,
+    "buffered": 112958,
+    "capacity": 320000,
+    "dropped": 0,
+    "gaps_seen_downstream": 0,
+    "lost_downstream": 0
+  },
+  "orders_sent": 0,
+  "phase": "P9",
+  "provenance": "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET",
+  "risk": {
+    "cycles_by_state": {
+      "HALTED": 15253,
+      "RECOVERING": 11,
+      "SAFE": 97697
+    },
+    "fault_events": [
+      {
+        "at_ns": 1787674240000343919,
+        "fault": "btc_stale",
+        "ingress_ordinal": 28087,
+        "phase": "injected"
+      },
+      {
+        "at_ns": 1787674260000348435,
+        "fault": "btc_stale",
+        "ingress_ordinal": 40548,
+        "phase": "released"
+      },
+      {
+        "at_ns": 1787674310019732807,
+        "fault": "clob_disconnect",
+        "ingress_ordinal": 68519,
+        "phase": "injected"
+      },
+      {
+        "at_ns": 1787674311002412297,
+        "fault": "clob_disconnect",
+        "ingress_ordinal": 68559,
+        "phase": "released"
+      },
+      {
+        "at_ns": 1787674390000214820,
+        "fault": "continuity_uncertain",
+        "ingress_ordinal": 96129,
+        "phase": "injected"
+      },
+      {
+        "at_ns": 1787674391000277641,
+        "fault": "continuity_uncertain",
+        "ingress_ordinal": 96496,
+        "phase": "released"
+      },
+      {
+        "at_ns": 1787674410013071421,
+        "fault": "clock_drift",
+        "ingress_ordinal": 101594,
+        "phase": "injected"
+      },
+      {
+        "at_ns": 1787674414035550618,
+        "fault": "clock_drift",
+        "ingress_ordinal": 102687,
+        "phase": "released"
+      },
+      {
+        "at_ns": 1787674422014218927,
+        "fault": "order_state_uncertain",
+        "ingress_ordinal": 104451,
+        "phase": "injected"
+      },
+      {
+        "at_ns": 1787674426019005872,
+        "fault": "order_state_uncertain",
+        "ingress_ordinal": 105364,
+        "phase": "released"
+      },
+      {
+        "at_ns": 1787674426019005872,
+        "fault": "order_state_uncertain",
+        "ingress_ordinal": 105364,
+        "phase": "reconciled"
+      },
+      {
+        "at_ns": 1787674434004607477,
+        "fault": "position_mismatch",
+        "ingress_ordinal": 106331,
+        "phase": "injected"
+      },
+      {
+        "at_ns": 1787674438041953338,
+        "fault": "position_mismatch",
+        "ingress_ordinal": 107387,
+        "phase": "released"
+      },
+      {
+        "at_ns": 1787674438041953338,
+        "fault": "position_mismatch",
+        "ingress_ordinal": 107387,
+        "phase": "reconciled"
+      },
+      {
+        "at_ns": 1787674448063995458,
+        "fault": "cost_ledger_mismatch",
+        "ingress_ordinal": 108999,
+        "phase": "injected"
+      },
+      {
+        "at_ns": 1787674452094898520,
+        "fault": "cost_ledger_mismatch",
+        "ingress_ordinal": 109429,
+        "phase": "released"
+      },
+      {
+        "at_ns": 1787674452094898520,
+        "fault": "cost_ledger_mismatch",
+        "ingress_ordinal": 109429,
+        "phase": "reconciled"
+      },
+      {
+        "at_ns": 1787674462000182622,
+        "fault": "api_error_rate",
+        "ingress_ordinal": 110339,
+        "phase": "injected"
+      },
+      {
+        "at_ns": 1787674466004588713,
+        "fault": "api_error_rate",
+        "ingress_ordinal": 110808,
+        "phase": "released"
+      },
+      {
+        "at_ns": 1787674474016500108,
+        "fault": "rate_limit_uncertain",
+        "ingress_ordinal": 111761,
+        "phase": "injected"
+      },
+      {
+        "at_ns": 1787674478014411636,
+        "fault": "rate_limit_uncertain",
+        "ingress_ordinal": 112141,
+        "phase": "released"
+      },
+      {
+        "at_ns": 1787674486003198699,
+        "fault": "resolution_ambiguous",
+        "ingress_ordinal": 112899,
+        "phase": "injected"
+      },
+      {
+        "at_ns": 1787674490000922806,
+        "fault": "resolution_ambiguous",
+        "ingress_ordinal": 113257,
+        "phase": "released"
+      }
+    ],
+    "halts_by_reason": {
+      "API_ERROR_RATE": 1,
+      "CLOB_CONTINUITY_UNCERTAIN": 2,
+      "CLOCK_DRIFT": 1,
+      "COST_LEDGER_MISMATCH": 1,
+      "ORDER_STATE_UNCERTAIN": 1,
+      "POSITION_MISMATCH": 1,
+      "RATE_LIMIT_UNCERTAIN": 1,
+      "RESOLUTION_AMBIGUOUS": 1,
+      "SPOT_STALE": 2
+    },
+    "risk_evaluate_ns": {
+      "count": 112961,
+      "label": "risk_evaluate_ns",
+      "max": 314365393,
+      "p50": 14544,
+      "p90": 42108,
+      "p95": 44576,
+      "p99": 67582
+    },
+    "shadow_cancels_by_state": {
+      "HALTED": 2,
+      "RECOVERING": 1,
+      "SAFE": 175
+    },
+    "shadow_places_by_state": {
+      "SAFE": 245
+    },
+    "transitions": [
+      {
+        "active": [
+          "SPOT_STALE"
+        ],
+        "at_ns": 1787674200020112058,
+        "from": null,
+        "ingress_ordinal": 2,
+        "latched": [],
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787674200757773055,
+        "from": "HALTED",
+        "ingress_ordinal": 310,
+        "latched": [],
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787674200761310524,
+        "from": "RECOVERING",
+        "ingress_ordinal": 311,
+        "latched": [],
+        "to": "SAFE"
+      },
+      {
+        "active": [
+          "SPOT_STALE"
+        ],
+        "at_ns": 1787674244754733343,
+        "from": "SAFE",
+        "ingress_ordinal": 30822,
+        "latched": [],
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787674261575253073,
+        "from": "HALTED",
+        "ingress_ordinal": 41264,
+        "latched": [],
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787674261575469300,
+        "from": "RECOVERING",
+        "ingress_ordinal": 41265,
+        "latched": [],
+        "to": "SAFE"
+      },
+      {
+        "active": [
+          "CLOB_CONTINUITY_UNCERTAIN"
+        ],
+        "at_ns": 1787674310044362891,
+        "from": "SAFE",
+        "ingress_ordinal": 68521,
+        "latched": [],
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787674310761480702,
+        "from": "HALTED",
+        "ingress_ordinal": 68524,
+        "latched": [],
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787674310767675626,
+        "from": "RECOVERING",
+        "ingress_ordinal": 68525,
+        "latched": [],
+        "to": "SAFE"
+      },
+      {
+        "active": [
+          "CLOB_CONTINUITY_UNCERTAIN"
+        ],
+        "at_ns": 1787674390000214820,
+        "from": "SAFE",
+        "ingress_ordinal": 96130,
+        "latched": [],
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787674390014107715,
+        "from": "HALTED",
+        "ingress_ordinal": 96132,
+        "latched": [],
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787674390015696906,
+        "from": "RECOVERING",
+        "ingress_ordinal": 96133,
+        "latched": [],
+        "to": "SAFE"
+      },
+      {
+        "active": [
+          "CLOCK_DRIFT"
+        ],
+        "at_ns": 1787674410012932985,
+        "from": "SAFE",
+        "ingress_ordinal": 101594,
+        "latched": [],
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787674414035373449,
+        "from": "HALTED",
+        "ingress_ordinal": 102687,
+        "latched": [],
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787674414053411688,
+        "from": "RECOVERING",
+        "ingress_ordinal": 102688,
+        "latched": [],
+        "to": "SAFE"
+      },
+      {
+        "active": [
+          "ORDER_STATE_UNCERTAIN"
+        ],
+        "at_ns": 1787674422014063370,
+        "from": "SAFE",
+        "ingress_ordinal": 104451,
+        "latched": [
+          "ORDER_STATE_UNCERTAIN"
+        ],
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787674426018505122,
+        "from": "HALTED",
+        "ingress_ordinal": 105364,
+        "latched": [
+          "ORDER_STATE_UNCERTAIN"
+        ],
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787674426039228278,
+        "from": "RECOVERING",
+        "ingress_ordinal": 105365,
+        "latched": [],
+        "to": "SAFE"
+      },
+      {
+        "active": [
+          "POSITION_MISMATCH"
+        ],
+        "at_ns": 1787674434004102289,
+        "from": "SAFE",
+        "ingress_ordinal": 106331,
+        "latched": [
+          "POSITION_MISMATCH"
+        ],
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787674438041471617,
+        "from": "HALTED",
+        "ingress_ordinal": 107387,
+        "latched": [
+          "POSITION_MISMATCH"
+        ],
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787674438061418749,
+        "from": "RECOVERING",
+        "ingress_ordinal": 107388,
+        "latched": [],
+        "to": "SAFE"
+      },
+      {
+        "active": [
+          "COST_LEDGER_MISMATCH"
+        ],
+        "at_ns": 1787674448063477053,
+        "from": "SAFE",
+        "ingress_ordinal": 108999,
+        "latched": [
+          "COST_LEDGER_MISMATCH"
+        ],
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787674452094405587,
+        "from": "HALTED",
+        "ingress_ordinal": 109429,
+        "latched": [
+          "COST_LEDGER_MISMATCH"
+        ],
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787674452095261756,
+        "from": "RECOVERING",
+        "ingress_ordinal": 109430,
+        "latched": [],
+        "to": "SAFE"
+      },
+      {
+        "active": [
+          "API_ERROR_RATE"
+        ],
+        "at_ns": 1787674462016147645,
+        "from": "SAFE",
+        "ingress_ordinal": 110340,
+        "latched": [],
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787674466004100054,
+        "from": "HALTED",
+        "ingress_ordinal": 110808,
+        "latched": [],
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787674466030864581,
+        "from": "RECOVERING",
+        "ingress_ordinal": 110809,
+        "latched": [],
+        "to": "SAFE"
+      },
+      {
+        "active": [
+          "RATE_LIMIT_UNCERTAIN"
+        ],
+        "at_ns": 1787674474015987893,
+        "from": "SAFE",
+        "ingress_ordinal": 111761,
+        "latched": [],
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787674478014277851,
+        "from": "HALTED",
+        "ingress_ordinal": 112141,
+        "latched": [],
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787674478038683621,
+        "from": "RECOVERING",
+        "ingress_ordinal": 112142,
+        "latched": [],
+        "to": "SAFE"
+      },
+      {
+        "active": [
+          "RESOLUTION_AMBIGUOUS"
+        ],
+        "at_ns": 1787674486002934967,
+        "from": "SAFE",
+        "ingress_ordinal": 112899,
+        "latched": [],
+        "to": "HALTED"
+      },
+      {
+        "active": [],
+        "at_ns": 1787674490000429220,
+        "from": "HALTED",
+        "ingress_ordinal": 113257,
+        "latched": [],
+        "to": "RECOVERING"
+      },
+      {
+        "active": [],
+        "at_ns": 1787674490025310598,
+        "from": "RECOVERING",
+        "ingress_ordinal": 113258,
+        "latched": [],
+        "to": "SAFE"
+      }
+    ]
+  },
+  "risk_config": {
+    "api_error_threshold": 5,
+    "api_error_window_ns": 30000000000,
+    "clob_stale_after_ns": 10000000000,
+    "clock_drift_limit_ns": 250000000,
+    "recovery_confirmations": 2,
+    "spot_stale_after_ns": 5000000000,
+    "status": "OPERATIONAL"
+  },
+  "run_utc": "2026-08-25T16:15:10Z",
+  "slug": "btc-updown-5m-1787674200",
+  "t0_ns": 1787674200000000000
+}

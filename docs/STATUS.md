@@ -490,7 +490,8 @@ orders, which P8 does not place. Both stay OPEN.
 | P8 correction branch 2 | `fix/p8-telemetry-offload` |
 | P8 correction commits 2 | `bbeb9b5` analytics offload · `88a7807` stage sampling · `4cb9d5f` benchmarks |
 | Current branch | `feature/p9-risk-recovery` |
-| P9 boundary commit | `PENDING` — recorded in the follow-up commit |
+| P9 boundary commit | `4c2ab1d` — `test: exercise every inducible risk condition on a real market` |
+| P9 commits | `4be0032` risk engine · `6576de0` recovery + runner · `1584dee` stale recovery fix · `b2e715e` real-market evidence · `4c2ab1d` full fault market |
 | Last accepted milestone | P7 — execution state + reconciler, corrected (`0f17bd2`) |
 | Next milestone | P9 — awaiting acceptance of P8; not started |
 | `main` | `3cefd82` — fast-forwarded through the accepted P8C boundary, pushed |

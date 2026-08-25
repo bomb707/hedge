@@ -40,7 +40,7 @@ real market data is not evidence about the target wallet's trajectory.
 | P6 live acceptance gate | **PASSED** — two full markets captured read-only and verified by P5 |
 | Target-wallet empirical replay | **UNRUN / BLOCKED** — no reconstructed wallet journal exists |
 | Current branch | `feature/p6-market-data` |
-| P6 boundary commit | recorded by the immediately following commit on this branch |
+| P6 boundary commit | `6a50794` — `feat: add read-only live market-data adapters` |
 | Last accepted milestone | P5 — deterministic replay engine (`ab22f3b`, tip `c8463e3`) |
 | Next milestone | **P7 — Execution state + post-only order reconciler** |
 | `main` | `c8463e3` — fast-forwarded to the accepted P5 HEAD, pushed |

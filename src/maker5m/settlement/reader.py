@@ -17,6 +17,8 @@ it does not judge.
 import json
 import urllib.error
 import urllib.request
+from collections import Counter
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any, Final
 
@@ -30,14 +32,23 @@ from maker5m.settlement.contracts import (
     SELECTOR_PAYOUT_NUMERATORS,
     encode_uint,
 )
-from maker5m.settlement.resolution import PayoutVector, ProviderResolution
+from maker5m.settlement.resolution import (
+    PayoutVector,
+    ProviderAttestation,
+    ProviderResolution,
+)
 
 __all__ = [
     "DEFAULT_RPC_ENDPOINTS",
     "USER_AGENT",
+    "AttestedProvider",
     "CtfReader",
+    "DuplicateEndpointError",
+    "EndpointSet",
     "ProviderIdentity",
     "RpcEndpoint",
+    "attest_all",
+    "endpoint_fingerprint",
     "read_all",
 ]
 
@@ -56,11 +67,79 @@ DEFAULT_RPC_ENDPOINTS: Final[tuple[tuple[str, str], ...]] = (
 drawn from one operator's infrastructure would agree with itself."""
 
 
+def endpoint_fingerprint(url: str) -> str:
+    """Normalised form used to tell two configured endpoints apart.
+
+    Deliberately shallow. It catches the same URL written twice — trailing slash, capitalised
+    host, a stray ``?`` — and nothing more. It cannot tell that two vendors resell one operator's
+    infrastructure, and does not pretend to: organisational independence stays an OPERATIONAL
+    assumption about the configured set, documented as such.
+    """
+    text = url.strip().rstrip("/?")
+    scheme, separator, rest = text.partition("://")
+    if not separator:
+        return text.lower()
+    host, slash, path = rest.partition("/")
+    return f"{scheme.lower()}://{host.lower()}{slash}{path}"
+
+
+class DuplicateEndpointError(ValueError):
+    """Two configured endpoints that are not independent evidence."""
+
+
 @dataclass(frozen=True, slots=True)
 class RpcEndpoint:
     provider_id: str
     url: str
     timeout_seconds: float = 15.0
+
+    @property
+    def fingerprint(self) -> str:
+        return endpoint_fingerprint(self.url)
+
+
+@dataclass(frozen=True, slots=True)
+class EndpointSet:
+    """A configured set of endpoints that has been checked for obvious duplication.
+
+    Validated at construction rather than at use. A duplicated endpoint is a configuration
+    mistake whose whole effect is to make a quorum look larger than it is, and the moment to
+    refuse it is before any market depends on the answer.
+    """
+
+    endpoints: tuple[RpcEndpoint, ...]
+
+    def __post_init__(self) -> None:
+        if not self.endpoints:
+            raise DuplicateEndpointError("at least one endpoint is required")
+
+        ids = Counter(endpoint.provider_id for endpoint in self.endpoints)
+        repeated_ids = sorted(name for name, count in ids.items() if count > 1)
+        if repeated_ids:
+            raise DuplicateEndpointError(
+                f"provider id configured more than once: {', '.join(repeated_ids)}; "
+                "one endpoint under two names is one opinion, not two"
+            )
+
+        urls: dict[str, list[str]] = {}
+        for endpoint in self.endpoints:
+            urls.setdefault(endpoint.fingerprint, []).append(endpoint.provider_id)
+        shared = sorted(
+            f"{fingerprint} <- {', '.join(sorted(names))}"
+            for fingerprint, names in urls.items()
+            if len(names) > 1
+        )
+        if shared:
+            raise DuplicateEndpointError(
+                f"endpoint URL configured more than once: {'; '.join(shared)}; "
+                "distinct names for one URL would count as independent evidence"
+            )
+
+    def __iter__(self) -> Iterator[RpcEndpoint]:
+        return iter(self.endpoints)
+
+    def __len__(self) -> int:
+        return len(self.endpoints)
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,6 +170,19 @@ class ProviderIdentity:
             and self.ctf_code_bytes > 0
             and self.collateral_code_bytes > 0
             and self.collateral_decimals == PUSD_DECIMALS
+        )
+
+    def attestation(self, endpoint: RpcEndpoint) -> ProviderAttestation:
+        """The carryable form of this check, for attaching to readings."""
+        return ProviderAttestation(
+            provider_id=self.provider_id,
+            endpoint_fingerprint=endpoint.fingerprint,
+            chain_id=self.chain_id,
+            ctf_code_bytes=self.ctf_code_bytes,
+            collateral_code_bytes=self.collateral_code_bytes,
+            collateral_decimals=self.collateral_decimals,
+            attested_at_block=self.finalized_block,
+            error=self.error,
         )
 
     def summary(self) -> dict[str, object]:
@@ -158,22 +250,39 @@ class CtfReader:
             latest_block=None if latest is None else int(latest["number"], 16),
         )
 
-    def read_condition(self, condition_id: str, *, block_tag: str) -> ProviderResolution:
-        """The full payout state for one condition at one block tag."""
+    def read_condition(
+        self,
+        condition_id: str,
+        *,
+        block_tag: str,
+        attestation: ProviderAttestation | None = None,
+    ) -> ProviderResolution:
+        """The full payout state for one condition, pinned to one concrete block.
+
+        ``attestation`` is what makes the result eligible for a quorum. Reading without one is
+        still allowed — it is useful for diagnostics — but the verifier will refuse the result,
+        which is the intended asymmetry: gathering is not trusting.
+        """
         word = condition_id.removeprefix("0x").rjust(64, "0")
         try:
             chain_id = int(self._rpc("eth_chainId", []), 16)
             block = self._rpc("eth_getBlockByNumber", [block_tag, False])
             block_number = None if block is None else int(block["number"], 16)
 
-            # Pin every call to that concrete block, never to the tag again.
+            # No concrete block, no reading. There is deliberately no fallback to the tag here.
             #
-            # Resolving "finalized" once per request is not the same read. Live observation
+            # Resolving "finalized" once per request is not the same read: live observation
             # caught drpc reporting a finalized head and, in the same breath, a payout from a
-            # backend that did not have it — the block in the audit record was simply not the
-            # block the payout came from, which made the record wrong and made a healthy
-            # provider look like it was contradicting the chain.
-            at = block_tag if block_number is None else hex(block_number)
+            # backend that did not have it, so the block in the audit record was not the block
+            # the payout came from. Falling back to the moving tag when the block lookup fails
+            # would reintroduce exactly that, at the moment the provider is least reliable.
+            if block_number is None:
+                raise RpcError(
+                    f"no concrete block for tag {block_tag!r}; refusing to read against a "
+                    "moving tag"
+                )
+
+            at = hex(block_number)
             denominator = self._call(CTF_ADDRESS, SELECTOR_PAYOUT_DENOMINATOR + word, at)
             slot_count = self._call(CTF_ADDRESS, SELECTOR_GET_OUTCOME_SLOT_COUNT + word, at)
             numerators: list[int] = []
@@ -193,6 +302,7 @@ class CtfReader:
                 condition_id=condition_id,
                 payout=None,
                 error=f"{type(error).__name__}: {error}",
+                attestation=attestation,
             )
         return ProviderResolution(
             provider_id=self.endpoint.provider_id,
@@ -205,6 +315,7 @@ class CtfReader:
                 numerators=tuple(numerators),
                 outcome_slot_count=slot_count or 0,
             ),
+            attestation=attestation,
         )
 
     def erc1155_balance(self, owner: str, token_id: str) -> int | None:
@@ -229,18 +340,63 @@ class RpcError(RuntimeError):
     """A JSON-RPC error response. Recorded as an error, never as an answer."""
 
 
+@dataclass(frozen=True, slots=True)
+class AttestedProvider:
+    """An endpoint that proved which chain and contracts it serves, and its proof.
+
+    This type is the trust boundary. It exists so that "this provider passed identity" is
+    something the code *holds* rather than something it printed earlier and hoped was still
+    true: the only way to obtain one is :func:`attest_all`, and only readings carrying its
+    attestation can reach a quorum.
+    """
+
+    endpoint: RpcEndpoint
+    identity: ProviderIdentity
+
+    @property
+    def provider_id(self) -> str:
+        return self.endpoint.provider_id
+
+    def read_condition(self, condition_id: str, *, block_tag: str) -> ProviderResolution:
+        return CtfReader(self.endpoint).read_condition(
+            condition_id,
+            block_tag=block_tag,
+            attestation=self.identity.attestation(self.endpoint),
+        )
+
+
+def attest_all(
+    endpoints: EndpointSet,
+) -> tuple[tuple[AttestedProvider, ...], tuple[ProviderIdentity, ...]]:
+    """Check every configured endpoint's identity, and split trusted from untrusted.
+
+    Returns the providers that may contribute evidence, and the identities of those that may
+    not. Both halves are returned on purpose: an excluded endpoint has to appear in the record,
+    because a quorum that is smaller than configured should be visibly smaller rather than
+    silently so.
+    """
+    trusted: list[AttestedProvider] = []
+    rejected: list[ProviderIdentity] = []
+    for endpoint in endpoints:
+        identity = CtfReader(endpoint).identify()
+        if identity.trustworthy:
+            trusted.append(AttestedProvider(endpoint=endpoint, identity=identity))
+        else:
+            rejected.append(identity)
+    return tuple(trusted), tuple(rejected)
+
+
 def read_all(
-    endpoints: tuple[RpcEndpoint, ...],
+    providers: tuple[AttestedProvider, ...],
     condition_id: str,
     *,
     block_tag: str,
 ) -> tuple[ProviderResolution, ...]:
-    """Read one condition from every endpoint.
+    """Read one condition from every attested provider.
 
     A provider that fails is represented by a reading carrying its error, so downstream counts a
     timeout as absent rather than as concurrence.
     """
     return tuple(
-        CtfReader(endpoint).read_condition(condition_id, block_tag=block_tag)
-        for endpoint in endpoints
+        provider.read_condition(condition_id, block_tag=block_tag) for provider in providers
     )

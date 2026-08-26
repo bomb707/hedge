@@ -8,16 +8,15 @@ reconciliation.
 
 The direction is one-way on purpose. Ambiguity sets the condition; settlement never clears it.
 
-Note what P9 actually does here, because it is not what one might assume: ``RESOLUTION_AMBIGUOUS``
-is **not** in ``REQUIRES_RECONCILIATION``. P9 treats it as a plain operational flag, so it would
-fall away the moment anything set it back to ``False``. The stickiness therefore comes from this
-module refusing to ever emit ``flag=False`` — a clean-looking second reading of the same chain is
-not evidence that the first disagreement was imaginary. Lifting it takes a deliberate
-``RESOLUTION_SAFETY_UPDATE(flag=False)`` from an operator, which is still an ordered, recorded
-signal in the same trace.
+``RESOLUTION_AMBIGUOUS`` is in P9's ``REQUIRES_RECONCILIATION``, so clearing the condition is not
+enough to restore SAFE: the reason stays latched until an explicit ``RECONCILIATION_CONFIRMED``
+says somebody established what actually happened. A clean-looking second reading of the same
+chain is not that. Both signals are ordered and recorded, so lifting a settlement halt leaves as
+much of a trail as raising one.
 
-Whether P9 should latch it instead is a P9 question and is recorded as such rather than answered
-here by quietly editing ``REQUIRES_RECONCILIATION``.
+(Through P10's first round this module's restraint *was* the safety property — P9 did not latch
+the reason, and nothing but this file's refusal to emit ``flag=False`` kept the halt up. That is
+what O16 asked about, and it is now answered in the risk contract rather than here.)
 """
 
 from __future__ import annotations

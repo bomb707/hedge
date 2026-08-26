@@ -26,12 +26,13 @@ observations arrive already fetched, so the same inputs always produce the same 
 recorded settlement can be re-derived exactly.
 """
 
-from dataclasses import dataclass, field
+from collections import Counter
+from dataclasses import dataclass
 from enum import Enum
 from typing import Final, NamedTuple
 
 from maker5m.domain import Outcome, ParameterStatus
-from maker5m.settlement.contracts import CHAIN_ID
+from maker5m.settlement.contracts import CHAIN_ID, PUSD_DECIMALS
 
 __all__ = [
     "DEFAULT_SETTLEMENT_POLICY",
@@ -86,6 +87,32 @@ class AmbiguityReason(Enum):
     UNSUPPORTED_MARKET_STRUCTURE = "UNSUPPORTED_MARKET_STRUCTURE"
     """NegRisk or anything else this redemption path was not built and evidenced for."""
 
+    DUPLICATE_PROVIDER_ID = "DUPLICATE_PROVIDER_ID"
+    """The same provider appears twice in one evidence set.
+
+    Not a disagreement — a malformed claim of independence. Three readings from one endpoint are
+    one opinion repeated, and counting them would let a single RPC authorise a redemption on its
+    own, which is the only thing the quorum exists to prevent."""
+
+    PROVIDER_NOT_ATTESTED = "PROVIDER_NOT_ATTESTED"
+    """A reading arrived from an endpoint that never proved which chain and contracts it serves.
+
+    Reaching the verifier at all means the caller broke the contract, so this fails closed rather
+    than quietly dropping the reading: silently ignoring it would turn a wiring bug into a
+    smaller-than-configured quorum that still looked like consensus."""
+
+    FINALITY_POLICY_MISMATCH = "FINALITY_POLICY_MISMATCH"
+    """Readings taken under different finality rules, presented as one quorum.
+
+    Two providers on ``latest`` and one on ``finalized`` are not three finalized confirmations,
+    however much they agree."""
+
+    MISSING_AUTHORITATIVE_BLOCK = "MISSING_AUTHORITATIVE_BLOCK"
+    """Agreement with no concrete block behind it.
+
+    A redemption has to be able to name the finalized chain state that authorised it. "Some
+    providers said so recently" is not that."""
+
 
 class PayoutVector(NamedTuple):
     """A Conditional Tokens payout, exactly as the contract holds it.
@@ -128,20 +155,77 @@ class PayoutVector(NamedTuple):
         }
 
 
+class ProviderAttestation(NamedTuple):
+    """What one endpoint proved about itself before any of its answers were allowed to count.
+
+    Identity is a trust boundary, not a diagnostic. An endpoint that is healthy but pointed at
+    another chain answers confidently about the wrong world, and an endpoint serving a contract
+    that is not the Conditional Tokens Framework answers confidently about the wrong contract.
+    Neither failure looks like an error at the reading — both look like data.
+
+    So the check is carried, not printed. A reading without a valid attestation attached cannot
+    reach a quorum, and the only code that can attach one is the code that performed the checks.
+    """
+
+    provider_id: str
+    endpoint_fingerprint: str
+    """Normalised endpoint URL. Two ids sharing one fingerprint are one opinion twice."""
+
+    chain_id: int | None = None
+    ctf_code_bytes: int = 0
+    collateral_code_bytes: int = 0
+    collateral_decimals: int | None = None
+    attested_at_block: int | None = None
+    attested_at_ns: int | None = None
+    error: str | None = None
+
+    @property
+    def valid(self) -> bool:
+        return (
+            self.error is None
+            and self.chain_id == CHAIN_ID
+            and self.ctf_code_bytes > 0
+            and self.collateral_code_bytes > 0
+            and self.collateral_decimals == PUSD_DECIMALS
+        )
+
+    def summary(self) -> dict[str, object]:
+        return {
+            "provider_id": self.provider_id,
+            "endpoint_fingerprint": self.endpoint_fingerprint,
+            "chain_id": self.chain_id,
+            "ctf_code_bytes": self.ctf_code_bytes,
+            "collateral_code_bytes": self.collateral_code_bytes,
+            "collateral_decimals": self.collateral_decimals,
+            "attested_at_block": self.attested_at_block,
+            "valid": self.valid,
+            "error": self.error,
+        }
+
+
 class ProviderResolution(NamedTuple):
-    """One RPC provider's answer about one condition, at one block."""
+    """One RPC provider's answer about one condition, at one concrete block."""
 
     provider_id: str
     chain_id: int | None
     block_tag: str
+    """The finality policy this reading was taken under, not the block it was pinned to."""
+
     block_number: int | None
     condition_id: str
     payout: PayoutVector | None
     error: str | None = None
+    attestation: ProviderAttestation | None = None
+    """Set only by a reader that actually performed the identity checks. ``None`` means the
+    reading is not eligible for a quorum, whatever it says."""
 
     @property
     def answered(self) -> bool:
         return self.error is None and self.payout is not None
+
+    @property
+    def attested(self) -> bool:
+        return self.attestation is not None and self.attestation.valid
 
     def summary(self) -> dict[str, object]:
         return {
@@ -152,6 +236,8 @@ class ProviderResolution(NamedTuple):
             "condition_id": self.condition_id,
             "payout": None if self.payout is None else self.payout.summary(),
             "error": self.error,
+            "attested": self.attested,
+            "attestation": None if self.attestation is None else self.attestation.summary(),
         }
 
 
@@ -209,12 +295,16 @@ class SettlementPolicy:
     achievable in practice. It is an engineering choice, not a Polymarket rule."""
 
     block_tag: str = "finalized"
-    """Prefer the chain's own finality rather than counting confirmations. Polygon's
-    ``finalized`` tag lagged head by 1-4 blocks across three providers when measured."""
+    """The finality rule every counted reading must have been taken under.
 
-    confirmation_depth: int | None = None
-    """Only meaningful as a fallback where ``finalized`` is unsupported. ``None`` means the tag
-    is required; a number here is a weaker, explicitly OPERATIONAL substitute."""
+    Load-bearing, not descriptive: a reading recording a different tag is rejected rather than
+    absorbed, because two providers on ``latest`` and one on ``finalized`` are not three
+    finalized confirmations however much they agree.
+
+    A confirmation-depth fallback was once exposed here and did nothing. It has been removed
+    rather than left as a knob with no effect; if ``finalized`` ever proves unavailable on an
+    endpoint we need, the fallback can be added with its own evidence.
+    """
 
     require_binary_singleton: bool = True
     """This strategy's economics are binary. Anything else is ambiguous *for us*, which is not
@@ -237,8 +327,8 @@ class SettlementPolicy:
                 "at least two independent providers are required; one provider cannot "
                 f"authorise a redemption, got {self.minimum_agreeing_providers}"
             )
-        if self.confirmation_depth is not None and self.confirmation_depth < 0:
-            raise ValueError(f"confirmation_depth must be >= 0, got {self.confirmation_depth}")
+        if not self.block_tag:
+            raise ValueError("a finality policy is required; readings are checked against it")
 
 
 DEFAULT_SETTLEMENT_POLICY: Final = SettlementPolicy()
@@ -258,7 +348,9 @@ class ResolutionDecision:
     authoritative_block: int | None = None
     block_tag: str = ""
     detail: str = ""
-    _unused: bool = field(default=False, repr=False)
+    untrusted_providers: tuple[str, ...] = ()
+    """Endpoints excluded before they could answer. Recorded so a small quorum is visibly small
+    rather than silently so."""
 
     @property
     def redeemable(self) -> bool:
@@ -282,6 +374,7 @@ class ResolutionDecision:
             "authoritative_block": self.authoritative_block,
             "block_tag": self.block_tag,
             "detail": self.detail,
+            "untrusted_providers": list(self.untrusted_providers),
         }
 
 
@@ -302,6 +395,21 @@ def _ambiguous(
         reasons=reasons,
         detail=detail,
         block_tag=block_tag,
+    )
+
+
+def _repeated_fingerprints(readings: tuple[ProviderResolution, ...]) -> list[str]:
+    """Provider ids that reach the same endpoint under different names."""
+    by_fingerprint: dict[str, list[str]] = {}
+    for reading in readings:
+        attestation = reading.attestation
+        if attestation is None or not attestation.endpoint_fingerprint:
+            continue
+        by_fingerprint.setdefault(attestation.endpoint_fingerprint, []).append(reading.provider_id)
+    return sorted(
+        f"{fingerprint} <- {', '.join(sorted(ids))}"
+        for fingerprint, ids in by_fingerprint.items()
+        if len(set(ids)) > 1
     )
 
 
@@ -326,7 +434,63 @@ def verify(
         )
 
     answering = tuple(reading.provider_id for reading in provider_readings if reading.answered)
-    block_tag = provider_readings[0].block_tag if provider_readings else policy.block_tag
+
+    # The policy names the finality rule; the readings do not get a vote on it. Taking this from
+    # `provider_readings[0]` — as this once did — meant whichever provider happened to be first
+    # in the tuple defined what the audit record claimed the quorum was taken under.
+    block_tag = policy.block_tag
+
+    # Independence is a property of the evidence *set*, so it is checked before anything the
+    # individual readings say. Three answers from one endpoint are one opinion repeated, and no
+    # amount of agreement between them makes them three.
+    counts = Counter(reading.provider_id for reading in provider_readings)
+    repeated = sorted(name for name, count in counts.items() if count > 1)
+    if repeated:
+        return _ambiguous(
+            (AmbiguityReason.DUPLICATE_PROVIDER_ID,),
+            answering=answering,
+            advisory=advisory_readings,
+            detail=f"provider id repeated in one evidence set: {', '.join(repeated)}",
+            block_tag=block_tag,
+        )
+
+    unattested = sorted(
+        reading.provider_id for reading in provider_readings if not reading.attested
+    )
+    if unattested:
+        return _ambiguous(
+            (AmbiguityReason.PROVIDER_NOT_ATTESTED,),
+            answering=answering,
+            advisory=advisory_readings,
+            detail="readings from endpoints that never proved their chain and contracts: "
+            f"{', '.join(unattested)}",
+            block_tag=block_tag,
+        )
+
+    duplicate_endpoints = _repeated_fingerprints(provider_readings)
+    if duplicate_endpoints:
+        return _ambiguous(
+            (AmbiguityReason.DUPLICATE_PROVIDER_ID,),
+            answering=answering,
+            advisory=advisory_readings,
+            detail=f"distinct provider ids sharing one endpoint: {', '.join(duplicate_endpoints)}",
+            block_tag=block_tag,
+        )
+
+    wrong_finality = sorted(
+        reading.provider_id
+        for reading in provider_readings
+        if reading.answered and reading.block_tag != policy.block_tag
+    )
+    if wrong_finality:
+        return _ambiguous(
+            (AmbiguityReason.FINALITY_POLICY_MISMATCH,),
+            answering=answering,
+            advisory=advisory_readings,
+            detail=f"policy requires {policy.block_tag!r}; readings taken under another rule: "
+            f"{', '.join(wrong_finality)}",
+            block_tag=block_tag,
+        )
 
     wrong_chain = [
         reading.provider_id
@@ -435,9 +599,20 @@ def verify(
     payout = next(iter(distinct))
     assert payout is not None
     agreeing = tuple(sorted(reading.provider_id for reading in resolved))
+
+    # A redemption has to be able to name the finalized chain state that authorised it.
+    blockless = sorted(reading.provider_id for reading in resolved if reading.block_number is None)
+    if blockless:
+        return _ambiguous(
+            (AmbiguityReason.MISSING_AUTHORITATIVE_BLOCK,),
+            answering=answering,
+            advisory=advisory_readings,
+            payout=payout,
+            detail=f"agreeing providers without a concrete block: {', '.join(blockless)}",
+            block_tag=block_tag,
+        )
     authoritative_block = min(
-        (reading.block_number for reading in resolved if reading.block_number is not None),
-        default=None,
+        reading.block_number for reading in resolved if reading.block_number is not None
     )
 
     if payout.outcome_slot_count != target.outcome_slot_count:

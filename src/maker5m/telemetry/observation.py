@@ -45,12 +45,14 @@ from typing import Final
 __all__ = [
     "DEFAULT_OBSERVATION_CAPACITY",
     "NOT_CAPTURED",
+    "OBS_BOOK",
     "OBS_DECIDE_DONE_NS",
     "OBS_DECIDE_STAGE_NS",
     "OBS_DOWN_DEPTH",
     "OBS_DOWN_PLACED_ID",
     "OBS_ELIGIBILITY",
     "OBS_EVENT_KIND",
+    "OBS_EVENT_TS",
     "OBS_FILL",
     "OBS_HEALTHY",
     "OBS_INGRESS_ORDINAL",
@@ -59,7 +61,11 @@ __all__ = [
     "OBS_RAW_RECEIVE_NS",
     "OBS_RECONCILE_DONE_NS",
     "OBS_REDUCE_STAGE_NS",
+    "OBS_RISK",
     "OBS_SEQ",
+    "OBS_SOURCE_TS",
+    "OBS_SPOT",
+    "OBS_TELEMETRY",
     "OBS_UP_DEPTH",
     "OBS_UP_PLACED_ID",
     "Observation",
@@ -100,6 +106,34 @@ OBS_ELIGIBILITY: Final = 15
 """The decision's eligibility record, so a NOT_QUOTING side can still name its strategy gate."""
 OBS_FILL: Final = 16
 """``(outcome, client_order_id, fully_filled)`` for a shadow fill, else ``None``."""
+
+# -- P11 additions ---------------------------------------------------------------------------
+#
+# Appended, never inserted: every index above keeps its meaning, so the P8 analyzer reads the
+# same stream it always did and its golden equivalence is untouched.
+#
+# All four are references to values the cycle has *already built* and which are immutable —
+# `DecisionTelemetry`, `BookUpdate` and `SpotTick` are frozen dataclasses. Retaining them costs
+# a pointer store each and buys the whole of Canonical §25 without recomputing any economics
+# downstream, which §25 needs and which a later reconstruction could get wrong. Nothing mutable
+# is retained: no MarketState, no book dict, no LiveOrderTable.
+
+OBS_TELEMETRY: Final = 17
+"""The decision's own ``DecisionTelemetry``: phase, centre, grid, endgame, exact economics."""
+OBS_BOOK: Final = 18
+"""The ``BookUpdate`` in force at decision time, or ``None`` before the first book."""
+OBS_SPOT: Final = 19
+"""The ``SpotTick`` in force at decision time, or ``None`` before the first tick."""
+OBS_EVENT_TS: Final = 20
+"""``state.last_event_timestamp`` — the ingress clock reading this decision was made at.
+
+Ages are computed downstream as this minus the source's own timestamp. Never a wall-clock read,
+and never a fabricated zero when the source timestamp is missing."""
+OBS_SOURCE_TS: Final = 21
+"""The venue's own timestamp for the triggering message, in nanoseconds, when the feed genuinely
+supplied one. ``None`` otherwise — the ingress clock is never passed off as an exchange clock."""
+OBS_RISK: Final = 22
+"""``(risk_sequence, state, allows_place, allows_cancel)`` when a risk controller is attached."""
 
 DEFAULT_OBSERVATION_CAPACITY: Final[int] = 320_000
 """Sized from evidence, and resized twice as the evidence arrived.

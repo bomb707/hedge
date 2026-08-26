@@ -64,6 +64,35 @@ QUEUE_LOSS_ACTIONS: Final = frozenset({ReconcileAction.REPLACE, ReconcileAction.
 """Reconciler actions that give up a live order's queue slot. KEEP is never one of them."""
 
 
+def _risk_snapshot(controller: object) -> tuple[object, ...] | None:
+    """Four primitives describing what risk currently permits, or ``None`` if unattached.
+
+    The values are P9's own recorded verdict, read from the last record it wrote. They are not
+    re-derived from the risk state: "HALTED implies no placement" is a rule P9 owns, and a second
+    copy of it here would be a second thing to get wrong — and would quietly disagree the moment
+    P9's recovery semantics changed.
+
+    Duck-typed and defensive on purpose. This runs on the hot path in a package that must not
+    depend on the risk package, and a telemetry read must never be able to raise into a trading
+    cycle — a missing attribute here would otherwise stop the bot to record a number about it.
+    """
+    if controller is None:
+        return None
+    try:
+        records = controller.trace.records  # type: ignore[attr-defined]
+        if not records:
+            return None
+        latest = records[-1]
+        return (
+            latest.risk_sequence,
+            latest.state.value,
+            latest.allows_place,
+            latest.allows_cancel,
+        )
+    except AttributeError:
+        return None
+
+
 @dataclass(slots=True)
 class InstrumentedRun:
     """Times and classifies one shadow decision cycle per ingested event."""
@@ -102,7 +131,20 @@ class InstrumentedRun:
     are not evidence about the target wallet.
     """
 
-    def observe(self, event_kind: str, raw_receive_ns: int, decision: DecisionResult) -> None:
+    risk: object | None = None
+    """An optional P9 ``RiskController``, read for its current verdict at capture time.
+
+    Read, never driven: P11 records what risk permitted and has no opinion about it. Held as
+    ``object`` so the telemetry package does not import the risk package on the hot path.
+    """
+
+    def observe(
+        self,
+        event_kind: str,
+        raw_receive_ns: int,
+        decision: DecisionResult,
+        source_timestamp_ns: int | None = None,
+    ) -> None:
         """Run one shadow execution cycle and capture what it did. Nothing analytical.
 
         Preparation, reconciliation, and the shadow order table are **simulation**: production
@@ -168,6 +210,8 @@ class InstrumentedRun:
             down_depth = 0
 
         merger = self.pipeline.merger
+        state = merger.state
+        risk = self.risk
         self._seq += 1
         self.buffer.capture(
             (
@@ -188,6 +232,13 @@ class InstrumentedRun:
                 down_placed,
                 decision.telemetry.eligibility,
                 None,
+                # -- P11: references to values already built, all immutable ------------------
+                decision.telemetry,
+                state.book,
+                state.spot,
+                state.last_event_timestamp,
+                source_timestamp_ns,
+                _risk_snapshot(risk),
             )
         )
 

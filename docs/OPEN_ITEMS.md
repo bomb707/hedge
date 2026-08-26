@@ -319,7 +319,7 @@ scales to the submission granularity would have silently truncated real fills.
 SCALE_DECIMALS = 6
 
 SHARE_SCALE = 1_000_000     1 share       = 1_000_000 ShareUnits
-MONEY_SCALE = 1_000_000     1 USDC        = 1_000_000 MoneyUnits
+MONEY_SCALE = 1_000_000     1 collateral  = 1_000_000 MoneyUnits
 PRICE_SCALE = 1_000_000     probability 1 = 1_000_000 PriceUnits
 ```
 
@@ -427,6 +427,16 @@ source decision and the confirmation policy are separate.
 
 O14 (strike/start-price chaining) remains **OPEN**. The `twapLookbackSeconds: 60` observation is
 suggestive and is not the evidence O14 requires.
+
+---
+
+### Collateral migration does not reopen O10  *(noted 2026-08-26, P10)*
+
+Polymarket's published collateral is now **pUSD** (`0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB`),
+not the USDC that older examples assume. pUSD is **6 decimals**, exactly as USDC was, so
+`MONEY_SCALE = 1_000_000` still represents collateral exactly and O10 stays **CLOSED**. What the
+migration changes is a contract address and a name, not the numeric representation — which is
+why `MoneyUnits` is documented as naming the *unit* rather than the token.
 
 ---
 

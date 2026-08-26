@@ -65,7 +65,11 @@ Fill quantities are separately required to be strictly positive.
 """
 
 MoneyUnits = NewType("MoneyUnits", int)
-"""A signed USDC amount in units of ``1 / MONEY_SCALE`` dollars.
+"""A signed amount of Polymarket collateral money, in units of ``1 / MONEY_SCALE`` dollars.
+
+The collateral is currently pUSD, which is 6-decimal like the USDC it replaced. ``MoneyUnits``
+names the *unit*, deliberately not the token, so a future collateral change is a change of
+address and not of representation.
 
 Signed because PnL is a ``MoneyUnits``. Costs, fees, and rebates are separately required to
 be non-negative.
@@ -186,7 +190,7 @@ def parse_share(text: str, *, allow_negative: bool = True) -> ShareUnits:
 
 
 def parse_money(text: str, *, allow_negative: bool = True) -> MoneyUnits:
-    """Parse a USDC amount. Signed by default because PnL is signed."""
+    """Parse a collateral-money amount. Signed by default because PnL is signed."""
     value = _parse_fixed_point(text, field="money")
     if not allow_negative:
         _require_non_negative(value, field="money")

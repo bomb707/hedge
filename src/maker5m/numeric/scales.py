@@ -43,7 +43,12 @@ SHARE_SCALE: Final[int] = 10**SCALE_DECIMALS
 """``ShareUnits`` per whole outcome share. ``1 share == 1_000_000 ShareUnits``."""
 
 MONEY_SCALE: Final[int] = 10**SCALE_DECIMALS
-"""``MoneyUnits`` per USDC. ``$1.00 == 1_000_000 MoneyUnits``."""
+"""``MoneyUnits`` per unit of Polymarket collateral. ``$1.00 == 1_000_000 MoneyUnits``.
+
+The collateral token is currently **pUSD** (`0xC011a7E1…`), which has 6 decimals, as USDC did
+before it. The scale is a property of the *unit*, not of any particular token contract, so the
+collateral migration changes the name and not the arithmetic — and does not reopen O10.
+"""
 
 PRICE_SCALE: Final[int] = 10**SCALE_DECIMALS
 """``PriceUnits`` per unit probability. ``probability 1.0 == 1_000_000 PriceUnits``."""

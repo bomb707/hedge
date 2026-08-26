@@ -28,7 +28,8 @@ POLL_SECONDS: Final = 1.0
 """One sample per second per source while a market is settling.
 
 Fine enough to place events in order — settlement takes tens of seconds — and coarse enough not
-to become load. Polling stops as soon as the chain reports a payout.
+to become load. Polling continues for ``FOLLOW_AFTER_CHAIN`` seconds *past* the chain payout, so
+a venue source that catches up later is still recorded; see that constant for why.
 """
 
 WATCH_BEFORE_END: Final = 20

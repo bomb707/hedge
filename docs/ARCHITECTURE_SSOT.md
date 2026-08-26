@@ -704,7 +704,7 @@ invalidates every recorded replay journal and every stored ledger.
 SCALE_DECIMALS = 6
 
 SHARE_SCALE = 1_000_000     1 share       = 1_000_000 ShareUnits
-MONEY_SCALE = 1_000_000     1 USDC        = 1_000_000 MoneyUnits
+MONEY_SCALE = 1_000_000     1 collateral  = 1_000_000 MoneyUnits   (pUSD today, 6 dp)
 PRICE_SCALE = 1_000_000     probability 1 = 1_000_000 PriceUnits
 ```
 
@@ -736,7 +736,7 @@ asked for. Consequences, all enforced in code:
 | Type | Represents | Notes |
 |---|---|---|
 | `ShareUnits` | outcome tokens, in `1/SHARE_SCALE` of a share | Signed: net inventory `I` is a `ShareUnits` (I02). Carries true fractional fills (I03). |
-| `MoneyUnits` | USDC, in `1/MONEY_SCALE` dollars | Signed: PnL is a `MoneyUnits`. Costs, fees, and rebates are separately required non-negative. |
+| `MoneyUnits` | Polymarket collateral money (currently pUSD), in `1/MONEY_SCALE` dollars | Signed: PnL is a `MoneyUnits`. Costs, fees, and rebates are separately required non-negative. |
 | `PriceUnits` | probability / share price, `1.0` is `PRICE_SCALE` | Absolute, not a tick count. A tick-count view is derived via `price_to_ticks`. |
 
 P0 provisionally named the price type `PriceTicks` (a per-market tick count). P1 replaced it

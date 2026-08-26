@@ -14,7 +14,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any
 
-from maker5m.accounting.ledger import LedgerState, RebateMode
+from maker5m.accounting.ledger import RebateMode
 from maker5m.execution.reconciler import ReconcileAction, ReconcilePlan, SideAction
 from maker5m.numeric.units import PriceUnits, ShareUnits
 from maker5m.persistence.schema import (
@@ -22,7 +22,6 @@ from maker5m.persistence.schema import (
     FILL_SCHEMA_VERSION,
     DecisionRecord,
     ExactRatio,
-    FillProvenance,
     FillRecord,
     SideRecord,
 )
@@ -30,6 +29,7 @@ from maker5m.telemetry.observation import (
     OBS_BOOK,
     OBS_DOWN_DEPTH,
     OBS_ELIGIBILITY,
+    OBS_EVENT_ID,
     OBS_EVENT_KIND,
     OBS_EVENT_TS,
     OBS_FILL,
@@ -41,6 +41,7 @@ from maker5m.telemetry.observation import (
     OBS_SEQ,
     OBS_SOURCE_TS,
     OBS_SPOT,
+    OBS_STRATEGY_INTENT,
     OBS_TELEMETRY,
     OBS_UP_DEPTH,
     Observation,
@@ -104,6 +105,45 @@ def _enum_value(value: object) -> str | None:
     return None if value is None else str(getattr(value, "value", value))
 
 
+def _event_id(observation: Observation) -> str:
+    """P2's real event identity, or the empty string when the stream genuinely had none.
+
+    Never manufactured. An earlier version built this from the slug and the capture counter,
+    which produced a string that looked authoritative, joined to nothing, and changed if the
+    telemetry was replayed with different sampling. The real id already exists at ingress.
+    """
+    value = observation[OBS_EVENT_ID] if len(observation) > OBS_EVENT_ID else ""
+    return value if isinstance(value, str) else ""
+
+
+def _price(intent: object, index: int) -> PriceUnits | None:
+    if not isinstance(intent, tuple):
+        return None
+    value = intent[index]
+    return PriceUnits(value) if isinstance(value, int) else None
+
+
+def _shares(intent: object, index: int) -> ShareUnits | None:
+    if not isinstance(intent, tuple):
+        return None
+    value = intent[index]
+    return ShareUnits(value) if isinstance(value, int) else None
+
+
+def _withdrew(intent: object, plan: ReconcilePlan) -> bool:
+    """Whether safety emptied an intent the strategy actually had.
+
+    Read from the two records rather than from a flag someone remembered to set: the strategy
+    wanted something on a side, and nothing was prepared for it. That is exactly the situation
+    `risk_adjust` produces, and it is the one a bare "no quote" could otherwise hide.
+    """
+    if not isinstance(intent, tuple):
+        return False
+    wanted_up = intent[0] is not None
+    wanted_down = intent[2] is not None
+    return (wanted_up and plan.up.prepared is None) or (wanted_down and plan.down.prepared is None)
+
+
 def _side_record(
     side: SideAction,
     depth: object,
@@ -140,7 +180,6 @@ def build_decision_record(
     identity: MarketIdentity,
     *,
     persistence_sequence: int,
-    event_id: str,
     up_estimate: QueueEstimate | None = None,
     down_estimate: QueueEstimate | None = None,
     up_strategy_reason: object = None,
@@ -154,6 +193,7 @@ def build_decision_record(
     """
     plan = observation[OBS_PLAN]
     assert isinstance(plan, ReconcilePlan)
+    intent = observation[OBS_STRATEGY_INTENT]
     telemetry: Any = observation[OBS_TELEMETRY]
     economics = telemetry.economics
     endgame = telemetry.endgame
@@ -178,7 +218,7 @@ def build_decision_record(
         slug=identity.slug,
         condition_id=identity.condition_id,
         ingress_ordinal=_as_int(observation[OBS_INGRESS_ORDINAL]),
-        event_id=event_id,
+        event_id=_event_id(observation),
         event_kind=str(observation[OBS_EVENT_KIND]),
         capture_sequence=_as_int(observation[OBS_SEQ]),
         local_monotonic_ns=_as_int(observation[OBS_RAW_RECEIVE_NS]),
@@ -236,6 +276,11 @@ def build_decision_record(
         down=_side_record(
             plan.down, observation[OBS_DOWN_DEPTH], down_estimate, down_strategy_reason
         ),
+        strategy_up_price=_price(intent, 0),
+        strategy_up_size=_shares(intent, 1),
+        strategy_down_price=_price(intent, 2),
+        strategy_down_size=_shares(intent, 3),
+        risk_withdrew_intent=_withdrew(intent, plan),
         eligibility_reasons=reasons,
         clob_healthy=bool(observation[OBS_HEALTHY]),
         risk_state=None if risk is None else str(risk[1]),  # type: ignore[index]
@@ -266,46 +311,38 @@ class Liquidity(Enum):
 
 
 def build_fill_record(
-    *,
+    capture: Any,
     identity: MarketIdentity,
+    *,
     persistence_sequence: int,
-    event_id: str,
-    ingress_ordinal: int,
-    fill: Any,
-    before: LedgerState,
-    after: LedgerState,
-    liquidity: Liquidity,
-    provenance: FillProvenance,
-    token_id: str,
-    client_order_id: str | None = None,
-    venue_order_id: str | None = None,
-    queue_ahead_before: ShareUnits | None = None,
-    queue_confidence: str | None = None,
-    book: Any = None,
-    spot: Any = None,
 ) -> FillRecord:
     """One fill, with both ledger states as they actually were.
 
-    ``before`` and ``after`` are passed in as the two states that existed around the single
-    authoritative ``apply_fill``. Nothing here re-applies the fill or subtracts it back out:
-    a before-state derived by reversing the arithmetic would agree with the ledger by
-    construction and could therefore never disagree with it, which is the opposite of evidence.
-    There is still exactly one application of a fill, and it is not this one.
+    The two states come from the capture and are the ones that existed either side of the
+    single authoritative ``apply_fill``. Nothing here re-applies the fill or subtracts it back
+    out: a before-state derived by reversing the arithmetic would agree with the ledger by
+    construction and could therefore never disagree with it. There is still exactly one
+    application of a fill, and it is not this one.
     """
+    fill = capture.fill
+    before = capture.before
+    after = capture.after
+    book = capture.book
+    spot = capture.spot
     return FillRecord(
         schema_version=FILL_SCHEMA_VERSION,
         record_type="fill",
         persistence_sequence=persistence_sequence,
         market_id=identity.market_id,
-        event_id=event_id,
-        ingress_ordinal=ingress_ordinal,
+        event_id=capture.event_id,
+        ingress_ordinal=capture.ingress_ordinal,
         outcome=fill.outcome.value,
-        token_id=token_id,
+        token_id=capture.token_id,
         price=fill.price if fill.price is not None else PriceUnits(0),
         size=fill.shares,
-        liquidity=liquidity.value,
+        liquidity=capture.liquidity.value,
         fee=fill.fee,
-        provenance=provenance.value,
+        provenance=capture.provenance.value,
         inventory_before=before.net_inventory,
         inventory_after=after.net_inventory,
         n_up_before=before.n_up,
@@ -328,8 +365,8 @@ def build_fill_record(
         pnl_if_up_after=after.pnl_if_up(RebateMode.WITHOUT_REBATE),
         pnl_if_down_before=before.pnl_if_down(RebateMode.WITHOUT_REBATE),
         pnl_if_down_after=after.pnl_if_down(RebateMode.WITHOUT_REBATE),
-        queue_ahead_before=queue_ahead_before,
-        queue_confidence=queue_confidence,
+        queue_ahead_before=capture.queue_ahead_before,
+        queue_confidence=capture.queue_confidence,
         spot_price_units_at_fill=None if spot is None else spot.price.units,
         spot_price_scale_decimals_at_fill=None if spot is None else spot.price.scale_decimals,
         up_best_bid_at_fill=None if book is None or book.up_bid is None else book.up_bid.price,
@@ -340,6 +377,6 @@ def build_fill_record(
         down_best_ask_at_fill=(
             None if book is None or book.down_ask is None else book.down_ask.price
         ),
-        client_order_id=client_order_id,
-        venue_order_id=venue_order_id,
+        client_order_id=capture.client_order_id,
+        venue_order_id=capture.venue_order_id,
     )

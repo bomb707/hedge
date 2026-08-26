@@ -146,9 +146,10 @@ def test_writing_with_no_connection_at_all_is_an_error_not_a_crash(tmp_path: Pat
     from maker5m.persistence import build_decision_record
     from tests.persistence.builders import identity as ident
 
-    record = build_decision_record(observation(), ident(), persistence_sequence=1, event_id="e")
+    record = build_decision_record(observation(), ident(), persistence_sequence=1)
     store.write_decision(record)
-    assert store.sink_errors == 1
+    # Two refusals: the storage-order envelope and the row itself, both with nowhere to go.
+    assert store.sink_errors == 2
     assert store.rows_written == 0
 
 

@@ -24,7 +24,7 @@ from maker5m.persistence import (
     build_decision_record,
     build_fill_record,
 )
-from tests.persistence.builders import UP_TOKEN, identity, observation
+from tests.persistence.builders import UP_TOKEN, fill_capture, identity, observation
 
 CANONICAL_26 = (
     "gross_payout",
@@ -204,7 +204,7 @@ def test_every_typed_action_is_counted_separately() -> None:
     unit = accumulator()
     for action in ReconcileAction:
         record = build_decision_record(
-            observation(action=action), identity(), persistence_sequence=1, event_id="e"
+            observation(action=action), identity(), persistence_sequence=1
         )
         unit.observe_decision(record)
     metrics = unit.build(LedgerState(), winner=None)
@@ -233,7 +233,6 @@ def test_quote_count_ambiguity_is_exposed_rather_than_resolved_silently() -> Non
                 observation(action=ReconcileAction.KEEP),
                 identity(),
                 persistence_sequence=1,
-                event_id="e",
             )
         )
     metrics = unit.build(LedgerState(), winner=None)
@@ -246,27 +245,7 @@ def test_quote_count_ambiguity_is_exposed_rather_than_resolved_silently() -> Non
 
 
 def _fill_record(liquidity: Liquidity = Liquidity.MAKER) -> object:
-    before = LedgerState()
-    fill = Fill(
-        outcome=Outcome.UP,
-        shares=ShareUnits(10_000_000),
-        cost=MoneyUnits(4_900_000),
-        fee=MoneyUnits(1_234),
-        price=PriceUnits(490_000),
-    )
-    after = before.apply_fill(fill)
-    return build_fill_record(
-        identity=identity(),
-        persistence_sequence=1,
-        event_id="fill-1",
-        ingress_ordinal=9,
-        fill=fill,
-        before=before,
-        after=after,
-        liquidity=liquidity,
-        provenance=FillProvenance.SHADOW_MODEL,
-        token_id=UP_TOKEN,
-    )
+    return build_fill_record(fill_capture(liquidity), identity(), persistence_sequence=1)
 
 
 def test_a_fill_record_captures_both_ledger_states_rather_than_reversing_the_fill() -> None:

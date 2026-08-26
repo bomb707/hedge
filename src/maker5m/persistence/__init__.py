@@ -12,6 +12,19 @@ recorded in the manifest and enforced by the verifier.
 """
 
 from maker5m.persistence.analytics import MetricsAccumulator, risk_row, settlement_row
+from maker5m.persistence.archive import (
+    ARCHIVE_SUFFIX,
+    ArchiveResult,
+    archive_store,
+    restore_store,
+    verify_archive,
+)
+from maker5m.persistence.capture import (
+    DEFAULT_FILL_CAPACITY,
+    DEFAULT_RISK_CAPACITY,
+    BoundedChannel,
+    FillCapture,
+)
 from maker5m.persistence.records import (
     Liquidity,
     MarketIdentity,
@@ -57,17 +70,23 @@ from maker5m.persistence.worker import (
 )
 
 __all__ = [
+    "ARCHIVE_SUFFIX",
     "DECISION_SCHEMA_VERSION",
     "DEFAULT_BATCH_SIZE",
+    "DEFAULT_FILL_CAPACITY",
     "DEFAULT_POLL_SECONDS",
+    "DEFAULT_RISK_CAPACITY",
     "FILL_SCHEMA_VERSION",
     "MANIFEST_SCHEMA_VERSION",
     "METRICS_SCHEMA_VERSION",
     "RISK_ROW_SCHEMA_VERSION",
     "SETTLEMENT_ROW_SCHEMA_VERSION",
     "STORE_SCHEMA_VERSION",
+    "ArchiveResult",
+    "BoundedChannel",
     "DecisionRecord",
     "ExactRatio",
+    "FillCapture",
     "FillProvenance",
     "FillRecord",
     "Liquidity",
@@ -85,12 +104,15 @@ __all__ = [
     "VerificationResult",
     "VerificationStatus",
     "WorkerStats",
+    "archive_store",
     "build_decision_record",
     "build_fill_record",
     "database_digest",
     "open_for_read",
     "read_manifest",
+    "restore_store",
     "risk_row",
     "settlement_row",
+    "verify_archive",
     "verify_store",
 ]

@@ -52,10 +52,15 @@ __all__ = [
     "TelemetryProvenance",
 ]
 
-STORE_SCHEMA_VERSION: Final[int] = 1
+STORE_SCHEMA_VERSION: Final[int] = 2
 """The database's own version, checked on open. A newer one fails the read closed."""
 
-DECISION_SCHEMA_VERSION: Final[int] = 1
+DECISION_SCHEMA_VERSION: Final[int] = 2
+"""V2 separates what the strategy wanted from what risk allowed execution to do.
+
+V1 stored one intent and could not distinguish 'the strategy declined to quote' from 'the
+strategy wanted to quote and safety refused'. Bumped rather than reinterpreted: a V1 row still
+means what it meant when it was written."""
 FILL_SCHEMA_VERSION: Final[int] = 1
 RISK_ROW_SCHEMA_VERSION: Final[int] = 1
 SETTLEMENT_ROW_SCHEMA_VERSION: Final[int] = 1
@@ -249,11 +254,27 @@ class DecisionRecord:
     up: SideRecord
     down: SideRecord
 
+    strategy_up_price: PriceUnits | None
+    strategy_up_size: ShareUnits | None
+    strategy_down_price: PriceUnits | None
+    strategy_down_size: ShareUnits | None
+    """What the *economic strategy* wanted, before any risk verdict was applied.
+
+    Distinct from `up.desired_price` and its DOWN counterpart, which describe what execution was
+    actually allowed to prepare. When risk halts, these stay populated and those go empty, and a
+    reader can tell the two situations apart — which is the entire reason the pair exists."""
+
+    risk_withdrew_intent: bool
+    """Whether the executable intent differs from the strategy's because safety withdrew it."""
+
     eligibility_reasons: tuple[str, ...]
     clob_healthy: bool
 
     risk_state: str | None
     risk_sequence: int | None
+    """The `risk_sequence` of the verdict that governed this cycle. A foreign key into the
+    persisted risk stream, and the thing a PLACE has to be able to point at."""
+
     risk_allows_place: bool | None
     risk_allows_cancel: bool | None
 
@@ -529,16 +550,38 @@ class Manifest:
     """False until the market is explicitly finished. A crash therefore leaves it false, and an
     unfinished market can never be mistaken for a complete one."""
 
+    risk_records_accepted: int = 0
+    risk_records_persisted: int = 0
+    risk_records_dropped: int = 0
+    fill_captures_accepted: int = 0
+    fill_captures_persisted: int = 0
+    fill_captures_dropped: int = 0
+    """Per-stream durability accounting.
+
+    A bounded channel that overflows loses its *oldest* entries, so a risk stream can lose its
+    prefix and the retained suffix will still look internally contiguous. Counting acceptance
+    against persistence is what makes that visible; P9C closed the same class of defect once
+    already and it is not being reopened here."""
+
     notes: tuple[str, ...] = field(default_factory=tuple)
 
     @property
     def telemetry_complete(self) -> bool:
-        """Complete means nothing was lost, not that trading succeeded."""
+        """Complete means nothing was lost, not that trading succeeded.
+
+        Every stream has to have survived, not just the one that happens to be biggest. A market
+        whose decisions all landed but whose risk prefix fell off a bounded channel is exactly
+        the case this property exists to refuse.
+        """
         return (
             self.closed
             and self.dropped_records == 0
             and self.sequence_gaps == 0
             and self.lost_observations == 0
             and self.sink_errors == 0
+            and self.risk_records_dropped == 0
+            and self.fill_captures_dropped == 0
             and self.accepted_records == self.persisted_records
+            and self.risk_records_accepted == self.risk_records_persisted
+            and self.fill_captures_accepted == self.fill_captures_persisted
         )

@@ -163,6 +163,16 @@ def plan(action: ReconcileAction = ReconcileAction.KEEP) -> ReconcilePlan:
     return ReconcilePlan(up=side(Outcome.UP), down=side(Outcome.DOWN))
 
 
+def _default_intent() -> tuple[object, ...]:
+    """What the strategy wanted on each side, as primitives."""
+    return (
+        PriceUnits(490_000),
+        ShareUnits(15_000_000),
+        PriceUnits(490_000),
+        ShareUnits(15_000_000),
+    )
+
+
 def observation(
     seq: int = 0,
     *,
@@ -171,6 +181,8 @@ def observation(
     with_spot: bool = True,
     source_timestamp_ns: int | None = None,
     risk: tuple[object, ...] | None = None,
+    event_id: str = "clob-000123",
+    strategy_intent: tuple[object, ...] | None = None,
     action: ReconcileAction = ReconcileAction.KEEP,
     fill: tuple[object, ...] | None = None,
     decision_telemetry: DecisionTelemetry | None = None,
@@ -200,4 +212,48 @@ def observation(
         TimestampNs(1_787_733_400_000_000_000),
         source_timestamp_ns,
         risk,
+        event_id,
+        strategy_intent
+        if strategy_intent is not None
+        else (
+            PriceUnits(490_000),
+            ShareUnits(15_000_000),
+            PriceUnits(490_000),
+            ShareUnits(15_000_000),
+        ),
     )
+
+
+def fill_capture(liquidity: Any = None, **overrides: Any) -> Any:
+    """One canonical fill and the two ledger states around the single real apply_fill."""
+    from maker5m.accounting.ledger import Fill, LedgerState
+    from maker5m.persistence import FillCapture, FillProvenance
+    from maker5m.persistence.records import Liquidity
+
+    before = overrides.pop("before", LedgerState())
+    fill = overrides.pop(
+        "fill",
+        Fill(
+            outcome=Outcome.UP,
+            shares=ShareUnits(10_000_000),
+            cost=MoneyUnits(4_900_000),
+            fee=MoneyUnits(1_234),
+            price=PriceUnits(490_000),
+        ),
+    )
+    after = overrides.pop("after", before.apply_fill(fill))
+    base: dict[str, Any] = {
+        "fill": fill,
+        "before": before,
+        "after": after,
+        "event_id": "clob-000456",
+        "ingress_ordinal": 9,
+        "timestamp": TimestampNs(1_787_733_400_000_000_000),
+        "token_id": UP_TOKEN,
+        "liquidity": liquidity or Liquidity.MAKER,
+        "provenance": FillProvenance.SHADOW_MODEL,
+        "client_order_id": "coid-1",
+        "venue_order_id": "venue-1",
+    }
+    base.update(overrides)
+    return FillCapture(**base)

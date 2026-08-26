@@ -57,7 +57,7 @@ def test_every_canonical_25_decision_field_exists(canonical: str, names: tuple[s
 
 def test_both_sides_are_recorded_separately_and_completely() -> None:
     """§25 wants desired, existing, queue and reason *per side*, not one merged action."""
-    record = build_decision_record(observation(), identity(), persistence_sequence=1, event_id="e")
+    record = build_decision_record(observation(), identity(), persistence_sequence=1)
     for side in (record.up, record.down):
         assert side.action and side.reason
         assert side.desired_price is not None and side.desired_size is not None
@@ -68,7 +68,7 @@ def test_both_sides_are_recorded_separately_and_completely() -> None:
 
 
 def test_a_decision_record_refuses_an_unknown_schema_version() -> None:
-    record = build_decision_record(observation(), identity(), persistence_sequence=1, event_id="e")
+    record = build_decision_record(observation(), identity(), persistence_sequence=1)
     values = {field.name: getattr(record, field.name) for field in fields(DecisionRecord)}
     values["schema_version"] = DECISION_SCHEMA_VERSION + 1
     with pytest.raises(ValueError, match="unsupported decision schema"):
@@ -79,7 +79,7 @@ def test_a_decision_record_refuses_an_unknown_schema_version() -> None:
 
 
 def test_ages_derive_from_event_timestamps_not_a_wall_clock() -> None:
-    record = build_decision_record(observation(), identity(), persistence_sequence=1, event_id="e")
+    record = build_decision_record(observation(), identity(), persistence_sequence=1)
     assert record.spot_age_ns == 2_000_000_000
     assert record.book_age_ns == 1_000_000_000
     assert record.event_timestamp_ns == 1_787_733_400_000_000_000
@@ -90,7 +90,6 @@ def test_a_missing_source_is_recorded_as_unknown_not_as_zero_age() -> None:
         observation(with_book=False, with_spot=False),
         identity(),
         persistence_sequence=1,
-        event_id="e",
     )
     assert record.spot_age_ns is None
     assert record.book_age_ns is None
@@ -100,14 +99,13 @@ def test_a_missing_source_is_recorded_as_unknown_not_as_zero_age() -> None:
 
 def test_an_absent_exchange_timestamp_is_null_not_the_ingress_clock() -> None:
     """The ingress clock must never be passed off as the venue's."""
-    without = build_decision_record(observation(), identity(), persistence_sequence=1, event_id="e")
+    without = build_decision_record(observation(), identity(), persistence_sequence=1)
     assert without.exchange_timestamp_ns is None
 
     with_venue = build_decision_record(
         observation(source_timestamp_ns=1_787_733_399_500_000_000),
         identity(),
         persistence_sequence=2,
-        event_id="e",
     )
     assert with_venue.exchange_timestamp_ns == 1_787_733_399_500_000_000
     assert with_venue.exchange_timestamp_ns != with_venue.event_timestamp_ns
@@ -136,7 +134,6 @@ def test_the_ledger_projection_is_carried_through_unchanged() -> None:
         observation(decision_telemetry=telemetry(economics=numbers)),
         identity(),
         persistence_sequence=1,
-        event_id="e",
     )
     assert record.inventory == 7_000_000
     assert record.total_cost == 15_900_000
@@ -146,7 +143,7 @@ def test_the_ledger_projection_is_carried_through_unchanged() -> None:
 
 
 def test_both_rebate_views_survive_because_o07_is_open() -> None:
-    record = build_decision_record(observation(), identity(), persistence_sequence=1, event_id="e")
+    record = build_decision_record(observation(), identity(), persistence_sequence=1)
     names = {field.name for field in fields(DecisionRecord)}
     assert {"estimated_rebates", "realised_rebates"} <= names
     assert {"pnl_if_up_without_rebate", "pnl_if_up_estimated_rebate"} <= names
@@ -170,7 +167,7 @@ def test_an_exact_ratio_refuses_a_zero_denominator() -> None:
 
 
 def test_no_authoritative_economic_field_is_a_float() -> None:
-    record = build_decision_record(observation(), identity(), persistence_sequence=1, event_id="e")
+    record = build_decision_record(observation(), identity(), persistence_sequence=1)
     for field in fields(DecisionRecord):
         value = getattr(record, field.name)
         assert not isinstance(value, float), f"{field.name} is a float"
@@ -190,7 +187,6 @@ def test_the_risk_verdict_is_recorded_when_one_is_attached() -> None:
         observation(risk=(12, "HALTED", False, True)),
         identity(),
         persistence_sequence=1,
-        event_id="e",
     )
     assert record.risk_sequence == 12
     assert record.risk_state == "HALTED"
@@ -201,6 +197,6 @@ def test_the_risk_verdict_is_recorded_when_one_is_attached() -> None:
 def test_every_typed_action_survives_into_the_record() -> None:
     for action in ReconcileAction:
         record = build_decision_record(
-            observation(action=action), identity(), persistence_sequence=1, event_id="e"
+            observation(action=action), identity(), persistence_sequence=1
         )
         assert record.up.action == action.value

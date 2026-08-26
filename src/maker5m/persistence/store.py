@@ -97,6 +97,13 @@ CREATE TABLE IF NOT EXISTS settlements (
     schema_version INTEGER NOT NULL,
     payload TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS persistence_log (
+    persistence_sequence INTEGER PRIMARY KEY,
+    market_id TEXT NOT NULL,
+    record_type TEXT NOT NULL,
+    record_key TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS persistence_log_market ON persistence_log(market_id);
 CREATE TABLE IF NOT EXISTS market_metrics (
     market_id TEXT PRIMARY KEY,
     schema_version INTEGER NOT NULL,
@@ -180,11 +187,29 @@ class TelemetryStore:
     Bounded so a persistently broken store cannot turn its own failure into a memory leak."""
 
     def open(self) -> None:
+        """Open for writing, refusing a store this build does not define.
+
+        The version is read *before* anything is created or stamped. An earlier version ran the
+        schema script and then set `user_version` unconditionally, so opening a future store for
+        writing would quietly downgrade its metadata and half-apply this build's tables to it —
+        the write side has to fail closed for the same reason the read side does.
+        """
+        existing = self.path.exists() and self.path.stat().st_size > 0
         connection = sqlite3.connect(str(self.path), isolation_level=None)
+        if existing:
+            version = int(connection.execute("PRAGMA user_version").fetchone()[0])
+            if version != STORE_SCHEMA_VERSION:
+                connection.close()
+                raise SchemaVersionError(
+                    f"store at {self.path} declares schema {version}, this build writes "
+                    f"{STORE_SCHEMA_VERSION}; refusing to open it for writing rather than "
+                    "changing a file it does not understand"
+                )
         connection.execute("PRAGMA journal_mode=WAL")
         connection.execute("PRAGMA synchronous=NORMAL")
         connection.executescript(SCHEMA)
-        connection.execute(f"PRAGMA user_version={STORE_SCHEMA_VERSION}")
+        if not existing:
+            connection.execute(f"PRAGMA user_version={STORE_SCHEMA_VERSION}")
         connection.execute("BEGIN")
         self._connection = connection
 
@@ -264,7 +289,26 @@ class TelemetryStore:
             (market_id, slug, condition_id, provenance, market_id),
         )
 
+    def _log(self, sequence: int, market_id: str, record_type: str, key: str) -> None:
+        """One row per stored event-like record, in a single total storage order.
+
+        The typed tables each have their own primary key, so nothing in them can show that the
+        *combined* storage order has no hole. This envelope can: a missing prefix, a duplicate
+        across two different tables, or a gap all show up as a break in one contiguous run.
+
+        Storage order, not causality. `ingress_ordinal`, `risk_sequence` and the settlement
+        block remain the orders that mean something.
+        """
+        self._execute(
+            "INSERT OR REPLACE INTO persistence_log"
+            " (persistence_sequence, market_id, record_type, record_key) VALUES (?, ?, ?, ?)",
+            (sequence, market_id, record_type, key),
+        )
+
     def write_decision(self, record: DecisionRecord) -> None:
+        self._log(
+            record.persistence_sequence, record.market_id, "decision", str(record.ingress_ordinal)
+        )
         self._execute(
             "INSERT OR REPLACE INTO decisions (persistence_sequence, market_id,"
             " ingress_ordinal, capture_sequence, event_id, event_kind, schema_version, payload)"
@@ -282,6 +326,7 @@ class TelemetryStore:
         )
 
     def write_fill(self, record: FillRecord) -> None:
+        self._log(record.persistence_sequence, record.market_id, "fill", record.event_id)
         self._execute(
             "INSERT OR REPLACE INTO fills (persistence_sequence, market_id, ingress_ordinal,"
             " event_id, provenance, liquidity, schema_version, payload)"
@@ -299,6 +344,7 @@ class TelemetryStore:
         )
 
     def write_risk(self, record: RiskRow) -> None:
+        self._log(record.persistence_sequence, record.market_id, "risk", str(record.risk_sequence))
         self._execute(
             "INSERT OR REPLACE INTO risk_records (persistence_sequence, market_id,"
             " risk_sequence, as_of_ingress_ordinal, schema_version, payload)"
@@ -314,6 +360,7 @@ class TelemetryStore:
         )
 
     def write_settlement(self, record: SettlementRow) -> None:
+        self._log(record.persistence_sequence, record.market_id, "settlement", record.condition_id)
         self._execute(
             "INSERT OR REPLACE INTO settlements (persistence_sequence, market_id, condition_id,"
             " resolution_state, schema_version, payload) VALUES (?, ?, ?, ?, ?, ?)",

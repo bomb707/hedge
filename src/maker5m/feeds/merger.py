@@ -65,6 +65,14 @@ class IngressMerger:
     are on the *latency* clock and never enter Plane 2 state.
     """
 
+    last_event_id: str = ""
+    """The ``EventMeta.event_id`` of the event most recently submitted.
+
+    P2 already assigns every event a real identity at ingress; this makes it readable afterwards
+    so telemetry can persist the actual one instead of manufacturing a plausible-looking string.
+    One attribute store on the hot path, and nothing downstream of it here — the event contract,
+    the reducer and the P5 journal format are all untouched."""
+
     last_reduce_ns: int = 0
     last_decide_ns: int = 0
     stages_measured: bool = False
@@ -101,6 +109,7 @@ class IngressMerger:
         trading path — only whether a clock is read around it.
         """
         self.stages_measured = measure_stages
+        self.last_event_id = event.meta.event_id
         perf = self.perf_clock if measure_stages else None
         self.state = reduce_event(self.state, event)
         if perf is not None:

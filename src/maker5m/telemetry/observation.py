@@ -51,6 +51,7 @@ __all__ = [
     "OBS_DOWN_DEPTH",
     "OBS_DOWN_PLACED_ID",
     "OBS_ELIGIBILITY",
+    "OBS_EVENT_ID",
     "OBS_EVENT_KIND",
     "OBS_EVENT_TS",
     "OBS_FILL",
@@ -65,6 +66,7 @@ __all__ = [
     "OBS_SEQ",
     "OBS_SOURCE_TS",
     "OBS_SPOT",
+    "OBS_STRATEGY_INTENT",
     "OBS_TELEMETRY",
     "OBS_UP_DEPTH",
     "OBS_UP_PLACED_ID",
@@ -134,6 +136,18 @@ OBS_SOURCE_TS: Final = 21
 supplied one. ``None`` otherwise — the ingress clock is never passed off as an exchange clock."""
 OBS_RISK: Final = 22
 """``(risk_sequence, state, allows_place, allows_cancel)`` when a risk controller is attached."""
+OBS_EVENT_ID: Final = 23
+"""P2's real ``EventMeta.event_id`` for the triggering event.
+
+The genuine identity, read from the merger, not a string built from the slug and a counter. A
+manufactured id looks authoritative and joins to nothing; this one is what the event stream,
+the replay journal and the risk trace all already agree on."""
+OBS_STRATEGY_INTENT: Final = 24
+"""``(up_price, up_size, down_price, down_size)`` the *strategy* wanted, before risk withdrew it.
+
+Captured separately because `risk_adjust` empties the intent a halt refuses, and a record that
+only kept the post-risk version could not tell "the strategy declined to quote" from "the
+strategy wanted to quote and safety refused" — which is the question telemetry exists to answer."""
 
 DEFAULT_OBSERVATION_CAPACITY: Final[int] = 320_000
 """Sized from evidence, and resized twice as the evidence arrived.

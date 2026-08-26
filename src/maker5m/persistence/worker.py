@@ -31,8 +31,13 @@ from dataclasses import dataclass, field
 from typing import Any, Final
 
 from maker5m.domain import Outcome
-from maker5m.persistence.analytics import MetricsAccumulator
-from maker5m.persistence.records import MarketIdentity, build_decision_record
+from maker5m.persistence.analytics import MetricsAccumulator, risk_row
+from maker5m.persistence.capture import BoundedChannel
+from maker5m.persistence.records import (
+    MarketIdentity,
+    build_decision_record,
+    build_fill_record,
+)
 from maker5m.persistence.schema import Manifest, MarketMetrics
 from maker5m.persistence.store import TelemetryStore
 from maker5m.telemetry.analyzer import TelemetryAnalyzer
@@ -71,6 +76,8 @@ class WorkerStats:
     last_gap_at: int | None = None
     stalled_ns: int = 0
     consume_errors: int = 0
+    risk_written: int = 0
+    fills_written: int = 0
     error_samples: list[str] = field(default_factory=list)
     """A few distinct failure descriptions, kept so a silent count is never the only clue.
 
@@ -89,6 +96,8 @@ class WorkerStats:
             "first_gap_at": self.first_gap_at,
             "last_gap_at": self.last_gap_at,
             "consume_errors": self.consume_errors,
+            "risk_written": self.risk_written,
+            "fills_written": self.fills_written,
             "error_samples": list(self.error_samples),
         }
 
@@ -106,6 +115,16 @@ class PersistenceWorker:
     buffer: ObservationBuffer
     store: TelemetryStore
     identity: MarketIdentity
+    fills: BoundedChannel | None = None
+    """Canonical fills, published from Plane 1 through a bounded non-blocking channel."""
+
+    risk: BoundedChannel | None = None
+    """P9 records, published as they are produced rather than dumped after DONE.
+
+    Continuous because P11 is the durability phase: a mid-market crash should leave a useful
+    partial risk audit beside the useful partial decision audit. P9's own `RiskTrace` is
+    untouched and remains the in-memory authority; this is a copy travelling to disk."""
+
     analyzer: TelemetryAnalyzer | None = None
     metrics: MetricsAccumulator | None = None
     """Folded here rather than by a second pass over stored rows, so a market that crashes has
@@ -195,12 +214,12 @@ class PersistenceWorker:
             if self.stall is not None and self.stall():
                 self._stop.wait(self.poll_seconds)
                 continue
-            drained = self.drain_once()
+            drained = self.drain_once() + self.drain_side_channels()
             if drained == 0:
                 self._stop.wait(self.poll_seconds)
 
         # Final drain and close, on the thread that owns the connection.
-        while self.drain_once():
+        while self.drain_once() or self.drain_side_channels():
             pass
         self.store.close()
 
@@ -264,6 +283,72 @@ class PersistenceWorker:
         if description not in samples and len(samples) < 8:
             samples.append(description)
 
+    def drain_side_channels(self) -> int:
+        """Persist whatever fills and risk records are waiting. Never raises.
+
+        Risk first: a decision record names the `risk_sequence` that governed it, and the
+        verifier checks that the row it names exists. Writing the verdict before the decisions
+        it governed keeps that reference satisfiable at every point in the file, including after
+        a crash.
+        """
+        if not self._draining.acquire(blocking=False):
+            return 0
+        try:
+            return self._drain_risk() + self._drain_fills()
+        finally:
+            self._draining.release()
+
+    def _drain_risk(self) -> int:
+        channel = self.risk
+        if channel is None:
+            return 0
+        taken = 0
+        while taken < self.drain_limit:
+            try:
+                record = channel.records.popleft()
+            except IndexError:
+                break
+            taken += 1
+            try:
+                self._persistence_sequence += 1
+                self.store.write_risk(
+                    risk_row(
+                        record,
+                        market_id=self.identity.market_id,
+                        persistence_sequence=self._persistence_sequence,
+                    )
+                )
+                self.stats.risk_written += 1
+            except Exception as error:
+                self._record_consume_error(error)
+        channel.drained += taken
+        return taken
+
+    def _drain_fills(self) -> int:
+        channel = self.fills
+        if channel is None:
+            return 0
+        taken = 0
+        while taken < self.drain_limit:
+            try:
+                capture = channel.records.popleft()
+            except IndexError:
+                break
+            taken += 1
+            try:
+                self._persistence_sequence += 1
+                record = build_fill_record(
+                    capture, self.identity, persistence_sequence=self._persistence_sequence
+                )
+                self.store.write_fill(record)
+                if self.metrics is not None:
+                    self.metrics.observe_fill(record)
+                self.stats.fills_written += 1
+            except Exception as error:
+                self._record_consume_error(error)
+        channel.drained += taken
+        return taken
+
     def _consume(self, observation: Observation) -> None:
         seq = observation[OBS_SEQ]
         assert isinstance(seq, int)
@@ -290,7 +375,6 @@ class PersistenceWorker:
             observation,
             self.identity,
             persistence_sequence=self._persistence_sequence,
-            event_id=f"{self.identity.slug}-{seq:08d}",
             up_estimate=self._estimate("UP"),
             down_estimate=self._estimate("DOWN"),
         )

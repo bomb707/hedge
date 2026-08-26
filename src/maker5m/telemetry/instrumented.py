@@ -47,7 +47,7 @@ from maker5m.feeds.pipeline import MarketDataPipeline
 from maker5m.feeds.venue import VenueMarketRules
 from maker5m.market.events import HealthStatus
 from maker5m.numeric.units import ShareUnits
-from maker5m.strategy.decision import DecisionResult
+from maker5m.strategy.decision import DecisionResult, DesiredOrders
 from maker5m.strategy.engine import StrategyEngine
 from maker5m.telemetry.analyzer import TelemetryAnalyzer
 from maker5m.telemetry.latency import perf_now_ns
@@ -62,6 +62,23 @@ __all__ = ["InstrumentedRun"]
 
 QUEUE_LOSS_ACTIONS: Final = frozenset({ReconcileAction.REPLACE, ReconcileAction.CANCEL})
 """Reconciler actions that give up a live order's queue slot. KEEP is never one of them."""
+
+
+def _intent(orders: DesiredOrders) -> tuple[object, ...]:
+    """Four primitives describing what was wanted on each side.
+
+    Taken as primitives rather than by reference because ``risk_adjust`` may hand the executor a
+    *different* ``DesiredOrders`` than the strategy produced. Keeping the strategy's own numbers
+    here is what lets a record say "the strategy wanted to quote and safety refused" instead of
+    the much weaker "nothing was quoted".
+    """
+    up, down = orders.up, orders.down
+    return (
+        None if up is None else up.price,
+        None if up is None else up.size,
+        None if down is None else down.price,
+        None if down is None else down.size,
+    )
 
 
 def _risk_snapshot(controller: object) -> tuple[object, ...] | None:
@@ -144,6 +161,7 @@ class InstrumentedRun:
         raw_receive_ns: int,
         decision: DecisionResult,
         source_timestamp_ns: int | None = None,
+        strategy_intent: DesiredOrders | None = None,
     ) -> None:
         """Run one shadow execution cycle and capture what it did. Nothing analytical.
 
@@ -239,6 +257,8 @@ class InstrumentedRun:
                 state.last_event_timestamp,
                 source_timestamp_ns,
                 _risk_snapshot(risk),
+                merger.last_event_id,
+                _intent(strategy_intent if strategy_intent is not None else decision.orders),
             )
         )
 

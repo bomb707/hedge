@@ -687,10 +687,12 @@ orders, which P8 does not place. Both stay OPEN.
 | P9C audit-closure branch | `fix/p9-risk-sequence-integrity` |
 | P9C boundary commit | `44e05e1` — carries the P9C evidence and docs |
 | P9C commits | `63cc2b5` verifier + integrity tests · `44e05e1` evidence, docs, manifest block |
+| P1 parser correction | `226663d` — `fix: accept leading-dot exact decimals` |
+| GitHub default branch | `main` (verified 2026-08-26; the earlier `bootstrap/phase-0` observation no longer holds) |
 | P9 commits | `4be0032` risk engine · `6576de0` recovery + runner · `1584dee` stale recovery fix · `b2e715e` real-market evidence · `4c2ab1d` full fault market |
 | Last accepted milestone | P7 — execution state + reconciler, corrected (`0f17bd2`) |
 | Next milestone | P9 — awaiting acceptance of P8; not started |
-| `main` | `3cefd82` — fast-forwarded through the accepted P8C boundary, pushed |
+| `main` | `226663d` — fast-forwarded through accepted P9C and the P1 parser correction, pushed |
 | Remote | `origin` → `https://github.com/bomb707/hedge.git` |
 
 Nothing merged by merge commit, rebased, squashed, or force-pushed. `main` advances by

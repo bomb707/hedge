@@ -11,13 +11,18 @@ here would be a second PnL formula, and the whole reason P1 exists is that there
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import Any
 
+from maker5m.accounting.ledger import LedgerState, RebateMode
 from maker5m.execution.reconciler import ReconcileAction, ReconcilePlan, SideAction
-from maker5m.numeric.units import ShareUnits
+from maker5m.numeric.units import PriceUnits, ShareUnits
 from maker5m.persistence.schema import (
     DECISION_SCHEMA_VERSION,
+    FILL_SCHEMA_VERSION,
     DecisionRecord,
+    FillProvenance,
+    FillRecord,
     SideRecord,
 )
 from maker5m.telemetry.observation import (
@@ -41,7 +46,13 @@ from maker5m.telemetry.observation import (
 )
 from maker5m.telemetry.queue_estimate import QueueEstimate
 
-__all__ = ["MarketIdentity", "build_decision_record", "is_fill_observation"]
+__all__ = [
+    "Liquidity",
+    "MarketIdentity",
+    "build_decision_record",
+    "build_fill_record",
+    "is_fill_observation",
+]
 
 
 def _as_int(value: object) -> int:
@@ -229,3 +240,98 @@ def build_decision_record(
 
 ACTION_NAMES: tuple[str, ...] = tuple(action.value for action in ReconcileAction)
 """Every typed reconciler action, so metrics count all of them and none by accident."""
+
+
+class Liquidity(Enum):
+    """How a fill was executed, as the venue reported it.
+
+    ``UNKNOWN`` is a real answer, not a placeholder. A venue that does not say whether we were
+    the maker leaves the maker fraction genuinely unknown, and guessing MAKER because we only
+    ever post passively would turn an assumption into a statistic. Canonical §27's whole point
+    is that a small number of taker fills removes the entire edge, so this field is the one
+    least entitled to a default.
+    """
+
+    MAKER = "MAKER"
+    TAKER = "TAKER"
+    UNKNOWN = "UNKNOWN"
+
+
+def build_fill_record(
+    *,
+    identity: MarketIdentity,
+    persistence_sequence: int,
+    event_id: str,
+    ingress_ordinal: int,
+    fill: Any,
+    before: LedgerState,
+    after: LedgerState,
+    liquidity: Liquidity,
+    provenance: FillProvenance,
+    token_id: str,
+    client_order_id: str | None = None,
+    venue_order_id: str | None = None,
+    queue_ahead_before: ShareUnits | None = None,
+    queue_confidence: str | None = None,
+    book: Any = None,
+    spot: Any = None,
+) -> FillRecord:
+    """One fill, with both ledger states as they actually were.
+
+    ``before`` and ``after`` are passed in as the two states that existed around the single
+    authoritative ``apply_fill``. Nothing here re-applies the fill or subtracts it back out:
+    a before-state derived by reversing the arithmetic would agree with the ledger by
+    construction and could therefore never disagree with it, which is the opposite of evidence.
+    There is still exactly one application of a fill, and it is not this one.
+    """
+    return FillRecord(
+        schema_version=FILL_SCHEMA_VERSION,
+        record_type="fill",
+        persistence_sequence=persistence_sequence,
+        market_id=identity.market_id,
+        event_id=event_id,
+        ingress_ordinal=ingress_ordinal,
+        outcome=fill.outcome.value,
+        token_id=token_id,
+        price=fill.price if fill.price is not None else PriceUnits(0),
+        size=fill.shares,
+        liquidity=liquidity.value,
+        fee=fill.fee,
+        provenance=provenance.value,
+        inventory_before=before.net_inventory,
+        inventory_after=after.net_inventory,
+        n_up_before=before.n_up,
+        n_up_after=after.n_up,
+        n_down_before=before.n_down,
+        n_down_after=after.n_down,
+        cost_up_before=before.cost_up,
+        cost_up_after=after.cost_up,
+        cost_down_before=before.cost_down,
+        cost_down_after=after.cost_down,
+        total_cost_before=before.total_cost,
+        total_cost_after=after.total_cost,
+        fees_before=before.fees,
+        fees_after=after.fees,
+        estimated_rebates_before=before.estimated_rebates,
+        estimated_rebates_after=after.estimated_rebates,
+        realised_rebates_before=before.realised_rebates,
+        realised_rebates_after=after.realised_rebates,
+        pnl_if_up_before=before.pnl_if_up(RebateMode.WITHOUT_REBATE),
+        pnl_if_up_after=after.pnl_if_up(RebateMode.WITHOUT_REBATE),
+        pnl_if_down_before=before.pnl_if_down(RebateMode.WITHOUT_REBATE),
+        pnl_if_down_after=after.pnl_if_down(RebateMode.WITHOUT_REBATE),
+        queue_ahead_before=queue_ahead_before,
+        queue_confidence=queue_confidence,
+        spot_price_units_at_fill=None if spot is None else spot.price.units,
+        spot_price_scale_decimals_at_fill=None if spot is None else spot.price.scale_decimals,
+        up_best_bid_at_fill=None if book is None or book.up_bid is None else book.up_bid.price,
+        up_best_ask_at_fill=None if book is None or book.up_ask is None else book.up_ask.price,
+        down_best_bid_at_fill=(
+            None if book is None or book.down_bid is None else book.down_bid.price
+        ),
+        down_best_ask_at_fill=(
+            None if book is None or book.down_ask is None else book.down_ask.price
+        ),
+        client_order_id=client_order_id,
+        venue_order_id=venue_order_id,
+    )

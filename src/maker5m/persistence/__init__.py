@@ -12,7 +12,12 @@ recorded in the manifest and enforced by the verifier.
 """
 
 from maker5m.persistence.analytics import MetricsAccumulator, risk_row, settlement_row
-from maker5m.persistence.records import MarketIdentity, build_decision_record
+from maker5m.persistence.records import (
+    Liquidity,
+    MarketIdentity,
+    build_decision_record,
+    build_fill_record,
+)
 from maker5m.persistence.schema import (
     DECISION_SCHEMA_VERSION,
     FILL_SCHEMA_VERSION,
@@ -65,6 +70,7 @@ __all__ = [
     "ExactRatio",
     "FillProvenance",
     "FillRecord",
+    "Liquidity",
     "Manifest",
     "MarketIdentity",
     "MarketMetrics",
@@ -80,6 +86,7 @@ __all__ = [
     "VerificationStatus",
     "WorkerStats",
     "build_decision_record",
+    "build_fill_record",
     "database_digest",
     "open_for_read",
     "read_manifest",

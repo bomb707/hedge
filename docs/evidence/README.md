@@ -11,6 +11,7 @@
 | [`P9B-REAL-MARKET-BASELINE.md`](P9B-REAL-MARKET-BASELINE.md) | P9 corrected | `REAL_PUBLIC_MARKET_DATA` |
 | [`P9B-REAL-MARKET-FAULTS.md`](P9B-REAL-MARKET-FAULTS.md) | P9 corrected | valid market findings; **verifier claim superseded** |
 | [`P9C-RISK-AUDIT-CLOSURE.md`](P9C-RISK-AUDIT-CLOSURE.md) | P9 final | `CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET` |
+| [`P10A-O11-RESOLUTION-RESEARCH.md`](P10A-O11-RESOLUTION-RESEARCH.md) | P10A | `REAL_PUBLIC_MARKET_DATA` — closes O11 |
 
 Superseded documents are retained and labelled rather than deleted. A measurement that turned
 out to be wrong is part of the record of how the right one was reached, and removing it would

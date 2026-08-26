@@ -360,19 +360,73 @@ frozen strategy evidence, not from what the venue happens to permit.
 
 ## O11 — Authoritative resolution source
 
-- **Status:** OPEN · BLOCKING for P10
-- **Source:** Canonical §18.1; Detailed §32
-- **Why it matters:** Both sources say to prefer authoritative resolution evidence,
-  "especially on-chain redemption / resolution evidence when available", and warn against
-  relying blindly on unsynchronised cached market metadata — but neither names the specific
-  source, the confirmation depth, or the timeout behaviour. Resolving to the wrong winner
-  corrupts realised PnL and the redemption action itself.
-- **Must remain configurable:** the resolution source, the fallback order, and the
-  ambiguity timeout. Ambiguous resolution near settlement is already a kill-switch input
-  (Canonical §28.1), so the ambiguous branch must be explicit rather than an else-case.
-- **Closing experiment:** compare candidate sources across settled markets for agreement
-  and for time-to-availability; select the earliest source that never disagrees with final
-  on-chain state.
+- **Status:** **CLOSED** — P10A, 2026-08-26. Evidence:
+  [`evidence/P10A-O11-RESOLUTION-RESEARCH.md`](evidence/P10A-O11-RESOLUTION-RESEARCH.md).
+- **Source:** Canonical §18.1; Detailed §32.
+
+### What closed it
+
+55 **consecutive** real settled `btc-updown-5m` markets (2026-08-25T19:35Z → 2026-08-26T00:05Z),
+plus 6 **consecutive** settlements watched live from before they ended, plus on-chain state read
+from four independent Polygon RPC providers. No synthetic market was used.
+
+### The precedence, with the three concepts kept apart
+
+```text
+AUTHORITATIVE FINAL   Conditional Tokens payout vector on Polygon (chain id 137)
+                      0x4D97DCd97eC945f40cF65F87097ACe5EA0476045
+                      payoutDenominator(conditionId) > 0 gates redeemability;
+                      payoutNumerators is the payout vector.
+
+ADVISORY CROSS-CHECK  Gamma outcomePrices, CLOB tokens[].winner
+                      55/55 agreement, 0 disagreements, 0 missing - but more than
+                      two minutes late, and capable of being absent.
+
+RULE SOURCE           Chainlink BTC/USD TWAP 60 s data stream, named by the markets
+                      themselves in 55/55. NOT independently recomputed: the Data
+                      Streams API is credentialed. A documented rule, not a
+                      verified calculation.
+
+PRE-ON-CHAIN          payoutDenominator == 0 is "not yet authoritative for
+                      redemption", whatever any venue currently says.
+```
+
+**Outcome-index mapping, proven in both directions:** slot 0 = `Up` (27 markets), slot 1 =
+`Down` (28 markets), unanimous across the corpus. `clobTokenIds` follows `outcomes` order.
+
+**Time to availability:** the chain is not only authoritative but *earliest* — CTF payout at p50
+**+85.6 s** after market end (min 54.3, max 86.6), while Gamma and the CLOB had not reflected the
+outcome in any of the six markets within the ~206 s observation window. Correctness and speed
+point the same way, so nothing is bought by preferring a faster source.
+
+### Ambiguous branch — explicit and fail-closed
+
+`AMBIGUOUS`, and no redemption authorised, if an advisory source names a different winner than
+the payout vector; if two RPC providers disagree at comparable finality; if the payout vector is
+not exactly one non-zero slot summing to the denominator (fractional, tied, or a slot count other
+than two); or if the token mapping disagrees with the market metadata. This feeds P9's existing
+`RESOLUTION_AMBIGUOUS` kill switch. There is no else-branch that picks a winner.
+
+### Still OPERATIONAL
+
+**Confirmation depth.** No Polymarket-specified requirement was found; measured Polygon finality
+lag was 1–4 blocks (1–6 s) across three providers. P10 must expose it as configuration. The
+source decision and the confirmation policy are separate.
+
+### Recorded discrepancies
+
+- The resolver for these markets is `0x58e1745bedda7312c4cddb72618923da1b90efde` in 55 of 55 —
+  **not** the officially documented UMA Adapter. Address verified from real `ConditionResolution`
+  events; official name unverified and not guessed. Gamma's `umaResolutionStatus: "resolved"` is
+  a field name, not evidence of the UMA path.
+- Published collateral is now **pUSD**, not the USDC an archived example would use.
+- Press coverage says 5-minute markets use a 30 s TWAP window; the markets' own metadata says
+  60 s in three independent places. Real data taken over the article.
+
+### What this does not close
+
+O14 (strike/start-price chaining) remains **OPEN**. The `twapLookbackSeconds: 60` observation is
+suggestive and is not the evidence O14 requires.
 
 ---
 
@@ -666,7 +720,7 @@ Two P9 facts belong in the record without being open items:
 | O08 | Latency distribution for queue dominance | OPEN | — |
 | O09 | Spot-to-next-CLOB-level timing model | OPEN | — |
 | O10 | Venue precision / numeric scale | **CLOSED** (kernel + P6 live traffic check) | — |
-| O11 | Authoritative resolution source | OPEN | P10 |
+| O11 | Authoritative resolution source | **CLOSED** — CTF payout vector, P10A real-market evidence | — |
 | O12 | BTC spot fixed-point scale | **CLOSED** — self-describing representation retained | — |
 | O13 | Quote-centre tick tie-breaking | OPEN | — (reference policy in use) |
 | O14 | Strike chaining unverified / no strike published | OPEN | strike-dependent models |

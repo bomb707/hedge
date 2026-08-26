@@ -67,6 +67,76 @@ production.
 
 ---
 
+## P10A: O11 closed from real settlement evidence
+
+**P10 itself is NOT implemented.** This round closed the prerequisite only — no `Redeemer`, no
+`ResolutionVerifier`, no wallet, no key, no transaction. Evidence:
+[`evidence/P10A-O11-RESOLUTION-RESEARCH.md`](evidence/P10A-O11-RESOLUTION-RESEARCH.md).
+
+O11 asked which source authoritatively determines a settled market's outcome. The answer keeps
+three things apart that are easy to collapse into one:
+
+```text
+AUTHORITATIVE FINAL   CTF payout vector on Polygon, 0x4D97DCd9...0476045
+                      payoutDenominator > 0 gates redeemability
+ADVISORY CROSS-CHECK  Gamma outcomePrices, CLOB tokens[].winner
+RULE SOURCE           Chainlink BTC/USD TWAP 60 s, named by the markets themselves
+PRE-ON-CHAIN          denominator == 0 is not yet authoritative, whatever a venue says
+```
+
+### The evidence
+
+55 **consecutive** real settled markets over 4.5 hours, plus 6 **consecutive** settlements watched
+live, plus four independent Polygon RPC providers. No synthetic data.
+
+```text
+agreement with final CTF payout   Gamma 55/55    CLOB 55/55    disagreements 0    missing 0
+outcome-index mapping             slot 0 = Up (27)   slot 1 = Down (28)   unanimous
+RPC agreement                     55/55, minimum 3 independent providers per market
+payout shapes observed            [1,0] x27, [0,1] x28 - no fractional, no non-binary
+on-chain resolution after end      p50 85 s (min 52, max 172) from block timestamps
+live CTF availability after end    p50 +85.6 s (min 54.3, max 86.6)
+live Gamma / CLOB availability     NOT observed within ~206 s in 6 of 6 markets
+Polygon finality lag               1-4 blocks (1-6 s), measured across 3 providers
+```
+
+The chain is not only authoritative but **earliest**, by more than two minutes. The usual
+speed-versus-correctness trade-off does not arise, and the strategy has already stopped quoting
+and is holding balances by then (Canonical §18) so there is nothing to gain by guessing.
+
+### The finding that most needed checking
+
+These markets do **not** use the UMA adapter. Reading `ConditionResolution` for all 55 gives
+oracle `0x58e1745bedda7312c4cddb72618923da1b90efde`, against the officially documented UMA
+Adapter `0x6A9D2226…` — a different address. It is a real deployed contract whose `ctf()` returns
+the official Conditional Tokens address, so it is a purpose-built adapter for this market family.
+Its official **name could not be verified** and is recorded as unverified rather than guessed.
+Gamma still reports `umaResolutionStatus: "resolved"`, which is a field name and not evidence of
+the UMA path.
+
+### Stated honestly rather than assumed
+
+* **Chainlink raw recomputation: UNAVAILABLE / UNRUN.** Data Streams is a credentialed API. The
+  research proves the markets *name* that source; it does not prove the source's arithmetic.
+* **Confirmation depth stays `OPERATIONAL`** — no Polymarket requirement was found, so P10 must
+  expose it rather than hard-code a number.
+* **Non-binary payouts stay representable.** None occurred in 55 markets, which is an observation
+  about 55 markets and not a property of the contract. Anything that is not exactly one non-zero
+  slot summing to the denominator is an explicit ambiguous branch.
+* **O14 is not closed.** `twapLookbackSeconds: 60` is suggestive and is not O14's evidence.
+
+### Two flaws in the research method, found and fixed
+
+The live study originally **stopped polling at the chain event**, so only sources that beat the
+chain could ever have been observed — the question would have been answered by the method rather
+than the data. It now follows for 120 s afterwards.
+
+The RPC agreement count originally treated a **rate-limited provider as part of the agreeing
+set**. Providers that did not answer are now recorded as absent, and the minimum independent
+confirmation count is reported.
+
+---
+
 ## P9C: the risk sequence had to be proved, not just used
 
 Independent review accepted everything about P9B except one narrow audit-integrity defect in the
@@ -688,6 +758,8 @@ orders, which P8 does not place. Both stay OPEN.
 | P9C boundary commit | `44e05e1` — carries the P9C evidence and docs |
 | P9C commits | `63cc2b5` verifier + integrity tests · `44e05e1` evidence, docs, manifest block |
 | P1 parser correction | `226663d` — `fix: accept leading-dot exact decimals` |
+| P10A research branch | `research/p10-o11-resolution` |
+| P10 status | **NOT STARTED / NOT IMPLEMENTED** — O11 prerequisite closed only |
 | GitHub default branch | `main` (verified 2026-08-26; the earlier `bootstrap/phase-0` observation no longer holds) |
 | P9 commits | `4be0032` risk engine · `6576de0` recovery + runner · `1584dee` stale recovery fix · `b2e715e` real-market evidence · `4c2ab1d` full fault market |
 | Last accepted milestone | P7 — execution state + reconciler, corrected (`0f17bd2`) |
@@ -827,7 +899,7 @@ are engineering concerns, not questions about the reconstructed strategy.
 O01 quote-centre source            OPEN      O08 latency for queue dominance OPEN
 O02 volatility sigma               OPEN      O09 spot-to-CLOB timing model   OPEN
 O03 base-lot L selection rule      OPEN      O10 venue precision / scales    CLOSED
-O04 grid-target selection          OPEN      O11 resolution source           OPEN
+O04 grid-target selection          OPEN      O11 resolution source           CLOSED
 O05 endgame tilt magnitude         FITTED    O12 BTC spot scale              CLOSED
 O06 endgame gate magnitude         FITTED    O13 tick tie-breaking           OPEN
 O07 fee/rebate calibration         OPEN      O14 strike chaining unverified  OPEN

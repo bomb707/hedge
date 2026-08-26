@@ -1,0 +1,6214 @@
+{
+  "captured_utc": "2026-08-26T00:51:00Z",
+  "chain_id": 137,
+  "ctf_address": "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045",
+  "kind": "P10A_O11_HISTORICAL",
+  "markets": [
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666698,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666698,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666698,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666700,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "98645953736768292471822925408327064753732614356821600189966320524286299324738",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "7165254219820900707362406257956894617994988375311422677149781186137836775766",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "98645953736768292471822925408327064753732614356821600189966320524286299324738",
+          "7165254219820900707362406257956894617994988375311422677149781186137836775766"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-26 00:11:25+00",
+        "condition_id": "0x597e15eaae6d071bdcb9f6b0a140ea113d4b1ccefb7b56da1f6620e7f92de8ef",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-26T00:10:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x9172357332f0464b3432f6d2f41957d5b4e288c57c5b529d3c0f3feafd391198",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787702700",
+        "start_date": "2026-08-25T00:13:38.128165Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92665372,
+        "block_timestamp": 1787703085,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x9172357332f0464b3432f6d2f41957d5b4e288c57c5b529d3c0f3feafd391198",
+        "transaction_hash": "0x4b2e95a44f022e9939fb4b8dc508f5b35326568f338a4e96d2c5888fb1aa138c"
+      },
+      "t0": 1787702700
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666704,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666703,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666703,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666704,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "113950544079374502293216594630129706659563029631181111402893307484806164787743",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "58976657484572552501228460787185021452947566084896902870664101534002152705309",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "113950544079374502293216594630129706659563029631181111402893307484806164787743",
+          "58976657484572552501228460787185021452947566084896902870664101534002152705309"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-26 00:06:25+00",
+        "condition_id": "0x0302661524ef4227fd6274e5031b8ddb62b81c712c72d5b28d5cfd8085079c73",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-26T00:05:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x8ca0a32f202db63a4f0a11b63e5c0c05697b91f38e2e49bfdea6f9fbbf522530",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787702400",
+        "start_date": "2026-08-25T00:09:06.31078Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92665172,
+        "block_timestamp": 1787702785,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x8ca0a32f202db63a4f0a11b63e5c0c05697b91f38e2e49bfdea6f9fbbf522530",
+        "transaction_hash": "0x10db825903202d5be1911e6bc610d6eb4e46bab71549a314ce02a487a52f31cf"
+      },
+      "t0": 1787702400
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666708,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666708,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666708,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666710,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "44025572708929321609987474976584642669911051629364981767276648336541526907813",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "50339390754100570560298499010677686899994265310094958249718426074549421027972",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "44025572708929321609987474976584642669911051629364981767276648336541526907813",
+          "50339390754100570560298499010677686899994265310094958249718426074549421027972"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-26 00:01:28+00",
+        "condition_id": "0x68d937b6b8ab7526cf1f5215ccb69071a53952318a64e8f7ca812a91e6cdc21e",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-26T00:00:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x44cf3b92fc2678262873091b8d393e6cf576b3f80e8db589a3db98c2d863c39c",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787702100",
+        "start_date": "2026-08-25T00:03:40.521484Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92664974,
+        "block_timestamp": 1787702488,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x44cf3b92fc2678262873091b8d393e6cf576b3f80e8db589a3db98c2d863c39c",
+        "transaction_hash": "0xd8feb1e4888bd0dfbd6e66ba63cadaa42e3d58a16bdaf4cee20dae796bbc7a92"
+      },
+      "t0": 1787702100
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666711,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666712,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666712,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666713,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "101626067252996462524938447684292072714615836600460900048258001582857040649814",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "67745376890679430289639852441558202420792037729189199864739379182375020185865",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "101626067252996462524938447684292072714615836600460900048258001582857040649814",
+          "67745376890679430289639852441558202420792037729189199864739379182375020185865"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 23:56:25+00",
+        "condition_id": "0x02e3a236aad5d570aebb674e3a8a8bee34e93a9d01dec508997461063a84fdaf",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T23:55:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x2c5edf6f163a79abc21de12ba1e53fb442557a0b8a59ebac4dcae754199c4175",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787701800",
+        "start_date": "2026-08-24T23:58:37.66899Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92664772,
+        "block_timestamp": 1787702185,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x2c5edf6f163a79abc21de12ba1e53fb442557a0b8a59ebac4dcae754199c4175",
+        "transaction_hash": "0x99c603937c496663b3c1ce7c3a4284db5a2bb8e53e6e1cf910e3bd65152c9b74"
+      },
+      "t0": 1787701800
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666717,
+          "error": "{'code': -32005, 'message': 'Rate limit exceeded on Nodies public endpoints. For higher limits, create a free account at https://nodies.app and use a private endpoint. Enterprise: sales@nodies.org'}",
+          "outcome_slot_count": null,
+          "payout_denominator": 1,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666716,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666716,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666718,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "46779408153492235895425953975369929011872742326794113812188578895946265442595",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "32722832467017791435779620052221252188053432444873463588837224363562989510205",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "46779408153492235895425953975369929011872742326794113812188578895946265442595",
+          "32722832467017791435779620052221252188053432444873463588837224363562989510205"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 23:51:25+00",
+        "condition_id": "0x3297dc2718b6cf17f31618c2aea8098041bf7d1df9b20105200f7a205635ea18",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T23:50:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x05248ade255a29af595b91efe2470a8b888ca75eb3ed24b7bcf693d90bd38ef0",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787701500",
+        "start_date": "2026-08-24T23:53:51.324476Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92664572,
+        "block_timestamp": 1787701885,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x05248ade255a29af595b91efe2470a8b888ca75eb3ed24b7bcf693d90bd38ef0",
+        "transaction_hash": "0x2c7f002c5dc72b8d167ae13be827cef65f6ef8f72ba0790325e0117240e3f335"
+      },
+      "t0": 1787701500
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666722,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666721,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666721,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666724,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "21146105840154638460226189662277414996245390276056852083640336644579756942065",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "85757400012896447191569699825927334635010642829913383543052271705567263269139",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "21146105840154638460226189662277414996245390276056852083640336644579756942065",
+          "85757400012896447191569699825927334635010642829913383543052271705567263269139"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 23:45:54+00",
+        "condition_id": "0x814960d98d4c60362d7381286a8dd17a7ba22acc322c77181f7d6e445dfbaafa",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T23:45:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x6694a3f8e3a583542d9e2d1f87beeb9b97bef1fbb9256f18565ecc74fdacef61",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787701200",
+        "start_date": "2026-08-24T23:48:43.767402Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92664351,
+        "block_timestamp": 1787701554,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x6694a3f8e3a583542d9e2d1f87beeb9b97bef1fbb9256f18565ecc74fdacef61",
+        "transaction_hash": "0x4577210e173661a422e9f114745b90b3f192e8d5453f12d688542c1aba92e8fc"
+      },
+      "t0": 1787701200
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666727,
+          "error": "{'code': -32603, 'message': 'upstream error: all upstreams unavailable or quarantined'}",
+          "outcome_slot_count": null,
+          "payout_denominator": null,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666728,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666728,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666736,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "16863591221110551650076689913394985951550515358361686863355782046012439804757",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "21478778437961638613808747858304067851495932631234710563472129364532621208344",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "16863591221110551650076689913394985951550515358361686863355782046012439804757",
+          "21478778437961638613808747858304067851495932631234710563472129364532621208344"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 23:41:28+00",
+        "condition_id": "0x335b9a7bbad014f9d24b7dca9c7bf71275eef0cad837ee5d6f0bf3622b35b9b0",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T23:40:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0xfdaa24103bbbaaeb0f5d9cddd33b10ea6d1baf2434bfbd4b6c3abee4a3e7f16b",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787700900",
+        "start_date": "2026-08-24T23:43:38.999345Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92664174,
+        "block_timestamp": 1787701288,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0xfdaa24103bbbaaeb0f5d9cddd33b10ea6d1baf2434bfbd4b6c3abee4a3e7f16b",
+        "transaction_hash": "0x4bb14ced4520f7fca63159b7428784f47f4a2174f8aa6bb957a17a3fe1b8ea7a"
+      },
+      "t0": 1787700900
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666739,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666739,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666739,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666740,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "97656035129940740624010611838756623380146008074043741115707578820579047829238",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "13378350221979060422310690936985979692220719638113274221792146020440803944323",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "97656035129940740624010611838756623380146008074043741115707578820579047829238",
+          "13378350221979060422310690936985979692220719638113274221792146020440803944323"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 23:36:25+00",
+        "condition_id": "0xafb3f5ddc00590a114a29993ae509edffd496784081f5bfcad25f1154bf330d1",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T23:35:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0xaf2128b524e52e5633fedb5fae0e11bfa6e7f17d0655b35a2d6be95ff92c4935",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787700600",
+        "start_date": "2026-08-24T23:38:42.413097Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92663972,
+        "block_timestamp": 1787700985,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0xaf2128b524e52e5633fedb5fae0e11bfa6e7f17d0655b35a2d6be95ff92c4935",
+        "transaction_hash": "0xeb4f38ffc93a31aea20593f6974b278b61755f10c1867c0430a69db6198355e8"
+      },
+      "t0": 1787700600
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666743,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666743,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666743,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666745,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "110898389818606492544871848337611749133824776241455412730253279331810849349273",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "113600449700270947254798856206093911586824241687928032577085737693991470840580",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "110898389818606492544871848337611749133824776241455412730253279331810849349273",
+          "113600449700270947254798856206093911586824241687928032577085737693991470840580"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 23:32:46+00",
+        "condition_id": "0x36398a8c2aa1c6f9e455b9bc939929b8b7515aecf9152bc30107f10dee1ba0d3",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T23:30:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x097e802d3aab35cb8f40ff68aab64d8ff45d84cae925b886f94255848b095c63",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787700300",
+        "start_date": "2026-08-24T23:34:30.50738Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92663826,
+        "block_timestamp": 1787700766,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x097e802d3aab35cb8f40ff68aab64d8ff45d84cae925b886f94255848b095c63",
+        "transaction_hash": "0xfdb0860a353778366e57bc46cf51e32c3e31ed7022fba7aeff386771d809c3da"
+      },
+      "t0": 1787700300
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666748,
+          "error": "{'code': -32005, 'message': 'Rate limit exceeded on Nodies public endpoints. For higher limits, create a free account at https://nodies.app and use a private endpoint. Enterprise: sales@nodies.org'}",
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            -1,
+            1
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666749,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666748,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666751,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "52704415895723325709128820374317775955057134778631994495664694184834542098288",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "59529308564223272008907850329424723193861624299175305172341771223306372584146",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "52704415895723325709128820374317775955057134778631994495664694184834542098288",
+          "59529308564223272008907850329424723193861624299175305172341771223306372584146"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 23:25:55+00",
+        "condition_id": "0x7994c4b222a596080862975bead20e976a201c8cfd1de72890ab3779677adb6e",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T23:25:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x64eac27618e39cbae633bd51842a77e80c5e8b0dafa6650c63a3adf2c2f7424e",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787700000",
+        "start_date": "2026-08-24T23:28:42.536901Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92663552,
+        "block_timestamp": 1787700355,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x64eac27618e39cbae633bd51842a77e80c5e8b0dafa6650c63a3adf2c2f7424e",
+        "transaction_hash": "0x3bfc27b2a09b97750238ddfccccad10fbf12e7590b255a6726055e369c0a740f"
+      },
+      "t0": 1787700000
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666753,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666754,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666754,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666756,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "108529308389636639007827306247164291878398572587825648332649764565160582567080",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "11884297062247049569136064811642684855772141917633431871417637475331933817611",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "108529308389636639007827306247164291878398572587825648332649764565160582567080",
+          "11884297062247049569136064811642684855772141917633431871417637475331933817611"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 23:21:25+00",
+        "condition_id": "0xa6715e9eebec6e5180e60ab2b9917c33fa79fe99ac90c2427865d0a9bcda5864",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T23:20:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0xa197ec85f756cd07b9ea117fc3ac5581f5d6bbda4c3b094d27994145379aafac",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787699700",
+        "start_date": "2026-08-24T23:23:34.257759Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92663372,
+        "block_timestamp": 1787700085,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0xa197ec85f756cd07b9ea117fc3ac5581f5d6bbda4c3b094d27994145379aafac",
+        "transaction_hash": "0xedecd930f1db643d33b782f8596b69913dd85c35f7ac849a54adcbf0f4df6587"
+      },
+      "t0": 1787699700
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666757,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666759,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666758,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666760,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "27707120978610483162490995283989488641318451869923276779941613698814442638720",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "33763702526877087623253988959017500394982536678419995858695789591987826601867",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "27707120978610483162490995283989488641318451869923276779941613698814442638720",
+          "33763702526877087623253988959017500394982536678419995858695789591987826601867"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 23:16:27+00",
+        "condition_id": "0x936a528a75365c87cb046ceddc0c84d6d634038b584afcd55fd0e091cc7eaac7",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T23:15:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x23469717aa0973b7d03f19789f220a244955e7bec544ff74d815c3bf314d6070",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787699400",
+        "start_date": "2026-08-24T23:18:44.094415Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92663173,
+        "block_timestamp": 1787699787,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x23469717aa0973b7d03f19789f220a244955e7bec544ff74d815c3bf314d6070",
+        "transaction_hash": "0xeef434be0ff5b7117b9eec05a716aaede9ccb6330760d9d246ef7f85cb2918f4"
+      },
+      "t0": 1787699400
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666764,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666764,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666763,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666765,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "21489354331058684555235881798347498004860474162339823734232501574595146779078",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "50519044080349991355434381179438010326373092648896647962786915142814786572980",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "21489354331058684555235881798347498004860474162339823734232501574595146779078",
+          "50519044080349991355434381179438010326373092648896647962786915142814786572980"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 23:11:25+00",
+        "condition_id": "0xea4287c0dedf54de48b72bbcb1da31029cbde88b17badc880bd0c5908da755e7",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T23:10:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x8e25d01d4f802d32b1c0b4ac74590bc49fbf9d9048d344a4fee34d3527552070",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787699100",
+        "start_date": "2026-08-24T23:13:41.329141Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92662972,
+        "block_timestamp": 1787699485,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x8e25d01d4f802d32b1c0b4ac74590bc49fbf9d9048d344a4fee34d3527552070",
+        "transaction_hash": "0x25b924d3c9fcc9c82dd695bc1dc1cf92e7545a9ffcc38b616c6fb41fa3c758fa"
+      },
+      "t0": 1787699100
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666769,
+          "error": "{'code': -32603, 'message': 'upstream error: all upstreams unavailable or quarantined'}",
+          "outcome_slot_count": null,
+          "payout_denominator": 1,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666768,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666768,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666770,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "101844245878919755927905829117403022451166119111255260833005397003579627298013",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "53003986439291613235631876042290601627296235514063775993303099520467512676996",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "101844245878919755927905829117403022451166119111255260833005397003579627298013",
+          "53003986439291613235631876042290601627296235514063775993303099520467512676996"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 23:06:25+00",
+        "condition_id": "0xc559115e340f3308cbbfcd91a3badf0614941b1398728c97b9a5b6e5281255c0",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T23:05:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0xca62d5092fcce652ed26cabb24a391de07796374a817ca4fcd159d21a26b5042",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787698800",
+        "start_date": "2026-08-24T23:08:40.795643Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92662772,
+        "block_timestamp": 1787699185,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0xca62d5092fcce652ed26cabb24a391de07796374a817ca4fcd159d21a26b5042",
+        "transaction_hash": "0xa884964e381d4b40ebd4d1f9b20293c73590a55e31b94b0bd0cbb77e9897e113"
+      },
+      "t0": 1787698800
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666773,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666773,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666772,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666775,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "52554025246112503479126825147218504305209325130657263056871596736637449510733",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "32356285448215848735934844112836159896452740256532383894933347983867101896308",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "52554025246112503479126825147218504305209325130657263056871596736637449510733",
+          "32356285448215848735934844112836159896452740256532383894933347983867101896308"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 23:01:28+00",
+        "condition_id": "0x6170c75942ecf9aec27751c57bcf6e796d1cc3381072003a51322d7e25faa373",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T23:00:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x939875be3413eb268a09cedf5e96c2c0262e70d38370a476bf36b002807309f1",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787698500",
+        "start_date": "2026-08-24T23:03:33.940759Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92662574,
+        "block_timestamp": 1787698888,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x939875be3413eb268a09cedf5e96c2c0262e70d38370a476bf36b002807309f1",
+        "transaction_hash": "0x0d66b45543b5e348a85ef4d5cebd7a6bfd2518e590468588a6a36ff7683720c4"
+      },
+      "t0": 1787698500
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666778,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666778,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666778,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666780,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "15314848320209291412945073973066356148969603487715644121770407794431458674197",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "29172429698340071194502986994339587526698871917802113520859559331879682842049",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "15314848320209291412945073973066356148969603487715644121770407794431458674197",
+          "29172429698340071194502986994339587526698871917802113520859559331879682842049"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 22:55:54+00",
+        "condition_id": "0xc38e39bf8179c4b12427fe0684ee34404ba89c666420cc8688efe2e45e82dfdc",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T22:55:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x83157abdd26a56d759836b4950b73cdfc607e0c0d372370b3f4c989ef14f8bd4",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787698200",
+        "start_date": "2026-08-24T22:58:38.801438Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92662351,
+        "block_timestamp": 1787698554,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x83157abdd26a56d759836b4950b73cdfc607e0c0d372370b3f4c989ef14f8bd4",
+        "transaction_hash": "0x47a73dd274d75a5d9458fd7b01a463a11df85eef0fd42e5f80c4b844f830a50c"
+      },
+      "t0": 1787698200
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666783,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666783,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666783,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666784,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "79017299364649016466379301004712418659013886880203697635601699972980247550016",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "60379896386620846187426316673669915572647069998771482934596175411368956983310",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "79017299364649016466379301004712418659013886880203697635601699972980247550016",
+          "60379896386620846187426316673669915572647069998771482934596175411368956983310"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 22:51:25+00",
+        "condition_id": "0x1baa766ccba28ec56693716b8ca421ca8d540c12350f2705999a6418e1c47511",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T22:50:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0xe5102662e9b2ae77eb7c67825928e5d50fe4ff5e3c6adae19f138d5e16ae04cf",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787697900",
+        "start_date": "2026-08-24T22:53:28.229758Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92662172,
+        "block_timestamp": 1787698285,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0xe5102662e9b2ae77eb7c67825928e5d50fe4ff5e3c6adae19f138d5e16ae04cf",
+        "transaction_hash": "0xe2972c713e833068ef41c52816eb48da7d77bfe32b292283ed3d1336011014cc"
+      },
+      "t0": 1787697900
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666788,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666788,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666788,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666790,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "108889411097752021541660529863466577186249745285037301485659529618318695694225",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "7851008045609159642459128328520683644974304043504561139722528616448873633506",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "108889411097752021541660529863466577186249745285037301485659529618318695694225",
+          "7851008045609159642459128328520683644974304043504561139722528616448873633506"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 22:45:54+00",
+        "condition_id": "0x3ae613f20c113a3dc4a0a73bd12fcdfe42f9704be841cbba5eac406b75cfb0a1",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T22:45:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0xddfd4df824efede9b9814db23de3016ecad4f7d921c7a9417b40b6591f7a5b55",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787697600",
+        "start_date": "2026-08-24T22:48:38.544104Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92661951,
+        "block_timestamp": 1787697954,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0xddfd4df824efede9b9814db23de3016ecad4f7d921c7a9417b40b6591f7a5b55",
+        "transaction_hash": "0xe573d64ffc86b29cad62693e8e01b9a6d2b348f2ea27279b06957a03f06c5ab3"
+      },
+      "t0": 1787697600
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666793,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666792,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666792,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666794,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "67386974369625046088762930656969892956777105661686867822626116956201087397897",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "96192798541909045937786658850738636671900412759611859129607700617807527428175",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "67386974369625046088762930656969892956777105661686867822626116956201087397897",
+          "96192798541909045937786658850738636671900412759611859129607700617807527428175"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 22:41:27+00",
+        "condition_id": "0xa6d4a3b5c8f794ea4e0f7cd0001cb41c0b311614edaf2c85eed48b21bab8aef7",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T22:40:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x34bd22edd65ee9e3ccd1b487904267b66dfc74b4fa8283d5d697ae3e26c42a74",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787697300",
+        "start_date": "2026-08-24T22:43:41.944149Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92661773,
+        "block_timestamp": 1787697687,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x34bd22edd65ee9e3ccd1b487904267b66dfc74b4fa8283d5d697ae3e26c42a74",
+        "transaction_hash": "0x8fb420a01097b52447be7c4be3fdfd8cc41ece4accf3b9cb442cb87f18a022ec"
+      },
+      "t0": 1787697300
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666797,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666797,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666796,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666798,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "52750016064626479128075857728402575410800082435605826995727726084639639557281",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "99436047030068701118011719591190042144790973212045529457849152321810746942535",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "52750016064626479128075857728402575410800082435605826995727726084639639557281",
+          "99436047030068701118011719591190042144790973212045529457849152321810746942535"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 22:35:54+00",
+        "condition_id": "0x37c7b15026c1d855e7f947c551088f7751f5b39bfb08ebb815c40482b447f8b1",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T22:35:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0xe16e2deb249f3a6c8b08f495d914aa3dbd03bbe276226b7147c9cb973c6e2d69",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787697000",
+        "start_date": "2026-08-24T22:38:46.249137Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92661551,
+        "block_timestamp": 1787697354,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0xe16e2deb249f3a6c8b08f495d914aa3dbd03bbe276226b7147c9cb973c6e2d69",
+        "transaction_hash": "0x711b26f4438a6ea8162dbff0f12194bf28e9c2cf373f36fb6ebd74762ff784bd"
+      },
+      "t0": 1787697000
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666801,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666801,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666801,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666803,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "19496867841599173633451907192292697850582083883416539778059449503315602384881",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "36862258432439850701001665050265075385364192268845061519451612565971921688757",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "19496867841599173633451907192292697850582083883416539778059449503315602384881",
+          "36862258432439850701001665050265075385364192268845061519451612565971921688757"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 22:31:27+00",
+        "condition_id": "0x6c1dfc163d4ac9db7d0bb2cffb0eb05cfdba3691daded9c12f0a4e75a37547b5",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T22:30:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0xad4624d4ec324f0f09ba0e6486e977fa8d9f3632cde5758f385ccc7449c58248",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787696700",
+        "start_date": "2026-08-24T22:33:54.392676Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92661373,
+        "block_timestamp": 1787697087,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0xad4624d4ec324f0f09ba0e6486e977fa8d9f3632cde5758f385ccc7449c58248",
+        "transaction_hash": "0x7a05c9ac5ca101d87f2156ed7e3280cb5ab232c3992f795deb944480d64aad8b"
+      },
+      "t0": 1787696700
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666806,
+          "error": "{'code': -32012, 'data': {'traceId': '1a03b8920dee2ce9'}, 'message': 'cu limit exceeded; Method \"eth_call\" is not available for unregistered accounts. Please visit https://zan.top/ and register to unlock more.'}",
+          "outcome_slot_count": 2,
+          "payout_denominator": null,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666806,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666805,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666808,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "107790651175894835493256322340808558386716320080397322053840745196253620501857",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "84701320059851707920314448875224841138514773916588566117871387887934890978012",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "107790651175894835493256322340808558386716320080397322053840745196253620501857",
+          "84701320059851707920314448875224841138514773916588566117871387887934890978012"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 22:26:25+00",
+        "condition_id": "0x55734836695768c3a749eee64d2a1020f244bc173dcd7a8321870cdfa2a88466",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T22:25:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x3ed3b7808e6ae66b414f1e77374c89f36f5a8b75d42c389a61a2cafd35a5ccea",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787696400",
+        "start_date": "2026-08-24T22:28:33.590943Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92661172,
+        "block_timestamp": 1787696785,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x3ed3b7808e6ae66b414f1e77374c89f36f5a8b75d42c389a61a2cafd35a5ccea",
+        "transaction_hash": "0x65915b39e7c494d5c54528475aedf1c4007704dc8dba324ef6536c4e449c8d88"
+      },
+      "t0": 1787696400
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666810,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666811,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666811,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666812,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "13092299879050393442903685476481475152700925532343407764244933487320602602625",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "94840023152321775925596743756723568573148318508328018566274386733356862119396",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "13092299879050393442903685476481475152700925532343407764244933487320602602625",
+          "94840023152321775925596743756723568573148318508328018566274386733356862119396"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 22:20:54+00",
+        "condition_id": "0x0d3e9717ba45107446bbbb4b0338ef3816ceb4d9e387496f857bb0eecf9611f1",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T22:20:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x4beba2db6b5d106c1903a759bdf9ca459004559b610385a6734e3f8bf6ad7b0c",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787696100",
+        "start_date": "2026-08-24T22:23:54.403458Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92660951,
+        "block_timestamp": 1787696454,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x4beba2db6b5d106c1903a759bdf9ca459004559b610385a6734e3f8bf6ad7b0c",
+        "transaction_hash": "0xf02ddddea3ef1dff0a090f19df8c321489994de744e83aa1e1f27f9c746e702e"
+      },
+      "t0": 1787696100
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666815,
+          "error": "{'code': -32603, 'message': 'upstream error: all upstreams unavailable or quarantined'}",
+          "outcome_slot_count": null,
+          "payout_denominator": 1,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666815,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666815,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666817,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "79618619248364230246011255988583240287619337753589118805154074051733225582061",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "37183902980471609886167350147029372984884357854467635656689922414958088620659",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "79618619248364230246011255988583240287619337753589118805154074051733225582061",
+          "37183902980471609886167350147029372984884357854467635656689922414958088620659"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 22:16:27+00",
+        "condition_id": "0xdac78fd9d8f73c769f0132651b455e26dc059ca6ba7a2518b7c1c5d7711047f4",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T22:15:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x9e37dfb4f47e15e7759a3e814fde2e1383303513af730754f3a6ab22ec0d6b5a",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787695800",
+        "start_date": "2026-08-24T22:18:32.719359Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92660773,
+        "block_timestamp": 1787696187,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x9e37dfb4f47e15e7759a3e814fde2e1383303513af730754f3a6ab22ec0d6b5a",
+        "transaction_hash": "0x053250bbb859286bf42d8613d83b4ebadd5d157919e0d15c30aa0da1357cb54c"
+      },
+      "t0": 1787695800
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666819,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666820,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666820,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666822,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "67499590450797157810582562700705042484864456005431493359180666725389061695599",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "53774453829332439707269035580723085385036172996976735391296593202564946935289",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "67499590450797157810582562700705042484864456005431493359180666725389061695599",
+          "53774453829332439707269035580723085385036172996976735391296593202564946935289"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 22:10:54+00",
+        "condition_id": "0x872d7d8352ef1499abb4908232791197d2537b343d63fb05ca763a79c57e3469",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T22:10:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0xb31369bd8901b59a98b93075f236bfd302f44ca1706d78c612665633ff760281",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787695500",
+        "start_date": "2026-08-24T22:13:50.090321Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92660551,
+        "block_timestamp": 1787695854,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0xb31369bd8901b59a98b93075f236bfd302f44ca1706d78c612665633ff760281",
+        "transaction_hash": "0xde849c3eb12aeff5e2529a7f8c6572c5cdc0ea568953fc4318cb08ad8ba24b0e"
+      },
+      "t0": 1787695500
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666826,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666826,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666825,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666827,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "77461881853170937896831966546316610305804482309430192971993817016869632049095",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "60259041509199839111228478207649959414583695744885465025302649516463944146363",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "77461881853170937896831966546316610305804482309430192971993817016869632049095",
+          "60259041509199839111228478207649959414583695744885465025302649516463944146363"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 22:06:25+00",
+        "condition_id": "0x639353b2c4731568665b2b5833a4975c0a8fb5663bd500e2ce8ae80081fd5922",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T22:05:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0xa2b2e9ae674f67adea19069acbb9aab58dffdabad802b479242e15d217311838",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787695200",
+        "start_date": "2026-08-24T22:09:55.264621Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92660372,
+        "block_timestamp": 1787695585,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0xa2b2e9ae674f67adea19069acbb9aab58dffdabad802b479242e15d217311838",
+        "transaction_hash": "0x1292c3b3da1f53bf2a36c46ad42256db32a6974d910e30d3e874bda87c5634c4"
+      },
+      "t0": 1787695200
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666831,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666830,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666830,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666832,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "80246712037722795969657053534478424893057404121197548023266781299827488221453",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "42246783128918854041822793409062905751182750375502460530003565242342202896799",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "80246712037722795969657053534478424893057404121197548023266781299827488221453",
+          "42246783128918854041822793409062905751182750375502460530003565242342202896799"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 22:01:25+00",
+        "condition_id": "0x818c07b570fd2e079669b92ede219c78edf6ad29bf6ae4d2fe7e60f1ff8bd266",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T22:00:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x2436c11275a9a9b06c853000f3f13b60951a36e6bfb72bd8b7eee378ac8177d1",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787694900",
+        "start_date": "2026-08-24T22:03:37.006403Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92660172,
+        "block_timestamp": 1787695285,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x2436c11275a9a9b06c853000f3f13b60951a36e6bfb72bd8b7eee378ac8177d1",
+        "transaction_hash": "0x90521aedab3fe509a4958c03f24eba9f3813d8eb008c8e73e08d8c1da376d1dd"
+      },
+      "t0": 1787694900
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666836,
+          "error": "{'code': -32005, 'message': 'Satelink: shared /24 free tier exhausted (500/day). Rate limited (free tier). Remove this limit with a free machine key \u2014 no wallet, no email: curl -X POST https://rpc.satelink.network/v1/machine/register -H \\'Content-Type: application/json\\' -d \\'{\"mode\":\"instant\"}\\' \u2014 then send the returned key as X-API-Key.'}",
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            -1,
+            1
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666835,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666835,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666838,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "93915090108284526790435698290395588274185180863607903655872763170178381798860",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "71328543861639830699010195945039611210664773381602056204670354933457128573676",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "93915090108284526790435698290395588274185180863607903655872763170178381798860",
+          "71328543861639830699010195945039611210664773381602056204670354933457128573676"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 21:56:25+00",
+        "condition_id": "0x568372d57aeaedc15d6d25f726d113354bcaa2fce430ab488cca39001baee3c2",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T21:55:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x6837671f2a651148f42ef24fffacd450f572c22c5f0d88e42550c485ee94984b",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787694600",
+        "start_date": "2026-08-24T21:58:40.188418Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92659972,
+        "block_timestamp": 1787694985,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x6837671f2a651148f42ef24fffacd450f572c22c5f0d88e42550c485ee94984b",
+        "transaction_hash": "0x4f9e0000a70eae93da37bc98491187db2b340ce1464d7fe1026fd4445d73a88b"
+      },
+      "t0": 1787694600
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666841,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666841,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666840,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666844,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "103821799212604031780771832433885803837229575278124892808293812257342557200726",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "42916066453138742075019244701689833502069411095860621323656640739413683417696",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "103821799212604031780771832433885803837229575278124892808293812257342557200726",
+          "42916066453138742075019244701689833502069411095860621323656640739413683417696"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 21:52:52+00",
+        "condition_id": "0xefc6f79356567273b82c75cc73f35435bfea1a5005cab1a7adde697f489506e3",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T21:50:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x6dae0f12b41060a49964f086c78024dadeb3ce40ef353509c86fd7ee6a394c85",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787694300",
+        "start_date": "2026-08-24T21:53:42.133085Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92659830,
+        "block_timestamp": 1787694772,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x6dae0f12b41060a49964f086c78024dadeb3ce40ef353509c86fd7ee6a394c85",
+        "transaction_hash": "0x2c5c19d80fb5bdf78c4162fd4c935f771d905a7b70ac5c028be6646cecc3928b"
+      },
+      "t0": 1787694300
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666846,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666847,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666847,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666850,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "43724564745013937430722556183165307230281683738597675292936369863880328264572",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "70671293510931749773979257529008403849996928787659110645631939380382732271090",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "43724564745013937430722556183165307230281683738597675292936369863880328264572",
+          "70671293510931749773979257529008403849996928787659110645631939380382732271090"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 21:46:27+00",
+        "condition_id": "0xad279ba0b97ec3aa016d3da340dfc739b6a5c881c39c78a791dc00e35ede606e",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T21:45:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x9b12fd40983ba3d568762b5dcbc15a0b16b14dd1a1cf305ea20a401625987c91",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787694000",
+        "start_date": "2026-08-24T21:48:44.042073Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92659573,
+        "block_timestamp": 1787694387,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x9b12fd40983ba3d568762b5dcbc15a0b16b14dd1a1cf305ea20a401625987c91",
+        "transaction_hash": "0x935a3eeea472672ac6ab1f76ff062898a33e5bb48c90c7b7e443186fbf86f647"
+      },
+      "t0": 1787694000
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666853,
+          "error": "{'code': -32029, 'message': 'Too Many Requests, Please apply an OnFinality API key or contact us to receive a higher rate limit'}",
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            -1
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666853,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666853,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666855,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "97547038950826149633055645129057501619711160434915303407926694831513515601259",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "28601650376239458635219635620812192539513346215215110586436870584458070794389",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "97547038950826149633055645129057501619711160434915303407926694831513515601259",
+          "28601650376239458635219635620812192539513346215215110586436870584458070794389"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 21:40:54+00",
+        "condition_id": "0xd4a156bd5d7aaf45be69cab3acfdec322ad6fbc4dd9f6b16451770ade38bcfa6",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T21:40:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x77628abfbb09e154cc3621c533b391b33427bb90b376d68226c905c98707c8cc",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787693700",
+        "start_date": "2026-08-24T21:43:32.277104Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92659351,
+        "block_timestamp": 1787694054,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x77628abfbb09e154cc3621c533b391b33427bb90b376d68226c905c98707c8cc",
+        "transaction_hash": "0x881a4f7125a219715f99de90bc6ec7bc4f64d06fe548a4295cc36d75f0fc5132"
+      },
+      "t0": 1787693700
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666858,
+          "error": "{'code': -32005, 'message': 'Satelink: shared /24 free tier exhausted (500/day). Rate limited (free tier). Remove this limit with a free machine key \u2014 no wallet, no email: curl -X POST https://rpc.satelink.network/v1/machine/register -H \\'Content-Type: application/json\\' -d \\'{\"mode\":\"instant\"}\\' \u2014 then send the returned key as X-API-Key.'}",
+          "outcome_slot_count": 2,
+          "payout_denominator": null,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666858,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666858,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666862,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "10347801393087004901502396000833917110843394002471677851228716453529086049975",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "79781048716224990731966150627654720044153804673573893086776624358841648694313",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "10347801393087004901502396000833917110843394002471677851228716453529086049975",
+          "79781048716224990731966150627654720044153804673573893086776624358841648694313"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 21:36:25+00",
+        "condition_id": "0xd9139c0c76af878e7b552c2213661e2bcbf85dc64618e5a46ef94ecff551a6b4",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T21:35:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0xb8fa15ba26692ac6cdd742133964c428371f8f6f64f317672715347a94900874",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787693400",
+        "start_date": "2026-08-24T21:38:47.481518Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92659172,
+        "block_timestamp": 1787693785,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0xb8fa15ba26692ac6cdd742133964c428371f8f6f64f317672715347a94900874",
+        "transaction_hash": "0xa256d7bb1387df7ad2dadd9ad2fd2918b9a99ec838ee16114f6135e22af25287"
+      },
+      "t0": 1787693400
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666866,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666865,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666864,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666867,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "26047906035206787593962684038218628355423360524599692331306935862537272900896",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "74405981833438808749457500309477958398183370358112543124114789644762107760414",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "26047906035206787593962684038218628355423360524599692331306935862537272900896",
+          "74405981833438808749457500309477958398183370358112543124114789644762107760414"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 21:30:55+00",
+        "condition_id": "0x786f5de190531d0f2dd63e721b0193d29b489a5b5bbad6e94f484296561b79b8",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T21:30:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x39ae8fd699cadf17e5da845eea4ca8a593b3cc3ed60d0ab16018e203fee63c53",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787693100",
+        "start_date": "2026-08-24T21:33:58.28426Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92658952,
+        "block_timestamp": 1787693455,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x39ae8fd699cadf17e5da845eea4ca8a593b3cc3ed60d0ab16018e203fee63c53",
+        "transaction_hash": "0x0cfa15d269870e4f3f68c428a0905c07ce319369a277d9b11ce2e65edd44f108"
+      },
+      "t0": 1787693100
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666869,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666870,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666869,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666871,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "82874777142396200499430668789604899211416886792866517971395293995479286594988",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "524658435050405009595268202714863674154125710833108170230169301112539830940",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "82874777142396200499430668789604899211416886792866517971395293995479286594988",
+          "524658435050405009595268202714863674154125710833108170230169301112539830940"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 21:25:54+00",
+        "condition_id": "0xb5668d959200f934b9ef1a3d9f502278094206564ac54a9a817a1324d909aeae",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T21:25:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x7a81e3a9aee07a830a089fe2e89b33de0703823b312f791f5fd0910504003408",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787692800",
+        "start_date": "2026-08-24T21:28:33.865946Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92658751,
+        "block_timestamp": 1787693154,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x7a81e3a9aee07a830a089fe2e89b33de0703823b312f791f5fd0910504003408",
+        "transaction_hash": "0xb8a118afd3edfc2602533f71c6de665b32182ce07ddd1348c75d6e9d5fd34edd"
+      },
+      "t0": 1787692800
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666874,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666874,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666874,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666877,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "31531257205227948852377018209925555789310303493175424719442506627670257355727",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "80242187562974996896208272985353974722187975958162084193249124746878663228605",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "31531257205227948852377018209925555789310303493175424719442506627670257355727",
+          "80242187562974996896208272985353974722187975958162084193249124746878663228605"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 21:21:25+00",
+        "condition_id": "0xdd2ceccd52bb49c533b1f93aa53eabaca0b1406122f9aa2adf50fbb73a0933a9",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T21:20:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x7caddd2ba11b41e20b0e5467ae5ce6c3abe105e7fc2c1668009597412ff45d23",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787692500",
+        "start_date": "2026-08-24T21:23:53.931326Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92658572,
+        "block_timestamp": 1787692885,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x7caddd2ba11b41e20b0e5467ae5ce6c3abe105e7fc2c1668009597412ff45d23",
+        "transaction_hash": "0xe3eac4fe29dca4f024c2aa5a14b75919d04640118c3dd583e761f9c6a882771e"
+      },
+      "t0": 1787692500
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": 92666879,
+          "error": "{'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
+          "outcome_slot_count": null,
+          "payout_denominator": 1,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666880,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666880,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666881,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "88093811607191095927381160417176748149808918522941747110208864748520534369475",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "61237713399110954754041640164453971260582323335931243892853405592441057149407",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "88093811607191095927381160417176748149808918522941747110208864748520534369475",
+          "61237713399110954754041640164453971260582323335931243892853405592441057149407"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 21:16:27+00",
+        "condition_id": "0x262e949abe982f15200d317ce25b49ad3bbaf855077d7d7dc3effaf1076efb3d",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T21:15:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0xbde6d4b445a4a43e6d57c812200af70dfa9fc769869da9857caf3c7835cef37a",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787692200",
+        "start_date": "2026-08-24T21:19:21.21205Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92658373,
+        "block_timestamp": 1787692587,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0xbde6d4b445a4a43e6d57c812200af70dfa9fc769869da9857caf3c7835cef37a",
+        "transaction_hash": "0xbbd276f40aa283f64b4514a69839b7262c4d76f5e5d76d486833247aa9c4a4c7"
+      },
+      "t0": 1787692200
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": null,
+          "error": "{'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
+          "outcome_slot_count": null,
+          "payout_denominator": null,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666884,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666884,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666885,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "5734946981669893749399785825259493631900063921016575709252471742691357911406",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "24181501087133487905543921827405210519349583433960875490073758752110732931667",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "5734946981669893749399785825259493631900063921016575709252471742691357911406",
+          "24181501087133487905543921827405210519349583433960875490073758752110732931667"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 21:11:27+00",
+        "condition_id": "0x49a7d6b6e3fd4abd30a05806d9dfd0b1e8681a33157deb4fbf20114515605c81",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T21:10:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x353689b96bc86dedea7925f6fd3f17380003b9fb294e2c48a248532b98750890",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787691900",
+        "start_date": "2026-08-24T21:13:35.519191Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92658173,
+        "block_timestamp": 1787692287,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x353689b96bc86dedea7925f6fd3f17380003b9fb294e2c48a248532b98750890",
+        "transaction_hash": "0xf74fc04e2baae87c0124276d1270ff83ab12959d1363b9623155db64ea14cddd"
+      },
+      "t0": 1787691900
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": null,
+          "error": "{'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
+          "outcome_slot_count": null,
+          "payout_denominator": null,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666887,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666887,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666889,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "81719903995729721645482476013051262689864528317239849499026177892886736933778",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "203899737264790890360128199403423480301590789261420295991216591206427590590",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "81719903995729721645482476013051262689864528317239849499026177892886736933778",
+          "203899737264790890360128199403423480301590789261420295991216591206427590590"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 21:06:27+00",
+        "condition_id": "0x12897d1a543f93b0ab7ec092e840e470a44cb456b3f257a4b48afbb9065174a1",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T21:05:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x4fc62cd8459b416a6cc142bd6dfb0f9ea1df8c3c207d95505be6f730d15e0189",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787691600",
+        "start_date": "2026-08-24T21:08:31.11936Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92657973,
+        "block_timestamp": 1787691987,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x4fc62cd8459b416a6cc142bd6dfb0f9ea1df8c3c207d95505be6f730d15e0189",
+        "transaction_hash": "0x0842b7218886ff271afc0d35b9d246519fa3234a0c7a14cb07a9898b731db672"
+      },
+      "t0": 1787691600
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": null,
+          "error": "{'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
+          "outcome_slot_count": null,
+          "payout_denominator": null,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666892,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666891,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666893,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "17709740360130446477969981443731125715841875738377982569139047670876464574640",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "58883553204671360290132863501307427667844078867850060054299771675041147014286",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "17709740360130446477969981443731125715841875738377982569139047670876464574640",
+          "58883553204671360290132863501307427667844078867850060054299771675041147014286"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 21:00:52+00",
+        "condition_id": "0xd1fa571463725764fb648434ee86f25509f695a8c0c20fe5888f0f90c28976b2",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T21:00:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0xca2dd673c2f9fd94d022387d0af6a1aee957aea689de60048640807fe920ec70",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787691300",
+        "start_date": "2026-08-24T21:03:31.185483Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92657750,
+        "block_timestamp": 1787691652,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0xca2dd673c2f9fd94d022387d0af6a1aee957aea689de60048640807fe920ec70",
+        "transaction_hash": "0x32078605d7487bbb1193cd3b52f53315879501327333b57080a2491a8673f4d0"
+      },
+      "t0": 1787691300
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": null,
+          "error": "{'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
+          "outcome_slot_count": null,
+          "payout_denominator": null,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666896,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666896,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666897,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "99968042858725451567524784802728674612055211519365327771787830689546406468510",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "74749981215262058418071594433206357839217832610100933843152537246128075234372",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "99968042858725451567524784802728674612055211519365327771787830689546406468510",
+          "74749981215262058418071594433206357839217832610100933843152537246128075234372"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 20:57:30+00",
+        "condition_id": "0x243518032168abaa915416021fc3d9fe4e8b99f64b4ec810bd7b5c2f2931430d",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T20:55:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x23688416f050ca9babd15bc719fca0c70aeea887bfc9dbd91c4e304a3619b1d2",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787691000",
+        "start_date": "2026-08-24T20:58:33.692403Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92657615,
+        "block_timestamp": 1787691450,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x23688416f050ca9babd15bc719fca0c70aeea887bfc9dbd91c4e304a3619b1d2",
+        "transaction_hash": "0x954d0e2a03e2a9e43175d117384a861883a650da92d52517f02a1997501a1c0b"
+      },
+      "t0": 1787691000
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": null,
+          "error": "{'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
+          "outcome_slot_count": null,
+          "payout_denominator": null,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666900,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666899,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666900,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "109349305077672026429060105333595741936141728189406169172841861074587051439627",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "91184896712843176532784195417468741058588641596521735073699542094281842322367",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "109349305077672026429060105333595741936141728189406169172841861074587051439627",
+          "91184896712843176532784195417468741058588641596521735073699542094281842322367"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 20:51:27+00",
+        "condition_id": "0xe51ae3d381da468884a0e546e76ca13fc81fc9342a001bfb515af459bae5c63d",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T20:50:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x01da13e15025b8f1f9eac07e59d482f5c8d2eb4a77f4ff1e1605ae5031b71462",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787690700",
+        "start_date": "2026-08-24T20:53:49.095797Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92657373,
+        "block_timestamp": 1787691087,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x01da13e15025b8f1f9eac07e59d482f5c8d2eb4a77f4ff1e1605ae5031b71462",
+        "transaction_hash": "0x22510e2898e13eabb17be682cff266ebd52e79049c7cc21f87188abbc7c8111d"
+      },
+      "t0": 1787690700
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": null,
+          "error": "{'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
+          "outcome_slot_count": null,
+          "payout_denominator": null,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666903,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666903,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666904,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "15216565618912314843046223031715048325192964439378730684877020212856143504156",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "106617310585960426612582892487024086490732202114314949952094458368656395678356",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "15216565618912314843046223031715048325192964439378730684877020212856143504156",
+          "106617310585960426612582892487024086490732202114314949952094458368656395678356"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 20:46:25+00",
+        "condition_id": "0x7dfb0a939488369f4088d271e584240128dadf001fec2b6cbce2d2ca93d4bd54",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T20:45:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x9da12bc0e467da2c76728ed9bfa4e9978598aced59f60ededeb9d8a4018ca2bc",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787690400",
+        "start_date": "2026-08-24T20:48:40.392716Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92657172,
+        "block_timestamp": 1787690785,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x9da12bc0e467da2c76728ed9bfa4e9978598aced59f60ededeb9d8a4018ca2bc",
+        "transaction_hash": "0x675af2285914e7663a66100009c998b78084f34b1b854f45f885f42a5c32f0a3"
+      },
+      "t0": 1787690400
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": null,
+          "error": "{'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
+          "outcome_slot_count": null,
+          "payout_denominator": null,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666907,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666907,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666908,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "23127002665866831185867069601719336766584509031338754735634100454371297526923",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "91924053881944365945974724711994871258242808674665419651810185912838528483537",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "23127002665866831185867069601719336766584509031338754735634100454371297526923",
+          "91924053881944365945974724711994871258242808674665419651810185912838528483537"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 20:41:25+00",
+        "condition_id": "0x3c16394a9bb08b242309160f78e27fcfabe4d3a1447f6782d7ee37d0ddb7b3c6",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T20:40:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x8ec30cf99e6d08c07b7385d1398d31c106145e6d425dd06046d10ff6be5f12ec",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787690100",
+        "start_date": "2026-08-24T20:43:30.126862Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92656972,
+        "block_timestamp": 1787690485,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x8ec30cf99e6d08c07b7385d1398d31c106145e6d425dd06046d10ff6be5f12ec",
+        "transaction_hash": "0x7018210deeeb62cfd2dc8a71b04eb9bcaf607f957f78a5d4dfe7a2926c4f0264"
+      },
+      "t0": 1787690100
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": null,
+          "error": "{'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
+          "outcome_slot_count": null,
+          "payout_denominator": null,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666911,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666911,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666911,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "50777316875979154503128821665015687402320428968865822168395130257365029669108",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "63791413554819259516786513922883937802926342524069944270087906931306263660732",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "50777316875979154503128821665015687402320428968865822168395130257365029669108",
+          "63791413554819259516786513922883937802926342524069944270087906931306263660732"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 20:36:25+00",
+        "condition_id": "0xc7da004d2781a75b2019f67bb48e86d904000807245e76a6db583311918d7581",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T20:35:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x4d7e2a6527ac9a7061115bffe69f5a417026d2fee39e181ee1d072aa58878b3f",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787689800",
+        "start_date": "2026-08-24T20:39:07.238795Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92656772,
+        "block_timestamp": 1787690185,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x4d7e2a6527ac9a7061115bffe69f5a417026d2fee39e181ee1d072aa58878b3f",
+        "transaction_hash": "0xfbb20bbf4c579efa19aedde2fcf21f9193e946b67aa7e13438b204dee49de4f2"
+      },
+      "t0": 1787689800
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": null,
+          "error": "{'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
+          "outcome_slot_count": null,
+          "payout_denominator": null,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666914,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666914,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666915,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "39076757213744332418006872714312440744688031732266043195187487516148650915353",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "103956782982479420577583920208000471892439781608414543732325391691359920594215",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "39076757213744332418006872714312440744688031732266043195187487516148650915353",
+          "103956782982479420577583920208000471892439781608414543732325391691359920594215"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 20:31:27+00",
+        "condition_id": "0x293bdb39ffbc242ced7886febd8e0e2c1bc05c15955ab753da61799f746bb688",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T20:30:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0xf6d35dac394025c586d415fc9f11b19c58a16885a84b87f312a9318563b64204",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787689500",
+        "start_date": "2026-08-24T20:35:13.082951Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92656573,
+        "block_timestamp": 1787689887,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0xf6d35dac394025c586d415fc9f11b19c58a16885a84b87f312a9318563b64204",
+        "transaction_hash": "0xa636c0572a042245a92c260a22ee188679fe07c58cbad46fdac039943431c5f5"
+      },
+      "t0": 1787689500
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": null,
+          "error": "{'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
+          "outcome_slot_count": null,
+          "payout_denominator": null,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666918,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666918,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666919,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "115106102794682758658515995043684849980159776820435488735442526656366921571346",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "86417785315202750087715562339924416510571190129281455786876962369635417170207",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "115106102794682758658515995043684849980159776820435488735442526656366921571346",
+          "86417785315202750087715562339924416510571190129281455786876962369635417170207"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 20:26:27+00",
+        "condition_id": "0x66e0f12a71b84840502216f84a597e231b19efa482e915e7130fe5ad8980e39e",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T20:25:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x8602e08bdebb3b6525bfe7c41750052be5b9989691f3da697a16aba368f7f89a",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787689200",
+        "start_date": "2026-08-24T20:28:40.577334Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92656373,
+        "block_timestamp": 1787689587,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x8602e08bdebb3b6525bfe7c41750052be5b9989691f3da697a16aba368f7f89a",
+        "transaction_hash": "0x330bf87548c18c83cc4396267a18a7a2878eba249e101e121184a3739dbcf176"
+      },
+      "t0": 1787689200
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": null,
+          "error": "{'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
+          "outcome_slot_count": null,
+          "payout_denominator": null,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666922,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666922,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666923,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "15859674665819753289420992835450418453534096699816095734904045386665269345389",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "84862058014306499837641710488801075793852518621525385092878390371267659865864",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "15859674665819753289420992835450418453534096699816095734904045386665269345389",
+          "84862058014306499837641710488801075793852518621525385092878390371267659865864"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 20:21:25+00",
+        "condition_id": "0xe1e26503250abdc2f8d68ddc1e2ea9e81e3d2effef38a964220c53d5b145395d",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T20:20:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x349fff8c8abae84fe73b684dced8f4a4aa09bad9903c327e7384b56d00535d62",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787688900",
+        "start_date": "2026-08-24T20:23:45.041703Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92656172,
+        "block_timestamp": 1787689285,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x349fff8c8abae84fe73b684dced8f4a4aa09bad9903c327e7384b56d00535d62",
+        "transaction_hash": "0x83b0254c874411a435fca01983937c1c4ff476da469e97a16b898dd99e03c863"
+      },
+      "t0": 1787688900
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": null,
+          "error": "{'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
+          "outcome_slot_count": null,
+          "payout_denominator": null,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666926,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666926,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666927,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "98391923459611600225235220311857697004903918200657100677448530263041761664749",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "23455439227903436797847069884452827827302422249424510680111359744169348885664",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "98391923459611600225235220311857697004903918200657100677448530263041761664749",
+          "23455439227903436797847069884452827827302422249424510680111359744169348885664"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 20:16:27+00",
+        "condition_id": "0x8fa3033c9dc34820622998efef053a9ff080027b6a6f7f38d3ba46381e0a2390",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T20:15:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x3b35db2866b239d27e9aedec14965a15d0405d155cfd58d7c5ff23cb3f12f95d",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787688600",
+        "start_date": "2026-08-24T20:18:36.044498Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92655973,
+        "block_timestamp": 1787688987,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x3b35db2866b239d27e9aedec14965a15d0405d155cfd58d7c5ff23cb3f12f95d",
+        "transaction_hash": "0x83c6cbdacfd88f4fe940a7dc95bbaacd6177b772686adf27d497d2b02a14381c"
+      },
+      "t0": 1787688600
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": null,
+          "error": "{'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
+          "outcome_slot_count": null,
+          "payout_denominator": null,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666930,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666929,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666930,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "16556574143934133825347744080156231718446949829727532387305993804311029004605",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "97072288054133837249713992913352623987800613955840307219935518244724408629634",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "16556574143934133825347744080156231718446949829727532387305993804311029004605",
+          "97072288054133837249713992913352623987800613955840307219935518244724408629634"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 20:11:25+00",
+        "condition_id": "0xa9f50fe3d17fa549f542789f57d9fe0401fbf1fd5adb8d2073f004fed37e2c61",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T20:10:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x4a8dd42383d50cfcda258abca096913d29b57fe35581abf39357ae56584ba793",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787688300",
+        "start_date": "2026-08-24T20:13:53.903633Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92655772,
+        "block_timestamp": 1787688685,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x4a8dd42383d50cfcda258abca096913d29b57fe35581abf39357ae56584ba793",
+        "transaction_hash": "0xf5185460cc624bdb8efdda2c735a8ca2bda2f1b1dc9ce299c0a33e414e0842af"
+      },
+      "t0": 1787688300
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": null,
+          "error": "{'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
+          "outcome_slot_count": null,
+          "payout_denominator": null,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666933,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666933,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666934,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "58453633920563023563488854853626730232996437546670464588514417095212554414142",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "47570516776866395967419685374279873233209838692048159384286213049989330163344",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "58453633920563023563488854853626730232996437546670464588514417095212554414142",
+          "47570516776866395967419685374279873233209838692048159384286213049989330163344"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 20:06:27+00",
+        "condition_id": "0xb291056e8d772bc6acb86e7534d8b7ef7bf626ce9f3e4823c815fde26d0e7a74",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T20:05:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x7bf8525666cdd12cb10882717e532e010ae20859c5b75d0db79aae932c809498",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787688000",
+        "start_date": "2026-08-24T20:08:43.389171Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92655573,
+        "block_timestamp": 1787688387,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x7bf8525666cdd12cb10882717e532e010ae20859c5b75d0db79aae932c809498",
+        "transaction_hash": "0x2c0876adfb9e22f3ec8b42e96feebb3a62b0c12ac8dce3076864c48ca419abe3"
+      },
+      "t0": 1787688000
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": null,
+          "error": "{'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
+          "outcome_slot_count": null,
+          "payout_denominator": null,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666937,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666937,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666938,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "82582312124477617723247740576976265819906481218146437179853152677487757911131",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "56331213713238034663416045528008687836387013642830852810654476858885809346228",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "82582312124477617723247740576976265819906481218146437179853152677487757911131",
+          "56331213713238034663416045528008687836387013642830852810654476858885809346228"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 20:01:27+00",
+        "condition_id": "0x2610ada1fe5de442d44e48c3598c4d64ae09e476fdeaeda691b9b404d7f2a5fb",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T20:00:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x823ef3a1b4b7aab5310bceee854f8e4fdb8a9463f7375835fc342e564742f1be",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787687700",
+        "start_date": "2026-08-24T20:03:44.94852Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92655373,
+        "block_timestamp": 1787688087,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x823ef3a1b4b7aab5310bceee854f8e4fdb8a9463f7375835fc342e564742f1be",
+        "transaction_hash": "0x54cb6ea9b23c3ecb1e1f1a6bfa068b1d3852552669b968881b13749fb6d14f7c"
+      },
+      "t0": 1787687700
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": null,
+          "error": "{'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
+          "outcome_slot_count": null,
+          "payout_denominator": null,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666941,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666941,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666942,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "40560230066618533724984296717531672301320009487028260576419329919177773531113",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "22306574665256431369949400209004803541510604217146083702014397906348438592453",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "40560230066618533724984296717531672301320009487028260576419329919177773531113",
+          "22306574665256431369949400209004803541510604217146083702014397906348438592453"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 19:56:25+00",
+        "condition_id": "0xe691a59bb209fe0a62887d7ab2847b4717ff17822cd31ce10614b8a89a64050d",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T19:55:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x850cd8a585c39e23120914dd9f0d0f873ff0aa1156287755814eea76e8af3684",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787687400",
+        "start_date": "2026-08-24T19:58:39.360834Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92655172,
+        "block_timestamp": 1787687785,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x850cd8a585c39e23120914dd9f0d0f873ff0aa1156287755814eea76e8af3684",
+        "transaction_hash": "0xb5d81075dd33347ed1cc2df386d9d52f2a6247a2d7d64d709ac2bf5f09175bf8"
+      },
+      "t0": 1787687400
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": null,
+          "error": "{'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
+          "outcome_slot_count": null,
+          "payout_denominator": null,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666945,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666945,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666946,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "77801777320900761876151977915468887388506327086252753955067214132324416778221",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "113362502659968200426665667297245555179532704137864941645792640511157983624178",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "77801777320900761876151977915468887388506327086252753955067214132324416778221",
+          "113362502659968200426665667297245555179532704137864941645792640511157983624178"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 19:51:25+00",
+        "condition_id": "0xfe6db88c5dc1014404941898fdda5972a60153ee8a4222efaf6b166d6a8d727f",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T19:50:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0xfbcc948a02500f746f69e82c1eea8f6761e98600d883fc030caeba6e1ac5feb6",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787687100",
+        "start_date": "2026-08-24T19:53:52.686695Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92654972,
+        "block_timestamp": 1787687485,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0xfbcc948a02500f746f69e82c1eea8f6761e98600d883fc030caeba6e1ac5feb6",
+        "transaction_hash": "0xf4a47d11bb0b5dcab39a825f4a0be0173d5637f28d4fd09d5cceb9d0f21f5206"
+      },
+      "t0": 1787687100
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": null,
+          "error": "{'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
+          "outcome_slot_count": null,
+          "payout_denominator": null,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666949,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666948,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666949,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            0,
+            1
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 0,
+            "token_id": "90764308999051419098214787050884172263277651071901152766121968078449190153577",
+            "winner": false
+          },
+          {
+            "outcome": "Down",
+            "price": 1,
+            "token_id": "30354929042309192835896411584686405671756082410502087706268041064163139144960",
+            "winner": true
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "90764308999051419098214787050884172263277651071901152766121968078449190153577",
+          "30354929042309192835896411584686405671756082410502087706268041064163139144960"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 19:46:25+00",
+        "condition_id": "0x810f339f4113f877e2cc78c3f6a7cdc47e95933edbbaec6a987b4e6009cbfcc7",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T19:45:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "0",
+          "1"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0x237d55443a2a95eace80337a49cb78bfffbaf238c59b76b614365c04e007afc8",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787686800",
+        "start_date": "2026-08-24T19:48:39.203491Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92654772,
+        "block_timestamp": 1787687185,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0x237d55443a2a95eace80337a49cb78bfffbaf238c59b76b614365c04e007afc8",
+        "transaction_hash": "0x8e38dcd1fc8c42bcc006380b53ba6e8e0b240d4c2c34bcdbb5825fcdef66439c"
+      },
+      "t0": 1787686800
+    },
+    {
+      "chain": {
+        "1rpc": {
+          "block_number": null,
+          "error": "{'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
+          "outcome_slot_count": null,
+          "payout_denominator": null,
+          "payout_numerators": [],
+          "provider": "1rpc"
+        },
+        "drpc": {
+          "block_number": 92666952,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "drpc"
+        },
+        "publicnode": {
+          "block_number": 92666952,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "publicnode"
+        },
+        "quiknode-public": {
+          "block_number": 92666953,
+          "error": null,
+          "outcome_slot_count": 2,
+          "payout_denominator": 1,
+          "payout_numerators": [
+            1,
+            0
+          ],
+          "provider": "quiknode-public"
+        }
+      },
+      "clob": {
+        "accepting_orders": false,
+        "active": true,
+        "available": true,
+        "closed": true,
+        "tokens": [
+          {
+            "outcome": "Up",
+            "price": 1,
+            "token_id": "36242632312932132369505959317539315136214020809015957318372611053853726306740",
+            "winner": true
+          },
+          {
+            "outcome": "Down",
+            "price": 0,
+            "token_id": "81629222625952801867242905406711524704565026200132220803842623404150303913019",
+            "winner": false
+          }
+        ]
+      },
+      "gamma": {
+        "active": true,
+        "automatically_resolved": true,
+        "clob_token_ids": [
+          "36242632312932132369505959317539315136214020809015957318372611053853726306740",
+          "81629222625952801867242905406711524704565026200132220803842623404150303913019"
+        ],
+        "closed": true,
+        "closed_time": "2026-08-25 19:41:25+00",
+        "condition_id": "0x1d60fa049f41a4351778fe0161128bd05523ad44712eb6be71fc465fe2a08895",
+        "crypto_market_config": {
+          "asset": "btc",
+          "duration": "5m",
+          "id": "btc-5m-twap-60",
+          "twapEnabled": true,
+          "twapLookbackSeconds": 60
+        },
+        "end_date": "2026-08-25T19:40:00Z",
+        "neg_risk": false,
+        "outcome_prices": [
+          "1",
+          "0"
+        ],
+        "outcomes": [
+          "Up",
+          "Down"
+        ],
+        "question_id": "0xd013ec78e93c5b0976c4d49c73458c77e19d24411325ad82c458e567ac00b521",
+        "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+        "slug": "btc-updown-5m-1787686500",
+        "start_date": "2026-08-24T19:43:40.939888Z",
+        "uma_resolution_status": "resolved"
+      },
+      "preparation_log": {
+        "detail": "no log in range",
+        "found": false
+      },
+      "resolution_log": {
+        "block_number": 92654572,
+        "block_timestamp": 1787686885,
+        "found": true,
+        "oracle": "0x58e1745bedda7312c4cddb72618923da1b90efde",
+        "question_id": "0xd013ec78e93c5b0976c4d49c73458c77e19d24411325ad82c458e567ac00b521",
+        "transaction_hash": "0xf3278100286dce0413af00a2529ec05706ad135fde283f6f1b14ba040a9342a0"
+      },
+      "t0": 1787686500
+    }
+  ],
+  "poll_seconds": 2.0,
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "rpc_providers": {
+    "1rpc": "https://1rpc.io/matic",
+    "drpc": "https://polygon.drpc.org",
+    "publicnode": "https://polygon-bor-rpc.publicnode.com",
+    "quiknode-public": "https://rpc-mainnet.matic.quiknode.pro"
+  }
+}

@@ -1,0 +1,119 @@
+{
+  "captured_utc": "2026-08-26T01:28:25Z",
+  "ctf_address": "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045",
+  "kind": "P10A_O11_LIVE_TIMING",
+  "note": "One synchronized local clock (time.time). Offsets are seconds after the market's scheduled end, T0 + 300.",
+  "poll_seconds": 1.0,
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "rpc": "https://polygon-bor-rpc.publicnode.com",
+  "watches": [
+    {
+      "condition_id": "0xb04a61c66ae1ac7300f9d394579c52306d58c4bf76e888cf37c33f86bf69c069",
+      "end_epoch": 1787706000,
+      "final_payout_numerators": [
+        0,
+        1
+      ],
+      "first_seen_epoch": {
+        "ctf_payout_denominator": 1787706086.625
+      },
+      "note": "not observed within the window: clob_winner_flag, gamma_closed, gamma_outcome_prices",
+      "samples": 88,
+      "seconds_after_end": {
+        "ctf_payout_denominator": 86.625
+      },
+      "slug": "btc-updown-5m-1787705700",
+      "t0": 1787705700
+    },
+    {
+      "condition_id": "0xbeeb97b8ed3ef5160a31e39f68e9418867a1a134b939d9a0b965fe18862de6d2",
+      "end_epoch": 1787706300,
+      "final_payout_numerators": [
+        1,
+        0
+      ],
+      "first_seen_epoch": {
+        "ctf_payout_denominator": 1787706386.313
+      },
+      "note": "not observed within the window: clob_winner_flag, gamma_closed, gamma_outcome_prices",
+      "samples": 90,
+      "seconds_after_end": {
+        "ctf_payout_denominator": 86.313
+      },
+      "slug": "btc-updown-5m-1787706000",
+      "t0": 1787706000
+    },
+    {
+      "condition_id": "0x82b351c6a86647e5a51d7b0ab593b1911dad4a29f942eadbec9218ebc1c2f74c",
+      "end_epoch": 1787706600,
+      "final_payout_numerators": [
+        1,
+        0
+      ],
+      "first_seen_epoch": {
+        "ctf_payout_denominator": 1787706685.642
+      },
+      "note": "not observed within the window: clob_winner_flag, gamma_closed, gamma_outcome_prices",
+      "samples": 84,
+      "seconds_after_end": {
+        "ctf_payout_denominator": 85.642
+      },
+      "slug": "btc-updown-5m-1787706300",
+      "t0": 1787706300
+    },
+    {
+      "condition_id": "0x5cc860ffe29488ddc2fda8978890b9edbe0e47015c180cacd3d5b8e2f4428172",
+      "end_epoch": 1787706900,
+      "final_payout_numerators": [
+        0,
+        1
+      ],
+      "first_seen_epoch": {
+        "ctf_payout_denominator": 1787706954.262
+      },
+      "note": "not observed within the window: clob_winner_flag, gamma_closed, gamma_outcome_prices",
+      "samples": 57,
+      "seconds_after_end": {
+        "ctf_payout_denominator": 54.262
+      },
+      "slug": "btc-updown-5m-1787706600",
+      "t0": 1787706600
+    },
+    {
+      "condition_id": "0xb2deaac2aec9ea321120a6c658e9332e02a21ce2a40e050098582746c68f5ebd",
+      "end_epoch": 1787707200,
+      "final_payout_numerators": [
+        1,
+        0
+      ],
+      "first_seen_epoch": {
+        "ctf_payout_denominator": 1787707285.366
+      },
+      "note": "not observed within the window: clob_winner_flag, gamma_closed, gamma_outcome_prices",
+      "samples": 81,
+      "seconds_after_end": {
+        "ctf_payout_denominator": 85.366
+      },
+      "slug": "btc-updown-5m-1787706900",
+      "t0": 1787706900
+    },
+    {
+      "condition_id": "0xdf7e378dc9e4925fd096c24de3329cfa1c8741cc5442f3f9fb481c62c5186263",
+      "end_epoch": 1787707500,
+      "final_payout_numerators": [
+        1,
+        0
+      ],
+      "first_seen_epoch": {
+        "ctf_payout_denominator": 1787707584.853
+      },
+      "note": "not observed within the window: clob_winner_flag, gamma_closed, gamma_outcome_prices",
+      "samples": 73,
+      "seconds_after_end": {
+        "ctf_payout_denominator": 84.853
+      },
+      "slug": "btc-updown-5m-1787707200",
+      "t0": 1787707200
+    }
+  ]
+}

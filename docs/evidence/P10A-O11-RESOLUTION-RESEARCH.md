@@ -124,7 +124,7 @@ as the authoritative final settlement state, because the two questions are separ
 | `negRisk` | false, in all 55 |
 | `automaticallyResolved` | true, in all 55 |
 | `ConditionResolution` log found | 55 of 55 |
-| Raw data | `p10a-o11-historical.json` |
+| Raw data | `p10a-o11-historical.json` (193 KB), analysis `p10a-o11-agreement.json` |
 
 ### Outcome-index mapping — proven in both directions
 
@@ -183,6 +183,46 @@ Seconds between a market's scheduled end (`T0 + 300`) and the block containing i
 | ---: | ---: | ---: | ---: | ---: |
 | 55 | 52 | **85** | 88 | 172 |
 
+## Live time-to-availability — 6 consecutive real settlements
+
+Historical snapshots cannot answer which source becomes final *first*: an hour later they all
+look the same. So six consecutive markets were followed from before they ended until the chain
+reported a payout, on one synchronized local clock (`time.time()`), polling each source once per
+second and continuing for 120 s after the chain event so that a slower source could still be
+caught.
+
+| Market | Payout | CTF available at |
+| --- | --- | ---: |
+| `btc-updown-5m-1787705700` | `[0,1]` Down | **+86.6 s** |
+| `btc-updown-5m-1787706000` | `[1,0]` Up | **+86.3 s** |
+| `btc-updown-5m-1787706300` | `[1,0]` Up | **+85.6 s** |
+| `btc-updown-5m-1787706600` | `[0,1]` Down | **+54.3 s** |
+| `btc-updown-5m-1787706900` | `[1,0]` Up | **+85.4 s** |
+| `btc-updown-5m-1787707200` | `[1,0]` Up | **+84.9 s** |
+
+Seconds after each market's scheduled end (`T0 + 300`). All six `T0` gaps are exactly 300 s, so
+the markets are consecutive.
+
+| Source | n | min | p50 | max |
+| --- | ---: | ---: | ---: | ---: |
+| `payoutDenominator > 0` (CTF) | 6 | 54.3 s | **85.6 s** | 86.6 s |
+| Gamma `closed` | **0 observed** | — | — | — |
+| Gamma `outcomePrices` | **0 observed** | — | — | — |
+| CLOB `tokens[].winner` | **0 observed** | — | — | — |
+
+**In every one of the six markets, Gamma and the CLOB had still not reflected the outcome by the
+end of the observation window** — roughly 206 s after the market ended, and roughly 120 s after
+the chain had already paid out. They are recorded as *not observed within the window*, never as
+"agreed" or "arrived at the same time".
+
+The historical corpus shows they do catch up: at 1–4 hours old, all 55 markets agree. So the
+venue metadata is accurate but late, by more than two minutes.
+
+This makes the usual trade-off disappear. The source that is authoritative about redemption is
+also the earliest available, so there is nothing to buy by preferring a faster one — and the
+strategy has already stopped quoting and is holding balances by then anyway (Canonical §18), so
+there is no pressure to guess.
+
 ## Finality — measured, not assumed
 
 Polygon's `finalized` block was compared against `latest` on three providers:
@@ -216,7 +256,7 @@ absorbed.
 | --- | --- | --- | --- |
 | Ever disagreed with final CTF? | no (0/55) | no (0/55) | — |
 | Can be absent or stale? | **yes** | **yes** | no once resolved |
-| Becomes available earlier? | **no** — see live study | **no** | **yes** |
+| Becomes available earlier? | **no** — not observed within 206 s in 6/6 | **no** — same | **yes**, p50 +85.6 s |
 | Proves redemption is possible? | **no** | **no** | **yes** |
 | Can represent a non-binary payout? | no | no | **yes** |
 | Public, read-only, reproducible? | yes | yes | yes, from any RPC |
@@ -232,3 +272,57 @@ absorbed.
 Polling is bounded: 2 s between markets in the historical collector, 1 s per source while a market
 is settling in the live study, stopping as soon as the chain reports a payout. All three are
 read-only; none can reach a venue write endpoint or a signing path.
+
+## O11 verdict
+
+All fifteen closure requirements are met, so **O11 closes** with an explicit three-way
+distinction rather than a single "source":
+
+```text
+AUTHORITATIVE FINAL   Conditional Tokens payout vector on Polygon
+                      0x4D97DCd97eC945f40cF65F87097ACe5EA0476045
+                      payoutDenominator(conditionId) > 0 gates redeemability;
+                      payoutNumerators is the payout. Nothing else can authorise
+                      a redemption, because nothing else is what pays.
+
+ADVISORY CROSS-CHECK  Gamma outcomePrices, CLOB tokens[].winner
+                      55/55 agreement, 0 disagreements, but >2 minutes late and
+                      capable of being absent. Never sufficient on its own; a
+                      disagreement with the chain is a fault, not a tiebreak.
+
+RULE SOURCE           Chainlink BTC/USD TWAP 60 s data stream, as named by the
+                      markets themselves in 55/55. Describes what the outcome
+                      ought to be. NOT independently recomputed here - the API is
+                      credentialed - so it is a documented rule, not a verified
+                      calculation.
+
+PRE-ON-CHAIN          Unresolved. payoutDenominator == 0 means not yet
+                      authoritative for redemption, whatever any venue says.
+```
+
+### Ambiguity rule — fail closed
+
+Resolution is `AMBIGUOUS`, and no redemption is authorised, if any of:
+
+* an advisory source names a different winner than the payout vector;
+* two RPC providers disagree about the payout state at comparable finality;
+* the payout vector is not exactly one non-zero slot summing to the denominator — including
+  fractional payouts, ties, and outcome slot counts other than two;
+* the outcome slot count or token mapping does not match the market's metadata.
+
+`AMBIGUOUS` feeds P9's existing `RESOLUTION_AMBIGUOUS` kill switch, which halts rather than
+guesses. There is no else-branch that picks a winner.
+
+### What remains OPERATIONAL
+
+Confirmation depth. No Polymarket-specified requirement was found, and measured finality lag was
+1–4 blocks, so P10 must expose it as configuration rather than hard-code a number. The
+authoritative-source decision and the confirmation-depth policy are separate choices.
+
+### What this does not claim
+
+* It does not close **O14** (strike/start-price chaining). The `twapLookbackSeconds: 60`
+  observation is suggestive and is *not* the evidence O14 requires.
+* It does not prove Chainlink's arithmetic — see the UNRUN note above.
+* It does not identify the resolver contract's official name.
+* It does not make P10 implementable-and-done: this closes the prerequisite only.

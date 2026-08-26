@@ -1,0 +1,48 @@
+{
+  "agreement_matrix": {
+    "clob_winner": {
+      "agree": 55
+    },
+    "gamma_outcome_prices": {
+      "agree": 55
+    }
+  },
+  "captured_utc": "2026-08-26T00:51:00Z",
+  "chain_outcome_shapes": {
+    "SLOT_0": 27,
+    "SLOT_1": 28
+  },
+  "disagreements": [],
+  "markets": 55,
+  "min_providers_answering": 3,
+  "onchain_resolution_delay_seconds_after_market_end": {
+    "count": 55,
+    "max": 172,
+    "min": 52,
+    "p50": 85,
+    "p90": 88
+  },
+  "oracles_observed": {
+    "0x58e1745bedda7312c4cddb72618923da1b90efde": 55
+  },
+  "providers_answering_per_market": {
+    "3": 29,
+    "4": 26
+  },
+  "resolution_sources": {
+    "https://data.chain.link/streams/btc-usd-twap-60s-streams": 55
+  },
+  "rpc_agreement": {
+    "markets_where_all_answering_providers_agree": 55
+  },
+  "rpc_providers": [
+    "1rpc",
+    "drpc",
+    "publicnode",
+    "quiknode-public"
+  ],
+  "slot_labels": {
+    "SLOT_0=Up": 27,
+    "SLOT_1=Down": 28
+  }
+}

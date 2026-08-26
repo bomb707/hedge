@@ -75,6 +75,62 @@ production.
 
 ---
 
+## P11: durable telemetry persistence
+
+Full evidence in
+[`evidence/P11-TELEMETRY-PERSISTENCE.md`](evidence/P11-TELEMETRY-PERSISTENCE.md).
+
+Two gates, kept apart:
+
+| Gate | Status |
+|---|---|
+| Implementation | **PASSED** |
+| Real-market persistence | **PASSED** — one healthy market, one controlled stalled sink |
+| Real own-fill / maker fraction / nonzero own-ledger metrics | **UNRUN / DEFERRED TO P14** |
+
+### The claim, measured
+
+**Stalling Plane 3 does not slow Plane 1.** 12,000 real captured events, four alternated
+triples, each configuration alone in a fresh interpreter — P8C's method unchanged:
+
+| Metric | off p50 | healthy Δ | stalled Δ |
+|---|---:|---:|---:|
+| decide | 22,387 ns | **−154 ns (−0.69 %)** | **−352 ns (−1.57 %)** |
+| full cycle | 36,802 ns | **−184 ns (−0.50 %)** | **−365 ns (−0.99 %)** |
+
+Every P8C limit met with the original numbers; none was moved. It did not start there: the first
+honest measurement was **+5.3 %**, because encoding one record cost 92 µs on a GIL-holding
+thread. `asdict` recursion, a recursive JSON pre-pass and `sort_keys` came out; a one-level field
+walk costs 26 µs.
+
+### Real markets
+
+* **`btc-updown-5m-1787748900`** — 171,467 cycles, **171,467 decisions persisted**, 173,460 risk
+  records, 1 settlement (DOWN). **Zero drops, zero gaps, zero sink errors.** Buffer high-water
+  **214 of 320,000** — continuous draining, directly measured. `telemetry_complete = true`,
+  verification **COMPLETE** on all 15 checks.
+* **`btc-updown-5m-1787749500`** — `CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET`. Our consumer stopped
+  for 90 s while the feeds stayed real and healthy. **64,416 market events processed during the
+  stall**, drops exact at **62,428**, one gap recorded with both ends, sink resumed without
+  error, market still settled. `telemetry_complete = false`, verification **INCOMPLETE**.
+  Telemetry was lost; nothing else was.
+
+### An operational finding, recorded rather than buried
+
+The store is ~**5 KB per decision** — about 850 MB per five-minute market, ~10 GB per trading
+hour. That is impractical to keep indefinitely. The payload column duplicates the indexed
+columns and could be narrowed; nothing was truncated to make the figure look better.
+
+### Three defects the real market found that the unit tests could not
+
+The connection was opened on the wrong thread (sqlite refused every write while the tests passed,
+because they drained on the main thread); a bare `except: sink_errors += 1` hid 1,789 failures
+per run whose cause turned out to be `RawCentre` being a rational rather than a price; and the
+closing writes repeated the first defect in the tool, so the first complete-looking market
+verified INCOMPLETE — caught by the verifier, which is what it is for.
+
+---
+
 ## P10C attestation-binding closure
 
 Independent review accepted the P10B boundary below and found one narrow defect left in it: **an
@@ -901,7 +957,10 @@ orders, which P8 does not place. Both stay OPEN.
 
 | | |
 |---|---|
-| **Current phase** | **P10 — settlement, resolution, and redemption planning** |
+| **Current phase** | **P11 — durable telemetry persistence** |
+| P11 implementation gate | **PASSED** — versioned schemas, non-blocking worker, exact analytics, verifier |
+| P11 real-market gate | **PASSED** — healthy market + controlled stalled sink |
+| P11 authenticated fill/economics | **UNRUN / DEFERRED TO P14** |
 | P10 implementation gate | **PASSED** — verifier, payout arithmetic, plan, encoder, audit record |
 | P10 real-market resolution gate | **PASSED** — 35 real markets over 6 live runs, 1 full lifecycle |
 | P10 trust-boundary gate | **PASSED** — provider independence, bound identity attestation, atomic finality |
@@ -947,9 +1006,11 @@ orders, which P8 does not place. Both stay OPEN.
 | Attestation binding | identity → endpoint → reading → attestation, checked at each layer; **software trust boundary, not cryptographic** |
 | GitHub default branch | `main` (verified 2026-08-26; the earlier `bootstrap/phase-0` observation no longer holds) |
 | P9 commits | `4be0032` risk engine · `6576de0` recovery + runner · `1584dee` stale recovery fix · `b2e715e` real-market evidence · `4c2ab1d` full fault market |
-| Last accepted milestone | P9C — risk-audit sequence integrity (`44e05e1`) |
-| Next milestone | P11 — **not started**, and not to be started before P10 is accepted |
-| `main` | `226663d` — fast-forwarded through accepted P9C and the P1 parser correction, pushed |
+| Last accepted milestone | P10C — settlement attestation binding (`8c7d435`, now `main`) |
+| Next milestone | P12 — **not started**, and not to be started before P11 is accepted |
+| `main` | `8c7d435` — fast-forwarded through the whole accepted P10 lineage, pushed |
+| P11 branch | `feature/p11-telemetry-persistence` |
+| P11 store size | ~5 KB/decision, ~850 MB/market — **OPERATIONAL finding**, recorded not resolved |
 | Remote | `origin` → `https://github.com/bomb707/hedge.git` |
 
 Nothing merged by merge commit, rebased, squashed, or force-pushed. `main` advances by

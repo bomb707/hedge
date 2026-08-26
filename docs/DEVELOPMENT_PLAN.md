@@ -346,7 +346,27 @@ opened or closed by assumption.
 
 ---
 
-## P11 — Telemetry persistence
+## P11 — Telemetry persistence   ← IMPLEMENTED; authenticated fills UNRUN
+
+**Status, kept as separate gates:**
+
+| Gate | Status |
+|---|---|
+| Implementation | **PASSED** — versioned schemas, non-blocking worker, exact analytics, verifier |
+| Real-market persistence | **PASSED** — one healthy market, one controlled stalled sink |
+| Real own-fill / maker fraction / nonzero own-ledger metrics | **UNRUN / DEFERRED TO P14** |
+
+The acceptance gate below asks that hot-path latency be statistically unchanged with the sink
+stalled, and that drops be counted rather than silent. Both were measured on real data: every
+p50 overhead is negative (inside noise) for healthy *and* stalled sinks, and a 90-second
+controlled stall on a real market dropped exactly 62,428 records while 64,416 market events were
+processed and nothing waited.
+
+**An operational finding:** the store is ~5 KB per decision, ~850 MB per five-minute market.
+Recorded rather than buried; narrowing it is a P12/P15 decision about what the data is for.
+
+Evidence: [`evidence/P11-TELEMETRY-PERSISTENCE.md`](evidence/P11-TELEMETRY-PERSISTENCE.md).
+**No strategy open item was closed or opened by P11.**
 
 - **Goal:** durable decision/fill records and post-market analytics — entirely in Plane 3.
 - **Inputs:** Canonical §25, §26; Detailed §34; I19.

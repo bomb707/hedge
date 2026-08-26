@@ -768,6 +768,26 @@ empirical claim about how often real ambiguities occur.
 
 ---
 
+## P11 opened no item and closed none
+
+Persistence records evidence; it does not tune strategy. No value in the frozen strategy, in
+`StrategyConfig`, or in any OPEN item was changed on the basis of a P11 market, and P15 owns
+research and optimisation.
+
+Three P11 facts belong in the record:
+
+* **O07 is untouched and remains OPEN.** Every reported PnL names the rebate view that produced
+  it, an estimated rebate never becomes a realised one, and both are stored side by side.
+* **Nonzero own-ledger economics are UNRUN, not unresolved** — `DEFERRED TO P14`. The Term1 /
+  Term2 identity is exercised exactly against constructed ledgers, which is a statement about
+  the arithmetic; no real market has produced a nonzero one because no order has been placed.
+* **Incomplete markets may not close open items.** A market is `telemetry_complete` only if
+  nothing was lost, and the controlled-stall market is exactly the case that rule exists for:
+  150,249 real cycles, 87,821 recorded, and no way to tell from the survivors which 62,428 are
+  missing. P15 must not treat such a market as evidence by default.
+
+---
+
 ## Summary table
 
 | ID | Item | Status | Blocking |

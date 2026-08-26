@@ -204,7 +204,15 @@ class DecisionRecord:
     book_timestamp_ns: TimestampNs | None
     book_age_ns: int | None
 
-    raw_centre: PriceUnits | None
+    raw_centre: ExactRatio | None
+    """The centre *before* tick quantization, kept rational.
+
+    `RawCentre` is a numerator/denominator pair on purpose: the CLOB midpoint of an odd bid+ask
+    sum is a genuine half unit, and P3 refuses to round it early so the quantization decision
+    stays in one place. Persisting it as an integer price would throw away the very thing it
+    exists to preserve, and would make the stored centre disagree with the one the decision was
+    actually made from."""
+
     quantized_centre: PriceUnits | None
     centre_source: str
     centre_status: str

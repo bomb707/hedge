@@ -21,6 +21,7 @@ from maker5m.persistence.schema import (
     DECISION_SCHEMA_VERSION,
     FILL_SCHEMA_VERSION,
     DecisionRecord,
+    ExactRatio,
     FillProvenance,
     FillRecord,
     SideRecord,
@@ -194,7 +195,14 @@ def build_decision_record(
         down_best_ask=None if book is None or book.down_ask is None else book.down_ask.price,
         book_timestamp_ns=book_ts,
         book_age_ns=_age(event_ts, book_ts),
-        raw_centre=None if telemetry.raw_centre is None else telemetry.raw_centre.price,
+        raw_centre=(
+            None
+            if telemetry.raw_centre is None
+            else ExactRatio(
+                numerator=telemetry.raw_centre.numerator,
+                denominator=telemetry.raw_centre.denominator,
+            )
+        ),
         quantized_centre=telemetry.quantized_centre,
         centre_source=telemetry.centre_source.value,
         centre_status=telemetry.centre_status.value,

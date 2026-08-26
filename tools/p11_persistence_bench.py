@@ -1,0 +1,265 @@
+"""What does durable persistence cost the trading path? Process-isolated, on a real market.
+
+**REAL MARKET DATA.** The event stream is a complete P6 capture of a real `btc-updown-5m`
+market, replayed from its journal. A synthetic loop is not used as the authoritative gate: P8
+already learned that a corpus which acts on 51% of cycles produces tier numbers nothing like a
+real market's 0.9%, and the number this benchmark exists to defend is the one a real market
+would see.
+
+Three configurations, each alone in a fresh interpreter:
+
+* **off** — no persistence worker at all. The baseline.
+* **healthy** — worker running, draining continuously into SQLite on real disk.
+* **stalled** — worker running and deliberately consuming nothing, so the bounded buffer fills
+  and overflows. This is the configuration the acceptance claim is about: **stalling Plane 3
+  must not slow Plane 1.**
+
+The method is P8C's, unchanged and for its reasons: a fresh process per configuration because
+allocator state and GC scheduling carry between cycles inside one interpreter; launch order
+alternated across pairs so a machine that warms or throttles cannot favour one side; identical
+simulated work on every side, with only persistence switched.
+
+Read-only. No venue, no credential, no order.
+"""
+
+import argparse
+import json
+import statistics
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from typing import Any
+
+PAIRS = 4
+WARMUP_EVENTS = 2_000
+CONFIGURATIONS = ("off", "healthy", "stalled")
+
+
+def load_events(journal_path: Path, limit: int) -> list[Any]:
+    """Stream real events out of a captured journal without decoding the decisions.
+
+    The journals are 150-200 MB because every step stores a complete `DecisionResult`; decoding
+    all of that would measure the decoder. Only the events are needed — the strategy recomputes
+    its own decisions — so each line is parsed and only its event half is decoded.
+    """
+    from maker5m.replay.codec import _dec_event
+
+    events: list[Any] = []
+    with journal_path.open("rb") as handle:
+        handle.readline()  # header
+        for line in handle:
+            if len(events) >= limit:
+                break
+            record = json.loads(line)
+            events.append(_dec_event(record["event"]))
+    return events
+
+
+def child_run(mode: str, journal: Path, limit: int) -> dict[str, object]:
+    """One configuration, alone in this interpreter."""
+    from maker5m.execution import Executor, RecordingTransport, VenueAdapter
+    from maker5m.feeds import BookTracker, IngressMerger, MarketDataPipeline
+    from maker5m.feeds.venue import VenueMarketRules
+    from maker5m.market import MarketState, reduce_event
+    from maker5m.market.events import BookUpdate, SpotTick
+    from maker5m.numeric import parse_price, parse_share
+    from maker5m.persistence import (
+        MarketIdentity,
+        PersistenceWorker,
+        TelemetryProvenance,
+        TelemetryStore,
+    )
+    from maker5m.replay.codec import _dec_header
+    from maker5m.strategy import BaseLot, StrategyEngine, default_config
+    from maker5m.telemetry import InstrumentedRun, ObservationBuffer, SamplingPolicy, perf_now_ns
+    from maker5m.telemetry.metrics import quantile
+
+    with journal.open("rb") as handle:
+        header = _dec_header(json.loads(handle.readline()))
+    definition = header.market
+    events = load_events(journal, limit)
+
+    engine = StrategyEngine(default_config(BaseLot.of(15)))
+    merger = IngressMerger(
+        engine=engine,
+        state=MarketState.initial(definition),
+        clock=lambda: definition.t0,
+        market_id=definition.market_id,
+    )
+    pipeline = MarketDataPipeline(
+        merger=merger,
+        books=BookTracker(definition.up_token_id, definition.down_token_id),
+    )
+    harness = InstrumentedRun(
+        pipeline=pipeline,
+        engine=engine,
+        rules=VenueMarketRules(parse_price("0.01"), parse_share("5"), source="bench"),
+        executor=Executor(adapter=VenueAdapter(RecordingTransport())),
+        buffer=ObservationBuffer(capacity=65_536),
+        sampling=SamplingPolicy(10),
+        enabled=True,
+    )
+
+    worker: PersistenceWorker | None = None
+    directory = tempfile.TemporaryDirectory()
+    if mode != "off":
+        worker = PersistenceWorker(
+            buffer=harness.buffer,
+            store=TelemetryStore(path=Path(directory.name) / "telemetry.sqlite3"),
+            identity=MarketIdentity(
+                market_id=definition.market_id,
+                slug=definition.slug,
+                condition_id=None,
+                provenance=TelemetryProvenance.REPLAY_OF_REAL_CAPTURE.value,
+            ),
+            stall=(lambda: True) if mode == "stalled" else None,
+        )
+        worker.start()
+
+    decide_ns: list[int] = []
+    cycle_ns: list[int] = []
+    reconcile_ns: list[int] = []
+    state = MarketState.initial(definition)
+
+    try:
+        for index, event in enumerate(events):
+            kind = type(event).__name__
+            start = perf_now_ns()
+            state = reduce_event(state, event)
+            merger.state = state
+            merger.advance_ordinal()
+            merger.stages_measured = harness.sampling.selects(merger.ordinal, kind)
+            decision = engine.decide(state)
+            decided = perf_now_ns()
+            source_ts = None
+            if isinstance(event, BookUpdate | SpotTick):
+                source_ts = None  # the captured journal carries no venue clock; never invented
+            harness.observe(kind, start, decision, source_ts)
+            finished = perf_now_ns()
+            if index >= WARMUP_EVENTS:
+                decide_ns.append(decided - start)
+                cycle_ns.append(finished - start)
+                reconcile_ns.append(finished - decided)
+    finally:
+        if worker is not None:
+            worker.stall = None
+            worker.stop(timeout=30)
+        directory.cleanup()
+
+    def tiers(samples: list[int]) -> dict[str, int]:
+        ordered = sorted(samples)
+        return {
+            "p50": quantile(ordered, 0.50),
+            "p95": quantile(ordered, 0.95),
+            "p99": quantile(ordered, 0.99),
+            "mean": int(statistics.fmean(ordered)) if ordered else 0,
+        }
+
+    return {
+        "mode": mode,
+        "slug": definition.slug,
+        "events": len(events),
+        "measured": len(decide_ns),
+        "decide": tiers(decide_ns),
+        "full_cycle": tiers(cycle_ns),
+        "receive_to_reconcile": tiers(reconcile_ns),
+        "buffer_dropped": harness.buffer.dropped,
+        "buffer_accepted": harness.buffer.accepted,
+        "persisted": 0 if worker is None else worker.stats.decisions_written,
+        "worker_high_water": 0 if worker is None else worker.stats.buffer_high_water,
+        "sink_errors": 0 if worker is None else worker.store.sink_errors,
+        "consume_errors": 0 if worker is None else worker.stats.consume_errors,
+        "error_samples": [] if worker is None else list(worker.stats.error_samples),
+        "store_error_samples": [] if worker is None else list(worker.store.error_samples),
+        "observations_consumed": 0 if worker is None else worker.stats.observations_consumed,
+        "fills_seen": 0 if worker is None else worker.stats.fills_seen,
+        "rows_written": 0 if worker is None else worker.store.rows_written,
+        "batches": 0 if worker is None else worker.store.batches,
+        "transaction_ns": 0 if worker is None else worker.store.transaction_ns,
+    }
+
+
+def spawn(mode: str, journal: Path, limit: int) -> dict[str, object]:
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(Path(__file__).resolve()),
+            "--child",
+            mode,
+            "--journal",
+            str(journal),
+            "--limit",
+            str(limit),
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+        cwd=str(Path(__file__).resolve().parent.parent),
+    )
+    parsed: dict[str, object] = json.loads(result.stdout)
+    return parsed
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--child", choices=CONFIGURATIONS)
+    parser.add_argument("--journal", type=Path, required=True)
+    parser.add_argument("--limit", type=int, default=30_000)
+    parser.add_argument("--out", type=Path)
+    args = parser.parse_args()
+
+    if args.child is not None:
+        json.dump(child_run(args.child, args.journal, args.limit), sys.stdout)
+        return
+
+    runs: list[dict[str, object]] = []
+    for index in range(PAIRS):
+        # Rotate which configuration goes first, so a throttling machine cannot bias one.
+        order = CONFIGURATIONS[index % 3 :] + CONFIGURATIONS[: index % 3]
+        for mode in order:
+            runs.append(spawn(mode, args.journal, args.limit) | {"pair": index, "order": order})
+        print(f"  pair {index + 1}/{PAIRS} done ({', '.join(order)})", flush=True)
+
+    def medians(mode: str, metric: str, tier: str) -> int:
+        values = [int(run[metric][tier]) for run in runs if run["mode"] == mode]  # type: ignore[index]
+        return int(statistics.median(values))
+
+    summary: dict[str, Any] = {
+        "kind": "P11_PERSISTENCE_OVERHEAD",
+        "provenance": "REPLAY_OF_REAL_CAPTURE",
+        "journal": str(args.journal.name),
+        "events_per_run": args.limit,
+        "pairs": PAIRS,
+        "note": (
+            "Real captured market events replayed in fresh processes. The strategy, the "
+            "reconciler and the shadow order table run identically in every configuration; "
+            "only persistence changes."
+        ),
+        "medians": {
+            metric: {
+                mode: {tier: medians(mode, metric, tier) for tier in ("p50", "p95", "p99")}
+                for mode in CONFIGURATIONS
+            }
+            for metric in ("decide", "full_cycle", "receive_to_reconcile")
+        },
+        "runs": runs,
+    }
+    base = summary["medians"]
+    for metric in ("decide", "full_cycle"):
+        off = base[metric]["off"]["p50"]
+        for mode in ("healthy", "stalled"):
+            delta = base[metric][mode]["p50"] - off
+            summary.setdefault("overhead", {})[f"{metric}_{mode}_p50_ns"] = delta
+            summary["overhead"][f"{metric}_{mode}_p50_pct"] = (
+                round(100.0 * delta / off, 2) if off else None
+            )
+
+    text = json.dumps(summary, indent=2, sort_keys=True)
+    if args.out:
+        args.out.write_text(text, encoding="utf-8")
+    print(json.dumps({"medians": summary["medians"], "overhead": summary["overhead"]}, indent=2))
+
+
+if __name__ == "__main__":
+    main()

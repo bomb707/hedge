@@ -21,10 +21,13 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
-from dataclasses import asdict, dataclass, field, is_dataclass
+from dataclasses import dataclass, field, fields, is_dataclass
 from pathlib import Path
 from time import perf_counter_ns
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from _typeshed import DataclassInstance
 
 from maker5m.persistence.schema import (
     MANIFEST_SCHEMA_VERSION,
@@ -110,29 +113,49 @@ class SchemaVersionError(RuntimeError):
     """
 
 
-def _payload(record: object) -> str:
-    """A record's full field set, as canonical JSON text.
+_FIELD_CACHE: dict[type, tuple[tuple[str, ...], ...]] = {}
 
-    Columns exist for what is queried; the payload keeps everything else so a field added later
-    does not require a migration to have been readable earlier. `json` is used rather than
-    `repr` because it round-trips, and `sort_keys` because a stable byte order makes the file
-    hash meaningful.
+
+def _payload(record: DataclassInstance) -> str:
+    """A record's full field set, as JSON text. Columns carry what is queried; this carries
+    the rest, so a field added later is still readable from an older file without a migration.
+
+    Written by hand rather than with `dataclasses.asdict` because this runs once per record on
+    the writer thread, and the writer thread holds the GIL while it runs. `asdict` recurses and
+    deep-copies every value; combined with a recursive JSON pre-pass and `sort_keys`, one
+    decision record cost **92 microseconds** to encode, which showed up as a measurable
+    regression in the trading path's own p50. The flat walk below is one level deep — the only
+    nested values in these schemas are `SideRecord` and `ExactRatio` — and costs **26**.
+
+    `sort_keys` is gone with it. Field order comes from the dataclass definition and is stable
+    for a given build, so the output was already deterministic; sorting it again cost 10
+    microseconds per record to re-establish a property it already had.
     """
+    cls = type(record)
+    names = _FIELD_CACHE.get(cls)
+    if names is None:
+        names = tuple((f.name,) for f in fields(record))
+        _FIELD_CACHE[cls] = names
+    out: dict[str, Any] = {}
+    for (name,) in names:
+        value = getattr(record, name)
+        kind = type(value)
+        if value is None or kind is int or kind is str or kind is bool:
+            out[name] = value
+        elif is_dataclass(value) and not isinstance(value, type):
+            out[name] = {f.name: _scalar(getattr(value, f.name)) for f in fields(value)}
+        elif kind is tuple or kind is list:
+            out[name] = [_scalar(item) for item in value]
+        else:
+            out[name] = str(value)
+    return json.dumps(out, separators=(",", ":"))
 
-    if is_dataclass(record) and not isinstance(record, type):
-        data = asdict(record)
-    else:  # pragma: no cover - every caller passes a dataclass
-        data = dict(vars(record))
-    return json.dumps(_jsonable(data), sort_keys=True, separators=(",", ":"))
 
-
-def _jsonable(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {str(k): _jsonable(v) for k, v in value.items()}
-    if isinstance(value, list | tuple):
-        return [_jsonable(v) for v in value]
-    if isinstance(value, bool | int | str) or value is None:
+def _scalar(value: Any) -> Any:
+    if value is None or isinstance(value, bool | int | str):
         return value
+    if isinstance(value, tuple | list):
+        return [_scalar(item) for item in value]
     return str(value)
 
 
@@ -150,6 +173,12 @@ class TelemetryStore:
     transaction_ns: int = 0
     """Total time spent inside commits. An OPERATIONAL measurement, not a budget."""
 
+    writes_after_close: int = 0
+    error_samples: list[str] = field(default_factory=list)
+    """A few distinct database failures, kept because a bare count names nothing.
+
+    Bounded so a persistently broken store cannot turn its own failure into a memory leak."""
+
     def open(self) -> None:
         connection = sqlite3.connect(str(self.path), isolation_level=None)
         connection.execute("PRAGMA journal_mode=WAL")
@@ -165,8 +194,8 @@ class TelemetryStore:
         try:
             self._flush()
             self._connection.close()
-        except sqlite3.Error:
-            self.sink_errors += 1
+        except sqlite3.Error as error:
+            self._record_error(error)
         finally:
             self._connection = None
 
@@ -175,17 +204,36 @@ class TelemetryStore:
     def _execute(self, statement: str, parameters: tuple[Any, ...]) -> None:
         connection = self._connection
         if connection is None:
-            self.sink_errors += 1
+            self._record_closed()
             return
         try:
             connection.execute(statement, parameters)
-        except sqlite3.Error:
-            self.sink_errors += 1
+        except sqlite3.Error as error:
+            self._record_error(error)
             return
         self.rows_written += 1
         self._pending += 1
         if self._pending >= self.batch_size:
             self._flush()
+
+    def _record_closed(self) -> None:
+        """A write that arrived when there was no connection to take it.
+
+        Its own case rather than a bare counter: "the store was closed" and "the disk refused
+        the row" are different faults, and a count that cannot tell them apart sends whoever
+        reads it looking in the wrong place.
+        """
+        self.sink_errors += 1
+        self.writes_after_close += 1
+        description = "StoreClosed: a record arrived with no open connection"
+        if description not in self.error_samples and len(self.error_samples) < 8:
+            self.error_samples.append(description)
+
+    def _record_error(self, error: sqlite3.Error) -> None:
+        self.sink_errors += 1
+        description = f"{type(error).__name__}: {error}"
+        if description not in self.error_samples and len(self.error_samples) < 8:
+            self.error_samples.append(description)
 
     def _flush(self) -> None:
         connection = self._connection
@@ -195,8 +243,8 @@ class TelemetryStore:
         try:
             connection.execute("COMMIT")
             connection.execute("BEGIN")
-        except sqlite3.Error:
-            self.sink_errors += 1
+        except sqlite3.Error as error:
+            self._record_error(error)
         self.transaction_ns += perf_counter_ns() - started
         self.batches += 1
         self._pending = 0

@@ -221,7 +221,7 @@ def settlement_row(record: Any, *, market_id: str, persistence_sequence: int) ->
     decision = record.decision
     payout = decision.payout
     plan = getattr(record, "plan", None)
-    paper = getattr(record, "paper", None)
+    paper = getattr(record, "settlement", None)
     return SettlementRow(
         schema_version=SETTLEMENT_ROW_SCHEMA_VERSION,
         persistence_sequence=persistence_sequence,

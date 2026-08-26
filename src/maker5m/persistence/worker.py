@@ -31,6 +31,7 @@ from dataclasses import dataclass, field
 from typing import Any, Final
 
 from maker5m.domain import Outcome
+from maker5m.persistence.analytics import MetricsAccumulator
 from maker5m.persistence.records import MarketIdentity, build_decision_record
 from maker5m.persistence.schema import Manifest, MarketMetrics
 from maker5m.persistence.store import TelemetryStore
@@ -69,6 +70,12 @@ class WorkerStats:
     first_gap_at: int | None = None
     last_gap_at: int | None = None
     stalled_ns: int = 0
+    consume_errors: int = 0
+    error_samples: list[str] = field(default_factory=list)
+    """A few distinct failure descriptions, kept so a silent count is never the only clue.
+
+    Bounded: a broken record type would otherwise produce one string per observation. The point
+    is to name the fault, not to log the market."""
 
     def summary(self) -> dict[str, object]:
         return {
@@ -81,6 +88,8 @@ class WorkerStats:
             "lost_observations": self.lost_observations,
             "first_gap_at": self.first_gap_at,
             "last_gap_at": self.last_gap_at,
+            "consume_errors": self.consume_errors,
+            "error_samples": list(self.error_samples),
         }
 
 
@@ -98,6 +107,10 @@ class PersistenceWorker:
     store: TelemetryStore
     identity: MarketIdentity
     analyzer: TelemetryAnalyzer | None = None
+    metrics: MetricsAccumulator | None = None
+    """Folded here rather than by a second pass over stored rows, so a market that crashes has
+    whatever was true when it stopped rather than nothing at all."""
+
     poll_seconds: float = DEFAULT_POLL_SECONDS
     drain_limit: int = DEFAULT_DRAIN_LIMIT
     stats: WorkerStats = field(default_factory=WorkerStats)
@@ -120,6 +133,7 @@ class PersistenceWorker:
 
     _thread: threading.Thread | None = field(default=None, repr=False)
     _stop: threading.Event = field(default_factory=threading.Event, repr=False)
+    _ready: threading.Event = field(default_factory=threading.Event, repr=False)
     _persistence_sequence: int = 0
     _expected_seq: int = 0
     _started: bool = False
@@ -127,18 +141,22 @@ class PersistenceWorker:
     # -- lifecycle -------------------------------------------------------------------------
 
     def start(self) -> None:
+        """Launch the consumer. The connection is opened *by the thread that will use it*.
+
+        sqlite3 refuses a connection used from a thread other than the one that created it, and
+        it is right to: the ownership claim this module makes has to be true of the actual
+        object, not merely of the design. Opening it here on the caller's thread made every
+        write fail with `ProgrammingError` — 4,000 sink errors and one row — while the unit
+        tests passed, because they drained on the main thread. The real-market benchmark found
+        it, which is the reason that benchmark exists.
+        """
         if self._started:
             raise RuntimeError("worker already started")
         self._started = True
-        self.store.open()
-        self.store.register_market(
-            market_id=self.identity.market_id,
-            slug=self.identity.slug,
-            condition_id=self.identity.condition_id,
-            provenance=self.identity.provenance,
-        )
         self._thread = threading.Thread(target=self._run, name="maker5m-persistence", daemon=True)
         self._thread.start()
+        if not self._ready.wait(timeout=10.0):
+            raise RuntimeError("persistence worker did not open its store")
 
     def stop(self, timeout: float = 30.0) -> None:
         """Ask the thread to finish, drain what is left, and close the store.
@@ -150,10 +168,29 @@ class PersistenceWorker:
         thread = self._thread
         if thread is not None:
             thread.join(timeout)
-        self.drain_once()
-        self.store.flush()
+            if thread.is_alive():  # pragma: no cover - only on a wedged worker
+                self.store.sink_errors += 1
+                return
+        # The thread has finished and released the connection, so the final drain and close
+        # happen here only when there is no thread left to do them.
+        if self._thread is None:
+            self.drain_once()
+            self.store.close()
 
     def _run(self) -> None:
+        try:
+            self.store.open()
+            self.store.register_market(
+                market_id=self.identity.market_id,
+                slug=self.identity.slug,
+                condition_id=self.identity.condition_id,
+                provenance=self.identity.provenance,
+            )
+        except Exception:
+            self.store.sink_errors += 1
+        finally:
+            self._ready.set()
+
         while not self._stop.is_set():
             if self.stall is not None and self.stall():
                 self._stop.wait(self.poll_seconds)
@@ -161,6 +198,11 @@ class PersistenceWorker:
             drained = self.drain_once()
             if drained == 0:
                 self._stop.wait(self.poll_seconds)
+
+        # Final drain and close, on the thread that owns the connection.
+        while self.drain_once():
+            pass
+        self.store.close()
 
     # -- draining --------------------------------------------------------------------------
 
@@ -199,13 +241,28 @@ class PersistenceWorker:
             taken += 1
             try:
                 self._consume(observation)
-            except Exception:
-                self.store.sink_errors += 1
+            except Exception as error:
+                self._record_consume_error(error)
         if taken:
             self.stats.passes += 1
             self.stats.observations_consumed += taken
             self.buffer.drained += taken
         return taken
+
+    def _record_consume_error(self, error: Exception) -> None:
+        """Count the failure and keep a description of it.
+
+        A bare counter was the original shape and it hid a real defect for as long as it
+        existed: 1,789 records per run were failing to build and the only symptom was a number
+        that could equally have meant a full disk. Whatever swallows an exception owes the
+        reader its name.
+        """
+        self.store.sink_errors += 1
+        self.stats.consume_errors += 1
+        description = f"{type(error).__name__}: {error}"
+        samples = self.stats.error_samples
+        if description not in samples and len(samples) < 8:
+            samples.append(description)
 
     def _consume(self, observation: Observation) -> None:
         seq = observation[OBS_SEQ]
@@ -238,6 +295,8 @@ class PersistenceWorker:
             down_estimate=self._estimate("DOWN"),
         )
         self.store.write_decision(record)
+        if self.metrics is not None:
+            self.metrics.observe_decision(record)
         self.stats.decisions_written += 1
 
     def _estimate(self, side: str) -> Any:

@@ -1,6 +1,9 @@
 """Replay recorded live polls through the corrected verifier — P10, provider-quorum correction.
 
-**REAL MARKET DATA, RECONSTRUCTED READINGS.** The polls come from a live run of
+**REAL MARKET DATA, RECONSTRUCTED READINGS.** Endpoint attestations are obtained live at replay
+time, as in `p10_replay_corpus`, and are contemporaneous with the replay rather than the capture.
+
+ The polls come from a live run of
 `tools/p10_settlement_run.py` against real Polygon providers and real Polymarket markets. What
 is reconstructed is only the shape: each poll recorded per-provider `answered`, `block_number`
 and `resolved`, so a provider that reported resolved is rebuilt with the payout vector that
@@ -23,18 +26,27 @@ from typing import Any
 from maker5m.settlement import (
     MarketResolutionTarget,
     PayoutVector,
+    ProviderAttestation,
     ProviderResolution,
     ResolutionState,
     SettlementPolicy,
     verify,
 )
+from tools.p10_replay_corpus import live_attestations
 
 
 def rebuild(
-    poll: dict[str, Any], condition_id: str, final: PayoutVector
+    poll: dict[str, Any],
+    condition_id: str,
+    final: PayoutVector,
+    attestations: dict[str, ProviderAttestation],
 ) -> tuple[ProviderResolution, ...]:
     out: list[ProviderResolution] = []
     for row in poll["per_provider"]:
+        attestation = attestations.get(str(row["provider"]))
+        if attestation is None:
+            # Never attested, so production would not have created a reading from it at all.
+            continue
         answered = bool(row["answered"])
         payout = (
             final
@@ -50,6 +62,8 @@ def rebuild(
                 condition_id=condition_id,
                 payout=payout if answered else None,
                 error=None if answered else "provider did not answer this poll",
+                source_endpoint_fingerprint=attestation.endpoint_fingerprint,
+                attestation=attestation,
             )
         )
     return tuple(out)
@@ -60,6 +74,7 @@ def main() -> None:
     if not paths:
         raise SystemExit(__doc__)
 
+    attestations, _ = live_attestations()
     tolerant = SettlementPolicy()
     strict = SettlementPolicy(require_unanimous_resolution=True)
     rows: list[dict[str, Any]] = []
@@ -85,7 +100,7 @@ def main() -> None:
             for poll in watch.get("polls", []):
                 if "per_provider" not in poll:
                     continue
-                readings = rebuild(poll, watch["condition_id"], payout)
+                readings = rebuild(poll, watch["condition_id"], payout, attestations)
                 before = verify(target, readings, (), strict)
                 after = verify(target, readings, (), tolerant)
                 if before.state is not after.state:

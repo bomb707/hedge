@@ -2,7 +2,7 @@
   "attestation": {
     "attestations": {
       "drpc": {
-        "attested_at_block": 92685335,
+        "attested_at_block": 92691232,
         "chain_id": 137,
         "collateral_code_bytes": 61,
         "collateral_decimals": 6,
@@ -13,7 +13,7 @@
         "valid": true
       },
       "publicnode": {
-        "attested_at_block": 92685333,
+        "attested_at_block": 92691230,
         "chain_id": 137,
         "collateral_code_bytes": 61,
         "collateral_decimals": 6,
@@ -24,7 +24,7 @@
         "valid": true
       },
       "quiknode-public": {
-        "attested_at_block": 92685336,
+        "attested_at_block": 92691233,
         "chain_id": 137,
         "collateral_code_bytes": 61,
         "collateral_decimals": 6,
@@ -47,6 +47,7 @@
         "collateral_code_bytes": 0,
         "collateral_decimals": null,
         "ctf_code_bytes": 0,
+        "endpoint_fingerprint": "https://1rpc.io/matic",
         "error": "RpcError: {'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
         "finalized_block": null,
         "latest_block": null,
@@ -71,7 +72,7 @@
     "status": "OPERATIONAL"
   },
   "provenance": "REAL_PUBLIC_MARKET_DATA",
-  "replayed_utc": "2026-08-26T08:30:34Z",
+  "replayed_utc": "2026-08-26T10:58:00Z",
   "rows": [
     {
       "agreeing_providers": [

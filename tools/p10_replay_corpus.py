@@ -94,6 +94,9 @@ def readings_from(
                 condition_id=market["gamma"]["condition_id"],
                 payout=payout,
                 error=error,
+                source_endpoint_fingerprint=(
+                    "" if attestation is None else attestation.endpoint_fingerprint
+                ),
                 attestation=attestation,
             )
         )
@@ -106,8 +109,7 @@ def live_attestations() -> tuple[dict[str, ProviderAttestation], list[dict[str, 
         EndpointSet(tuple(RpcEndpoint(pid, url) for pid, url in DEFAULT_RPC_ENDPOINTS))
     )
     attestations = {
-        provider.provider_id: provider.identity.attestation(provider.endpoint)
-        for provider in trusted
+        provider.provider_id: provider.identity.to_attestation() for provider in trusted
     }
     return attestations, [identity.summary() for identity in rejected]
 

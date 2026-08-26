@@ -284,6 +284,17 @@ def watch(
                         "answered": reading.answered,
                         "block": reading.block_number,
                         "resolved": bool(reading.payout and reading.payout.resolved),
+                        "source_endpoint_fingerprint": reading.source_endpoint_fingerprint,
+                        "attestation_provider_id": (
+                            None if reading.attestation is None else reading.attestation.provider_id
+                        ),
+                        "attestation_endpoint_fingerprint": (
+                            None
+                            if reading.attestation is None
+                            else reading.attestation.endpoint_fingerprint
+                        ),
+                        "binding_valid": reading.bound,
+                        "attested": reading.attested,
                     }
                     for reading in readings
                 ],
@@ -464,6 +475,26 @@ def main() -> None:
                 ),
                 "captured_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 "attested_providers": [str(row["provider_id"]) for row in identities],
+                "provider_bindings": [
+                    {
+                        "provider_id": provider.endpoint.provider_id,
+                        "endpoint_fingerprint": provider.endpoint.fingerprint,
+                        "identity_provider_id": provider.identity.provider_id,
+                        "identity_endpoint_fingerprint": provider.identity.endpoint_fingerprint,
+                        "attestation_provider_id": provider.identity.to_attestation().provider_id,
+                        "attestation_endpoint_fingerprint": (
+                            provider.identity.to_attestation().endpoint_fingerprint
+                        ),
+                        "identity_trustworthy": provider.identity.trustworthy,
+                        "binding_valid": (
+                            provider.identity.provider_id == provider.endpoint.provider_id
+                            and provider.identity.endpoint_fingerprint
+                            == provider.endpoint.fingerprint
+                            and provider.identity.trustworthy
+                        ),
+                    }
+                    for provider in providers
+                ],
                 "untrusted_providers": untrusted,
                 "distinct_provider_ids": sorted({str(row["provider_id"]) for row in identities}),
                 "distinct_endpoint_fingerprints": sorted(

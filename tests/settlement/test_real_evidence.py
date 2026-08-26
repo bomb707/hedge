@@ -637,3 +637,91 @@ def test_the_quiet_markets_cost_the_risk_trace_nothing() -> None:
     quiet = [watch for watch in TRUST["watches"] if not watch["injected_decision"]]
     assert len(quiet) == 6
     assert all(watch["risk_records"] == [] for watch in quiet)
+
+
+# -- P10C: the attestation-binding run ---------------------------------------------------------
+
+BOUND = json.loads(
+    (EVIDENCE / "p10c-attestation-binding-1787739600-1787741400.json").read_text("utf-8")
+)
+
+
+def test_the_binding_run_is_seven_consecutive_markets_newer_than_p10b() -> None:
+    watches = BOUND["watches"]
+    assert len(watches) == 7
+    assert consecutive(BOUND)
+    newest_before = max(int(watch["t0"]) for watch in TRUST["watches"])
+    assert min(int(watch["t0"]) for watch in watches) > newest_before
+
+
+def test_every_counted_provider_was_exactly_bound() -> None:
+    """§14: provider id and endpoint fingerprint must match exactly, at every layer."""
+    bindings = BOUND["provider_bindings"]
+    assert len(bindings) == 3
+    for row in bindings:
+        assert row["provider_id"] == row["identity_provider_id"]
+        assert row["provider_id"] == row["attestation_provider_id"]
+        assert row["endpoint_fingerprint"] == row["identity_endpoint_fingerprint"]
+        assert row["endpoint_fingerprint"] == row["attestation_endpoint_fingerprint"]
+        assert row["identity_trustworthy"] is True
+        assert row["binding_valid"] is True
+
+
+def test_no_reading_in_the_run_had_a_binding_fault() -> None:
+    audit = BOUND["binding_audit"]
+    assert audit["binding_faults"] == 0
+    assert audit["provider_readings_checked_before_trim"] > 400
+
+    for watch in BOUND["watches"]:
+        for poll in watch["polls_retained"]:
+            for row in poll["per_provider"]:
+                assert row["binding_valid"] is True, watch["slug"]
+                assert row["attested"] is True
+                assert row["provider"] == row["attestation_provider_id"]
+                assert row["source_endpoint_fingerprint"] == row["attestation_endpoint_fingerprint"]
+
+
+def test_the_binding_run_kept_every_p10b_protection() -> None:
+    """§12: the earlier trust rules were not redesigned away by this round."""
+    assert BOUND["policy"]["block_tag"] == "finalized"
+    assert BOUND["policy"]["minimum_agreeing_providers"] == 3
+    assert len(set(BOUND["distinct_provider_ids"])) == 3
+    assert len(set(BOUND["distinct_endpoint_fingerprints"])) == 3
+    assert {row["provider_id"] for row in BOUND["untrusted_providers"]} == {"1rpc"}
+
+    for watch in BOUND["watches"]:
+        final = watch["final_decision"]
+        assert final["state"] == "RESOLVED"
+        assert "AMBIGUOUS" not in watch["distinct_states"]
+        agreeing = final["agreeing_providers"]
+        assert len(agreeing) == len(set(agreeing)) == 3
+        assert isinstance(final["authoritative_block"], int)
+        assert final["block_tag"] == "finalized"
+
+
+def test_o16_still_latches_on_a_real_market_under_the_bound_verifier() -> None:
+    watch = next(w for w in BOUND["watches"] if w["injected_decision"])
+    assert watch["injected_decision"]["state"] == "AMBIGUOUS"
+    assert watch["redeem_plan"] is None
+    assert watch["recovery_decision"]["state"] == "RESOLVED"
+
+    records = watch["risk_records"]
+    assert records[1]["active"] == []
+    assert records[1]["latched"] == ["RESOLUTION_AMBIGUOUS"]
+    assert records[1]["allows_place"] is False
+
+    confirmed = next(r for r in records if r["signal"] == "RECONCILIATION_CONFIRMED")
+    assert confirmed["latched"] == []
+    assert confirmed["allows_place"] is True
+    assert BOUND["final_risk_state"] == "SAFE"
+
+
+def test_the_corpus_replay_records_bound_attestations() -> None:
+    for name, row in REPLAY["attestation"]["attestations"].items():
+        assert row["provider_id"] == name
+        assert row["endpoint_fingerprint"]
+        assert row["valid"] is True
+    for market in markets()[:5]:
+        _, readings, _ = build(market)
+        assert all(reading.bound for reading in readings)
+        assert all(reading.attested for reading in readings)

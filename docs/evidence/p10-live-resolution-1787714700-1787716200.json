@@ -1,0 +1,1031 @@
+{
+  "captured_utc": "2026-08-26T03:55:58Z",
+  "final_risk_state": "RECOVERING",
+  "kind": "P10_LIVE_SETTLEMENT",
+  "note": "Production ResolutionVerifier over real Polygon and Polymarket data. No order, no credential, no transaction, no redemption.",
+  "policy": {
+    "block_tag": "finalized",
+    "minimum_agreeing_providers": 3,
+    "require_binary_singleton": true,
+    "status": "OPERATIONAL"
+  },
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "provider_identities": [
+    {
+      "chain_id": 137,
+      "collateral_code_bytes": 61,
+      "collateral_decimals": 6,
+      "ctf_code_bytes": 15007,
+      "error": null,
+      "finalized_block": 92673281,
+      "latest_block": 92673283,
+      "provider_id": "publicnode",
+      "trustworthy": true
+    },
+    {
+      "chain_id": 137,
+      "collateral_code_bytes": 61,
+      "collateral_decimals": 6,
+      "ctf_code_bytes": 15007,
+      "error": null,
+      "finalized_block": 92673281,
+      "latest_block": 92673283,
+      "provider_id": "drpc",
+      "trustworthy": true
+    },
+    {
+      "chain_id": 137,
+      "collateral_code_bytes": 61,
+      "collateral_decimals": 6,
+      "ctf_code_bytes": 15007,
+      "error": null,
+      "finalized_block": 92673283,
+      "latest_block": 92673285,
+      "provider_id": "quiknode-public",
+      "trustworthy": true
+    },
+    {
+      "chain_id": null,
+      "collateral_code_bytes": 0,
+      "collateral_decimals": null,
+      "ctf_code_bytes": 0,
+      "error": "RpcError: {'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
+      "finalized_block": null,
+      "latest_block": null,
+      "provider_id": "1rpc",
+      "trustworthy": false
+    }
+  ],
+  "risk_sequence_length": 1,
+  "watches": [
+    {
+      "condition_id": "0xe8c96cc9d2654360e2aae9517a36b31087ac7c4b0aa08a0e2ca8ea2a279f98d5",
+      "distinct_states": [
+        "RESOLVED",
+        "UNRESOLVED"
+      ],
+      "down_token_id": "45746889455627733423311191702954492735294602387285066052577755417242515440698",
+      "end_epoch": 1787715000,
+      "final_decision": {
+        "advisory": [
+          {
+            "available": true,
+            "detail": "",
+            "source": "gamma_outcome_prices",
+            "winning_slot": null
+          },
+          {
+            "available": true,
+            "detail": "",
+            "source": "clob_winner",
+            "winning_slot": null
+          }
+        ],
+        "agreeing_providers": [
+          "drpc",
+          "publicnode",
+          "quiknode-public"
+        ],
+        "answering_providers": [
+          "publicnode",
+          "drpc",
+          "quiknode-public"
+        ],
+        "authoritative_block": 92673376,
+        "block_tag": "finalized",
+        "detail": "3 providers agree on slot 1 (DOWN)",
+        "payout": {
+          "denominator": 1,
+          "numerators": [
+            0,
+            1
+          ],
+          "outcome_slot_count": 2
+        },
+        "reasons": [],
+        "state": "RESOLVED",
+        "winning_outcome": "DOWN"
+      },
+      "injected_decision": null,
+      "injection": "",
+      "neg_risk": false,
+      "note": "",
+      "polls_note": "1 of 23 polls retained: every poll that was not a plain UNRESOLVED with nothing to report. The dropped ones are identical waiting states.",
+      "polls_retained": [
+        {
+          "agreeing": [
+            "drpc",
+            "publicnode",
+            "quiknode-public"
+          ],
+          "answering": [
+            "publicnode",
+            "drpc",
+            "quiknode-public"
+          ],
+          "at": 1787715094.077,
+          "detail": "3 providers agree on slot 1 (DOWN)",
+          "per_provider": [
+            {
+              "answered": true,
+              "block": 92673376,
+              "provider": "publicnode",
+              "resolved": true
+            },
+            {
+              "answered": true,
+              "block": 92673376,
+              "provider": "drpc",
+              "resolved": true
+            },
+            {
+              "answered": true,
+              "block": 92673376,
+              "provider": "quiknode-public",
+              "resolved": true
+            },
+            {
+              "answered": false,
+              "block": null,
+              "provider": "1rpc",
+              "resolved": false
+            }
+          ],
+          "reasons": [],
+          "state": "RESOLVED"
+        }
+      ],
+      "recovery_decision": null,
+      "redeem_blockers": [],
+      "redeem_plan": {
+        "authoritative_block": 92673376,
+        "calldata": "0x01b7037c000000000000000000000000c011a7e12a19f7b1f670d46f03b03f3342e82dfb0000000000000000000000000000000000000000000000000000000000000000e8c96cc9d2654360e2aae9517a36b31087ac7c4b0aa08a0e2ca8ea2a279f98d50000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
+        "calldata_bytes": 228,
+        "collateral_token": "0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB",
+        "condition_id": "0xe8c96cc9d2654360e2aae9517a36b31087ac7c4b0aa08a0e2ca8ea2a279f98d5",
+        "index_sets": [
+          1,
+          2
+        ],
+        "parent_collection_id": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "to": "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045",
+        "value": 0,
+        "winning_outcome": "DOWN"
+      },
+      "resolved_seconds_after_end": 94.077,
+      "risk_records": [],
+      "samples": 23,
+      "slug": "btc-updown-5m-1787714700",
+      "state_trajectory": [
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "RESOLVED"
+      ],
+      "t0": 1787714700,
+      "up_token_id": "80854897021996923135076288579625014806307693874419289912060050856646065008544"
+    },
+    {
+      "condition_id": "0xe10453ebdc75c27f4c801fbc3ffe360c210a739c54d7519081f7f45f17520760",
+      "distinct_states": [
+        "RESOLVED",
+        "UNRESOLVED"
+      ],
+      "down_token_id": "24736727226467519848833442962741017157653820595428455340443743138170348821861",
+      "end_epoch": 1787715300,
+      "final_decision": {
+        "advisory": [
+          {
+            "available": true,
+            "detail": "",
+            "source": "gamma_outcome_prices",
+            "winning_slot": null
+          },
+          {
+            "available": true,
+            "detail": "",
+            "source": "clob_winner",
+            "winning_slot": null
+          }
+        ],
+        "agreeing_providers": [
+          "drpc",
+          "publicnode",
+          "quiknode-public"
+        ],
+        "answering_providers": [
+          "publicnode",
+          "drpc",
+          "quiknode-public"
+        ],
+        "authoritative_block": 92673574,
+        "block_tag": "finalized",
+        "detail": "3 providers agree on slot 1 (DOWN)",
+        "payout": {
+          "denominator": 1,
+          "numerators": [
+            0,
+            1
+          ],
+          "outcome_slot_count": 2
+        },
+        "reasons": [],
+        "state": "RESOLVED",
+        "winning_outcome": "DOWN"
+      },
+      "injected_decision": null,
+      "injection": "",
+      "neg_risk": false,
+      "note": "",
+      "polls_note": "1 of 22 polls retained: every poll that was not a plain UNRESOLVED with nothing to report. The dropped ones are identical waiting states.",
+      "polls_retained": [
+        {
+          "agreeing": [
+            "drpc",
+            "publicnode",
+            "quiknode-public"
+          ],
+          "answering": [
+            "publicnode",
+            "drpc",
+            "quiknode-public"
+          ],
+          "at": 1787715391.643,
+          "detail": "3 providers agree on slot 1 (DOWN)",
+          "per_provider": [
+            {
+              "answered": true,
+              "block": 92673574,
+              "provider": "publicnode",
+              "resolved": true
+            },
+            {
+              "answered": true,
+              "block": 92673574,
+              "provider": "drpc",
+              "resolved": true
+            },
+            {
+              "answered": true,
+              "block": 92673574,
+              "provider": "quiknode-public",
+              "resolved": true
+            },
+            {
+              "answered": false,
+              "block": null,
+              "provider": "1rpc",
+              "resolved": false
+            }
+          ],
+          "reasons": [],
+          "state": "RESOLVED"
+        }
+      ],
+      "recovery_decision": null,
+      "redeem_blockers": [],
+      "redeem_plan": {
+        "authoritative_block": 92673574,
+        "calldata": "0x01b7037c000000000000000000000000c011a7e12a19f7b1f670d46f03b03f3342e82dfb0000000000000000000000000000000000000000000000000000000000000000e10453ebdc75c27f4c801fbc3ffe360c210a739c54d7519081f7f45f175207600000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
+        "calldata_bytes": 228,
+        "collateral_token": "0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB",
+        "condition_id": "0xe10453ebdc75c27f4c801fbc3ffe360c210a739c54d7519081f7f45f17520760",
+        "index_sets": [
+          1,
+          2
+        ],
+        "parent_collection_id": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "to": "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045",
+        "value": 0,
+        "winning_outcome": "DOWN"
+      },
+      "resolved_seconds_after_end": 91.643,
+      "risk_records": [],
+      "samples": 22,
+      "slug": "btc-updown-5m-1787715000",
+      "state_trajectory": [
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "RESOLVED"
+      ],
+      "t0": 1787715000,
+      "up_token_id": "49849009103130918992449946290375906880466783238727735033385697894022914679887"
+    },
+    {
+      "condition_id": "0x42c74888460f35825e2b7ea1240eb387238e530f044a17e5779b7f5565b7e531",
+      "distinct_states": [
+        "RESOLVED",
+        "UNRESOLVED"
+      ],
+      "down_token_id": "94131370949939573910519394001068330253928440470407942963806067801160042458461",
+      "end_epoch": 1787715600,
+      "final_decision": {
+        "advisory": [
+          {
+            "available": true,
+            "detail": "",
+            "source": "gamma_outcome_prices",
+            "winning_slot": null
+          },
+          {
+            "available": true,
+            "detail": "",
+            "source": "clob_winner",
+            "winning_slot": null
+          }
+        ],
+        "agreeing_providers": [
+          "drpc",
+          "publicnode",
+          "quiknode-public"
+        ],
+        "answering_providers": [
+          "publicnode",
+          "drpc",
+          "quiknode-public"
+        ],
+        "authoritative_block": 92673755,
+        "block_tag": "finalized",
+        "detail": "3 providers agree on slot 0 (UP)",
+        "payout": {
+          "denominator": 1,
+          "numerators": [
+            1,
+            0
+          ],
+          "outcome_slot_count": 2
+        },
+        "reasons": [],
+        "state": "RESOLVED",
+        "winning_outcome": "UP"
+      },
+      "injected_decision": null,
+      "injection": "",
+      "neg_risk": false,
+      "note": "",
+      "polls_note": "2 of 16 polls retained: every poll that was not a plain UNRESOLVED with nothing to report. The dropped ones are identical waiting states.",
+      "polls_retained": [
+        {
+          "agreeing": [],
+          "answering": [
+            "publicnode",
+            "drpc",
+            "quiknode-public"
+          ],
+          "at": 1787715657.476,
+          "detail": "1 of 3 required providers report the resolution; waiting on drpc, publicnode",
+          "per_provider": [
+            {
+              "answered": true,
+              "block": 92673750,
+              "provider": "publicnode",
+              "resolved": false
+            },
+            {
+              "answered": true,
+              "block": 92673752,
+              "provider": "drpc",
+              "resolved": false
+            },
+            {
+              "answered": true,
+              "block": 92673753,
+              "provider": "quiknode-public",
+              "resolved": true
+            },
+            {
+              "answered": false,
+              "block": null,
+              "provider": "1rpc",
+              "resolved": false
+            }
+          ],
+          "reasons": [],
+          "state": "UNRESOLVED"
+        },
+        {
+          "agreeing": [
+            "drpc",
+            "publicnode",
+            "quiknode-public"
+          ],
+          "answering": [
+            "publicnode",
+            "drpc",
+            "quiknode-public"
+          ],
+          "at": 1787715662.657,
+          "detail": "3 providers agree on slot 0 (UP)",
+          "per_provider": [
+            {
+              "answered": true,
+              "block": 92673755,
+              "provider": "publicnode",
+              "resolved": true
+            },
+            {
+              "answered": true,
+              "block": 92673755,
+              "provider": "drpc",
+              "resolved": true
+            },
+            {
+              "answered": true,
+              "block": 92673756,
+              "provider": "quiknode-public",
+              "resolved": true
+            },
+            {
+              "answered": false,
+              "block": null,
+              "provider": "1rpc",
+              "resolved": false
+            }
+          ],
+          "reasons": [],
+          "state": "RESOLVED"
+        }
+      ],
+      "recovery_decision": null,
+      "redeem_blockers": [],
+      "redeem_plan": {
+        "authoritative_block": 92673755,
+        "calldata": "0x01b7037c000000000000000000000000c011a7e12a19f7b1f670d46f03b03f3342e82dfb000000000000000000000000000000000000000000000000000000000000000042c74888460f35825e2b7ea1240eb387238e530f044a17e5779b7f5565b7e5310000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
+        "calldata_bytes": 228,
+        "collateral_token": "0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB",
+        "condition_id": "0x42c74888460f35825e2b7ea1240eb387238e530f044a17e5779b7f5565b7e531",
+        "index_sets": [
+          1,
+          2
+        ],
+        "parent_collection_id": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "to": "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045",
+        "value": 0,
+        "winning_outcome": "UP"
+      },
+      "resolved_seconds_after_end": 62.657,
+      "risk_records": [],
+      "samples": 16,
+      "slug": "btc-updown-5m-1787715300",
+      "state_trajectory": [
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "RESOLVED"
+      ],
+      "t0": 1787715300,
+      "up_token_id": "83622711530863157495553986907649158394028479568913554451802331465656777228746"
+    },
+    {
+      "condition_id": "0x65833635397b4e7f3234f0f472b28506526657d66dd20ab035bf99d542294f47",
+      "distinct_states": [
+        "RESOLVED",
+        "UNRESOLVED"
+      ],
+      "down_token_id": "6104624722665930368794879554277895256132087382524433423578596420976626942632",
+      "end_epoch": 1787715900,
+      "final_decision": {
+        "advisory": [
+          {
+            "available": true,
+            "detail": "",
+            "source": "gamma_outcome_prices",
+            "winning_slot": null
+          },
+          {
+            "available": true,
+            "detail": "",
+            "source": "clob_winner",
+            "winning_slot": null
+          }
+        ],
+        "agreeing_providers": [
+          "drpc",
+          "publicnode",
+          "quiknode-public"
+        ],
+        "answering_providers": [
+          "publicnode",
+          "drpc",
+          "quiknode-public"
+        ],
+        "authoritative_block": 92673977,
+        "block_tag": "finalized",
+        "detail": "3 providers agree on slot 0 (UP)",
+        "payout": {
+          "denominator": 1,
+          "numerators": [
+            1,
+            0
+          ],
+          "outcome_slot_count": 2
+        },
+        "reasons": [],
+        "state": "RESOLVED",
+        "winning_outcome": "UP"
+      },
+      "injected_decision": null,
+      "injection": "",
+      "neg_risk": false,
+      "note": "",
+      "polls_note": "2 of 20 polls retained: every poll that was not a plain UNRESOLVED with nothing to report. The dropped ones are identical waiting states.",
+      "polls_retained": [
+        {
+          "agreeing": [],
+          "answering": [
+            "publicnode",
+            "drpc",
+            "quiknode-public"
+          ],
+          "at": 1787715989.149,
+          "detail": "2 of 3 required providers report the resolution; waiting on publicnode",
+          "per_provider": [
+            {
+              "answered": true,
+              "block": 92673971,
+              "provider": "publicnode",
+              "resolved": false
+            },
+            {
+              "answered": true,
+              "block": 92673973,
+              "provider": "drpc",
+              "resolved": true
+            },
+            {
+              "answered": true,
+              "block": 92673973,
+              "provider": "quiknode-public",
+              "resolved": true
+            },
+            {
+              "answered": false,
+              "block": null,
+              "provider": "1rpc",
+              "resolved": false
+            }
+          ],
+          "reasons": [],
+          "state": "UNRESOLVED"
+        },
+        {
+          "agreeing": [
+            "drpc",
+            "publicnode",
+            "quiknode-public"
+          ],
+          "answering": [
+            "publicnode",
+            "drpc",
+            "quiknode-public"
+          ],
+          "at": 1787715994.53,
+          "detail": "3 providers agree on slot 0 (UP)",
+          "per_provider": [
+            {
+              "answered": true,
+              "block": 92673977,
+              "provider": "publicnode",
+              "resolved": true
+            },
+            {
+              "answered": true,
+              "block": 92673977,
+              "provider": "drpc",
+              "resolved": true
+            },
+            {
+              "answered": true,
+              "block": 92673977,
+              "provider": "quiknode-public",
+              "resolved": true
+            },
+            {
+              "answered": false,
+              "block": null,
+              "provider": "1rpc",
+              "resolved": false
+            }
+          ],
+          "reasons": [],
+          "state": "RESOLVED"
+        }
+      ],
+      "recovery_decision": null,
+      "redeem_blockers": [],
+      "redeem_plan": {
+        "authoritative_block": 92673977,
+        "calldata": "0x01b7037c000000000000000000000000c011a7e12a19f7b1f670d46f03b03f3342e82dfb000000000000000000000000000000000000000000000000000000000000000065833635397b4e7f3234f0f472b28506526657d66dd20ab035bf99d542294f470000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
+        "calldata_bytes": 228,
+        "collateral_token": "0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB",
+        "condition_id": "0x65833635397b4e7f3234f0f472b28506526657d66dd20ab035bf99d542294f47",
+        "index_sets": [
+          1,
+          2
+        ],
+        "parent_collection_id": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "to": "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045",
+        "value": 0,
+        "winning_outcome": "UP"
+      },
+      "resolved_seconds_after_end": 94.53,
+      "risk_records": [],
+      "samples": 20,
+      "slug": "btc-updown-5m-1787715600",
+      "state_trajectory": [
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "RESOLVED"
+      ],
+      "t0": 1787715600,
+      "up_token_id": "63367491603181594255627407914298604450558984800586256983371142850577866907812"
+    },
+    {
+      "condition_id": "0x1f3e988771138dcfd39dd70d439fa76be7b054b7e043cb0289787783a3a55809",
+      "distinct_states": [
+        "RESOLVED",
+        "UNRESOLVED"
+      ],
+      "down_token_id": "35705650262652075729330033900828134616436555075646829344008454240112638474244",
+      "end_epoch": 1787716200,
+      "final_decision": {
+        "advisory": [
+          {
+            "available": true,
+            "detail": "",
+            "source": "gamma_outcome_prices",
+            "winning_slot": null
+          },
+          {
+            "available": true,
+            "detail": "",
+            "source": "clob_winner",
+            "winning_slot": null
+          }
+        ],
+        "agreeing_providers": [
+          "drpc",
+          "publicnode",
+          "quiknode-public"
+        ],
+        "answering_providers": [
+          "publicnode",
+          "drpc",
+          "quiknode-public"
+        ],
+        "authoritative_block": 92674173,
+        "block_tag": "finalized",
+        "detail": "3 providers agree on slot 1 (DOWN)",
+        "payout": {
+          "denominator": 1,
+          "numerators": [
+            0,
+            1
+          ],
+          "outcome_slot_count": 2
+        },
+        "reasons": [],
+        "state": "RESOLVED",
+        "winning_outcome": "DOWN"
+      },
+      "injected_decision": null,
+      "injection": "",
+      "neg_risk": false,
+      "note": "",
+      "polls_note": "2 of 21 polls retained: every poll that was not a plain UNRESOLVED with nothing to report. The dropped ones are identical waiting states.",
+      "polls_retained": [
+        {
+          "agreeing": [],
+          "answering": [
+            "publicnode",
+            "drpc",
+            "quiknode-public"
+          ],
+          "at": 1787716284.954,
+          "detail": "1 of 3 required providers report the resolution; waiting on drpc, publicnode",
+          "per_provider": [
+            {
+              "answered": true,
+              "block": 92674170,
+              "provider": "publicnode",
+              "resolved": false
+            },
+            {
+              "answered": true,
+              "block": 92674170,
+              "provider": "drpc",
+              "resolved": false
+            },
+            {
+              "answered": true,
+              "block": 92674172,
+              "provider": "quiknode-public",
+              "resolved": true
+            },
+            {
+              "answered": false,
+              "block": null,
+              "provider": "1rpc",
+              "resolved": false
+            }
+          ],
+          "reasons": [],
+          "state": "UNRESOLVED"
+        },
+        {
+          "agreeing": [
+            "drpc",
+            "publicnode",
+            "quiknode-public"
+          ],
+          "answering": [
+            "publicnode",
+            "drpc",
+            "quiknode-public"
+          ],
+          "at": 1787716290.789,
+          "detail": "3 providers agree on slot 1 (DOWN)",
+          "per_provider": [
+            {
+              "answered": true,
+              "block": 92674173,
+              "provider": "publicnode",
+              "resolved": true
+            },
+            {
+              "answered": true,
+              "block": 92674173,
+              "provider": "drpc",
+              "resolved": true
+            },
+            {
+              "answered": true,
+              "block": 92674175,
+              "provider": "quiknode-public",
+              "resolved": true
+            },
+            {
+              "answered": false,
+              "block": null,
+              "provider": "1rpc",
+              "resolved": false
+            }
+          ],
+          "reasons": [],
+          "state": "RESOLVED"
+        }
+      ],
+      "recovery_decision": null,
+      "redeem_blockers": [],
+      "redeem_plan": {
+        "authoritative_block": 92674173,
+        "calldata": "0x01b7037c000000000000000000000000c011a7e12a19f7b1f670d46f03b03f3342e82dfb00000000000000000000000000000000000000000000000000000000000000001f3e988771138dcfd39dd70d439fa76be7b054b7e043cb0289787783a3a558090000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
+        "calldata_bytes": 228,
+        "collateral_token": "0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB",
+        "condition_id": "0x1f3e988771138dcfd39dd70d439fa76be7b054b7e043cb0289787783a3a55809",
+        "index_sets": [
+          1,
+          2
+        ],
+        "parent_collection_id": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "to": "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045",
+        "value": 0,
+        "winning_outcome": "DOWN"
+      },
+      "resolved_seconds_after_end": 90.789,
+      "risk_records": [],
+      "samples": 21,
+      "slug": "btc-updown-5m-1787715900",
+      "state_trajectory": [
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "RESOLVED"
+      ],
+      "t0": 1787715900,
+      "up_token_id": "60331276812187356404779341670277358928920207958249508984976736895921682757691"
+    },
+    {
+      "condition_id": "0xaf952a8967e80a06700d213201712b6d4201055f5c34a9598cf11ed96cc2d915",
+      "distinct_states": [
+        "RESOLVED",
+        "UNRESOLVED"
+      ],
+      "down_token_id": "110989702929031700708316923572036966992568129651166811450291729047261435959857",
+      "end_epoch": 1787716500,
+      "final_decision": {
+        "advisory": [
+          {
+            "available": true,
+            "detail": "",
+            "source": "gamma_outcome_prices",
+            "winning_slot": null
+          },
+          {
+            "available": true,
+            "detail": "",
+            "source": "clob_winner",
+            "winning_slot": null
+          }
+        ],
+        "agreeing_providers": [
+          "drpc",
+          "publicnode",
+          "quiknode-public"
+        ],
+        "answering_providers": [
+          "publicnode",
+          "drpc",
+          "quiknode-public"
+        ],
+        "authoritative_block": 92674350,
+        "block_tag": "finalized",
+        "detail": "3 providers agree on slot 0 (UP)",
+        "payout": {
+          "denominator": 1,
+          "numerators": [
+            1,
+            0
+          ],
+          "outcome_slot_count": 2
+        },
+        "reasons": [],
+        "state": "RESOLVED",
+        "winning_outcome": "UP"
+      },
+      "injected_decision": null,
+      "injection": "",
+      "neg_risk": false,
+      "note": "",
+      "polls_note": "1 of 15 polls retained: every poll that was not a plain UNRESOLVED with nothing to report. The dropped ones are identical waiting states.",
+      "polls_retained": [
+        {
+          "agreeing": [
+            "drpc",
+            "publicnode",
+            "quiknode-public"
+          ],
+          "answering": [
+            "publicnode",
+            "drpc",
+            "quiknode-public"
+          ],
+          "at": 1787716555.594,
+          "detail": "3 providers agree on slot 0 (UP)",
+          "per_provider": [
+            {
+              "answered": true,
+              "block": 92674350,
+              "provider": "publicnode",
+              "resolved": true
+            },
+            {
+              "answered": true,
+              "block": 92674350,
+              "provider": "drpc",
+              "resolved": true
+            },
+            {
+              "answered": true,
+              "block": 92674351,
+              "provider": "quiknode-public",
+              "resolved": true
+            },
+            {
+              "answered": false,
+              "block": null,
+              "provider": "1rpc",
+              "resolved": false
+            }
+          ],
+          "reasons": [],
+          "state": "RESOLVED"
+        }
+      ],
+      "recovery_decision": null,
+      "redeem_blockers": [],
+      "redeem_plan": {
+        "authoritative_block": 92674350,
+        "calldata": "0x01b7037c000000000000000000000000c011a7e12a19f7b1f670d46f03b03f3342e82dfb0000000000000000000000000000000000000000000000000000000000000000af952a8967e80a06700d213201712b6d4201055f5c34a9598cf11ed96cc2d9150000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
+        "calldata_bytes": 228,
+        "collateral_token": "0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB",
+        "condition_id": "0xaf952a8967e80a06700d213201712b6d4201055f5c34a9598cf11ed96cc2d915",
+        "index_sets": [
+          1,
+          2
+        ],
+        "parent_collection_id": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "to": "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045",
+        "value": 0,
+        "winning_outcome": "UP"
+      },
+      "resolved_seconds_after_end": 55.594,
+      "risk_records": [],
+      "samples": 15,
+      "slug": "btc-updown-5m-1787716200",
+      "state_trajectory": [
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "UNRESOLVED",
+        "RESOLVED"
+      ],
+      "t0": 1787716200,
+      "up_token_id": "29223470403136494407488377868304377965132954231591287380511274028297011546522"
+    }
+  ]
+}

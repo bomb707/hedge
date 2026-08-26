@@ -147,6 +147,7 @@ def main() -> None:
             "minimum_agreeing_providers": policy.minimum_agreeing_providers,
             "block_tag": "captured-latest (the corpus was read at `latest`)",
             "require_binary_singleton": policy.require_binary_singleton,
+            "require_unanimous_resolution": policy.require_unanimous_resolution,
             "status": policy.status.value,
         },
         "markets": len(payload["markets"]),

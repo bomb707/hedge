@@ -385,6 +385,7 @@ def main() -> None:
                     "minimum_agreeing_providers": policy.minimum_agreeing_providers,
                     "block_tag": policy.block_tag,
                     "require_binary_singleton": policy.require_binary_singleton,
+                    "require_unanimous_resolution": policy.require_unanimous_resolution,
                     "status": policy.status.value,
                 },
                 "provider_identities": identities,

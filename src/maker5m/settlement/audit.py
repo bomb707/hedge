@@ -60,6 +60,7 @@ class SettlementRecord:
                 "block_tag": self.policy.block_tag,
                 "confirmation_depth": self.policy.confirmation_depth,
                 "require_binary_singleton": self.policy.require_binary_singleton,
+                "require_unanimous_resolution": self.policy.require_unanimous_resolution,
                 "status": self.policy.status.value,
             },
             "provider_readings": [reading.summary() for reading in self.provider_readings],

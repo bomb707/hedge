@@ -273,3 +273,175 @@ def test_removing_the_corruption_restores_normal_resolution() -> None:
     for market in markets()[:5]:
         target, readings, advisory = build(market)
         assert verify(target, readings, advisory, policy).state is ResolutionState.RESOLVED
+
+
+# -- the live settlement runs -----------------------------------------------------------------
+
+LIVE_PRE = json.loads(
+    (EVIDENCE / "p10-live-resolution-1787712600-1787714100.json").read_text("utf-8")
+)
+LIVE_POST = json.loads(
+    (EVIDENCE / "p10-live-resolution-1787714700-1787716200.json").read_text("utf-8")
+)
+END_TO_END = json.loads(
+    (EVIDENCE / "p10-end-to-end-btc-updown-5m-1787716800.json").read_text("utf-8")
+)
+
+
+def consecutive(run: dict[str, Any]) -> bool:
+    ends = [int(watch["t0"]) for watch in run["watches"]]
+    return all(later - earlier == 300 for earlier, later in pairwise(ends))
+
+
+@pytest.mark.parametrize("run", [LIVE_PRE, LIVE_POST])
+def test_each_live_run_is_six_consecutive_real_markets(run: dict[str, Any]) -> None:
+    assert len(run["watches"]) == 6
+    assert consecutive(run)
+    assert all(watch["final_decision"]["state"] == "RESOLVED" for watch in run["watches"])
+
+
+def test_the_two_live_runs_do_not_overlap_each_other_or_the_o11_corpus() -> None:
+    """§31 wants NEW markets, so this is worth asserting rather than assuming."""
+    pre = {watch["slug"] for watch in LIVE_PRE["watches"]}
+    post = {watch["slug"] for watch in LIVE_POST["watches"]}
+    o11 = {f"btc-updown-5m-{market['t0']}" for market in markets()}
+    assert not pre & post
+    assert not (pre | post) & o11
+
+
+def test_the_corrected_run_never_became_ambiguous() -> None:
+    for watch in LIVE_POST["watches"]:
+        assert "AMBIGUOUS" not in watch["distinct_states"], watch["slug"]
+        assert watch["redeem_blockers"] == []
+        assert watch["redeem_plan"] is not None
+
+
+def test_the_corrected_run_emitted_no_risk_signal_at_all() -> None:
+    """A run with nothing wrong must cost the risk trace nothing."""
+    assert all(watch["risk_records"] == [] for watch in LIVE_POST["watches"])
+
+
+def test_rate_limited_providers_never_counted_toward_the_live_quorum() -> None:
+    for run in (LIVE_PRE, LIVE_POST):
+        absent = {
+            identity["provider_id"]
+            for identity in run["provider_identities"]
+            if not identity["trustworthy"]
+        }
+        assert absent, "the run is only interesting because one provider was unusable"
+        for watch in run["watches"]:
+            assert not absent & set(watch["final_decision"]["agreeing_providers"])
+
+
+def ambiguous_polls(run: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        poll
+        for watch in run["watches"]
+        for poll in watch["polls_retained"]
+        if poll["state"] == "AMBIGUOUS"
+    ]
+
+
+def test_the_pre_correction_run_really_did_halt_on_nothing() -> None:
+    """The defect is claimed from real data, so the real data has to still show it."""
+    halts = ambiguous_polls(LIVE_PRE)
+    assert len(halts) == 3
+    assert all(poll["reasons"] == ["FINALITY_DISAGREEMENT"] for poll in halts)
+    assert all(watch["final_decision"]["state"] == "RESOLVED" for watch in LIVE_PRE["watches"])
+
+
+def test_those_splits_were_not_finality_lag_and_the_corrected_ones_were() -> None:
+    """0 of 3 coherent before pinning the block, 3 of 3 after. Same providers, minutes apart."""
+
+    def coherent(run: dict[str, Any]) -> list[bool]:
+        out: list[bool] = []
+        for watch in run["watches"]:
+            for poll in watch["polls_retained"]:
+                rows = [
+                    row
+                    for row in poll["per_provider"]
+                    if row["answered"] and row["block"] is not None
+                ]
+                seen = [row for row in rows if row["resolved"]]
+                silent = [row for row in rows if not row["resolved"]]
+                if seen and silent:
+                    earliest = min(row["block"] for row in seen)
+                    out.append(all(row["block"] < earliest for row in silent))
+        return out
+
+    before, after = coherent(LIVE_PRE), coherent(LIVE_POST)
+    assert len(before) == 3 and not any(before)
+    assert len(after) == 3 and all(after)
+
+
+def test_replaying_the_recorded_halts_through_the_current_verifier_clears_them() -> None:
+    from maker5m.settlement import PayoutVector, ProviderResolution
+
+    policy = SettlementPolicy()
+    cleared = 0
+    for watch in LIVE_PRE["watches"]:
+        final = watch["final_decision"]["payout"]
+        payout = PayoutVector(
+            denominator=int(final["denominator"]),
+            numerators=tuple(int(v) for v in final["numerators"]),
+            outcome_slot_count=int(final["outcome_slot_count"]),
+        )
+        target = MarketResolutionTarget(
+            slug=watch["slug"],
+            condition_id=watch["condition_id"],
+            up_token_id=watch["up_token_id"],
+            down_token_id=watch["down_token_id"],
+        )
+        for poll in watch["polls_retained"]:
+            if poll["state"] != "AMBIGUOUS":
+                continue
+            readings = tuple(
+                ProviderResolution(
+                    provider_id=str(row["provider"]),
+                    chain_id=137 if row["answered"] else None,
+                    block_tag="finalized",
+                    block_number=row["block"],
+                    condition_id=watch["condition_id"],
+                    payout=(
+                        (
+                            payout
+                            if row["resolved"]
+                            else PayoutVector(
+                                denominator=0, numerators=(0, 0), outcome_slot_count=2
+                            )
+                        )
+                        if row["answered"]
+                        else None
+                    ),
+                    error=None if row["answered"] else "did not answer",
+                )
+                for row in poll["per_provider"]
+            )
+            decision = verify(target, readings, (), policy)
+            assert decision.state is ResolutionState.UNRESOLVED, poll
+            assert not decision.reasons
+            cleared += 1
+    assert cleared == 3
+
+
+def test_the_end_to_end_run_is_a_real_lifecycle_that_placed_nothing() -> None:
+    assert END_TO_END["provenance"] == "REAL_PUBLIC_MARKET_DATA"
+    assert END_TO_END["phases_observed"] == ["PREARM", "QUOTE", "ENDGAME", "SETTLING", "DONE"]
+    assert END_TO_END["settlement_state_trajectory"] == ["UNRESOLVED", "RESOLVED"]
+    assert END_TO_END["cycles"] > 10_000
+    assert END_TO_END["feed_counters"]["clob_messages"] > 10_000
+    assert END_TO_END["feed_counters"]["malformed"] == 0
+    assert END_TO_END["orders_sent"] == 0
+    assert END_TO_END["redemptions_sent"] == 0
+    assert END_TO_END["live_trading_enabled"] is False
+
+
+def test_the_end_to_end_run_does_not_dress_up_a_zero() -> None:
+    """Two zeros agreeing is not an economic result, and the record must say so."""
+    reconciliation = END_TO_END["reconciliation"]
+    assert reconciliation["matches_to_the_last_money_unit"] is True
+    assert reconciliation["paper_settlement_pnl"] == 0
+    assert reconciliation["ledger_pnl_if_winner"] == 0
+    limitation = END_TO_END["limitation"]
+    assert "UNRUN" in limitation and "P14" in limitation
+    assert "nothing to settle" in limitation

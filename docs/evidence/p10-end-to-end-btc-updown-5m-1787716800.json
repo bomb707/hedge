@@ -1,0 +1,199 @@
+{
+  "captured_utc": "2026-08-26T04:07:35Z",
+  "condition_id": "0x08574db5d9e702959869f0fb6deaeec540261c957912a160bb4c3be63c9a198e",
+  "cycles": 54003,
+  "feed_counters": {
+    "clob_best_bid_ask": 0,
+    "clob_books": 1310,
+    "clob_last_trade_price": 630,
+    "clob_messages": 52276,
+    "clob_price_changes": 49459,
+    "clob_tick_size_changes": 4,
+    "clob_unhandled": 0,
+    "malformed": 0,
+    "pongs": 33,
+    "reconnects": 0,
+    "spot_messages": 3230,
+    "telemetry_dropped": 0,
+    "unhandled_kinds": {}
+  },
+  "final_phase": "DONE",
+  "kind": "P10_END_TO_END_REAL_MARKET",
+  "ledger": {
+    "cost_down": 0,
+    "cost_up": 0,
+    "fees": 0,
+    "n_down": 0,
+    "n_up": 0,
+    "total_cost": 0
+  },
+  "limitation": "REAL MARKET LIFECYCLE VALIDATED. NONZERO OWN-LEDGER ECONOMICS UNRUN / P14: live trading is disabled, so no order was placed and the ledger holds no position. The lifecycle, resolution, payout vector, and reconciliation are real; the settled amounts are zero because there is nothing to settle.",
+  "live_trading_enabled": false,
+  "orders_sent": 0,
+  "phases_observed": [
+    "PREARM",
+    "QUOTE",
+    "ENDGAME",
+    "SETTLING",
+    "DONE"
+  ],
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "reconciliation": {
+    "ledger_pnl_if_winner": 0,
+    "matches_to_the_last_money_unit": true,
+    "paper_settlement_pnl": 0
+  },
+  "redemptions_sent": 0,
+  "settlement": {
+    "captured_utc": "2026-08-26T04:07:35Z",
+    "market": {
+      "condition_id": "0x08574db5d9e702959869f0fb6deaeec540261c957912a160bb4c3be63c9a198e",
+      "down_slot": 1,
+      "down_token_id": "49899803439322210274367586918493911497873266290095249495502297895987355996590",
+      "neg_risk": false,
+      "outcome_slot_count": 2,
+      "slug": "btc-updown-5m-1787716800",
+      "up_slot": 0,
+      "up_token_id": "20938124980530119693482471285101541720313500340708554996808439838368595738526"
+    },
+    "note": "Paper settlement is what the authoritative payout vector entitles these balances to. It is not proof that collateral has moved: no redemption transaction has been sent and none can be in this build.",
+    "paper_settlement": {
+      "down_balance": 0,
+      "down_payout": 0,
+      "expected_redeem_value": 0,
+      "fees": 0,
+      "paper_settlement_pnl": 0,
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "rebate": 0,
+      "rebate_mode": "WITHOUT_REBATE",
+      "total_cost": 0,
+      "up_balance": 0,
+      "up_payout": 0,
+      "winning_outcome": "DOWN"
+    },
+    "policy": {
+      "block_tag": "finalized",
+      "confirmation_depth": null,
+      "minimum_agreeing_providers": 3,
+      "require_binary_singleton": true,
+      "status": "OPERATIONAL"
+    },
+    "provenance": "REAL_PUBLIC_MARKET_DATA",
+    "provider_readings": [
+      {
+        "block_number": 92674815,
+        "block_tag": "finalized",
+        "chain_id": 137,
+        "condition_id": "0x08574db5d9e702959869f0fb6deaeec540261c957912a160bb4c3be63c9a198e",
+        "error": null,
+        "payout": {
+          "denominator": 1,
+          "numerators": [
+            0,
+            1
+          ],
+          "outcome_slot_count": 2
+        },
+        "provider_id": "publicnode"
+      },
+      {
+        "block_number": 92674815,
+        "block_tag": "finalized",
+        "chain_id": 137,
+        "condition_id": "0x08574db5d9e702959869f0fb6deaeec540261c957912a160bb4c3be63c9a198e",
+        "error": null,
+        "payout": {
+          "denominator": 1,
+          "numerators": [
+            0,
+            1
+          ],
+          "outcome_slot_count": 2
+        },
+        "provider_id": "drpc"
+      },
+      {
+        "block_number": 92674817,
+        "block_tag": "finalized",
+        "chain_id": 137,
+        "condition_id": "0x08574db5d9e702959869f0fb6deaeec540261c957912a160bb4c3be63c9a198e",
+        "error": null,
+        "payout": {
+          "denominator": 1,
+          "numerators": [
+            0,
+            1
+          ],
+          "outcome_slot_count": 2
+        },
+        "provider_id": "quiknode-public"
+      },
+      {
+        "block_number": null,
+        "block_tag": "finalized",
+        "chain_id": null,
+        "condition_id": "0x08574db5d9e702959869f0fb6deaeec540261c957912a160bb4c3be63c9a198e",
+        "error": "RpcError: {'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
+        "payout": null,
+        "provider_id": "1rpc"
+      }
+    ],
+    "redeem_blockers": [
+      "NOTHING_TO_REDEEM"
+    ],
+    "redeem_plan": null,
+    "resolution": {
+      "advisory": [
+        {
+          "available": true,
+          "detail": "",
+          "source": "gamma_outcome_prices",
+          "winning_slot": null
+        },
+        {
+          "available": true,
+          "detail": "",
+          "source": "clob_winner",
+          "winning_slot": null
+        }
+      ],
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "publicnode",
+        "drpc",
+        "quiknode-public"
+      ],
+      "authoritative_block": 92674815,
+      "block_tag": "finalized",
+      "detail": "3 providers agree on slot 1 (DOWN)",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    "schema_version": 1
+  },
+  "settlement_state_trajectory": [
+    "UNRESOLVED",
+    "RESOLVED"
+  ],
+  "slug": "btc-updown-5m-1787716800"
+}

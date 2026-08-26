@@ -1,0 +1,99 @@
+{
+  "changed": [
+    {
+      "at": 1787713253.707,
+      "blocks": {
+        "1rpc": [
+          null,
+          false
+        ],
+        "drpc": [
+          92672148,
+          false
+        ],
+        "publicnode": [
+          92672148,
+          true
+        ],
+        "quiknode-public": [
+          92672150,
+          true
+        ]
+      },
+      "corrected": "UNRESOLVED",
+      "detail": "2 of 3 required providers report the resolution; waiting on drpc",
+      "recorded_reasons": [
+        "FINALITY_DISAGREEMENT"
+      ],
+      "recorded_state": "AMBIGUOUS",
+      "slug": "btc-updown-5m-1787712900",
+      "strict": "AMBIGUOUS"
+    },
+    {
+      "at": 1787713588.022,
+      "blocks": {
+        "1rpc": [
+          null,
+          false
+        ],
+        "drpc": [
+          92672371,
+          false
+        ],
+        "publicnode": [
+          92672371,
+          true
+        ],
+        "quiknode-public": [
+          92672373,
+          true
+        ]
+      },
+      "corrected": "UNRESOLVED",
+      "detail": "2 of 3 required providers report the resolution; waiting on drpc",
+      "recorded_reasons": [
+        "FINALITY_DISAGREEMENT"
+      ],
+      "recorded_state": "AMBIGUOUS",
+      "slug": "btc-updown-5m-1787713200",
+      "strict": "AMBIGUOUS"
+    },
+    {
+      "at": 1787714489.749,
+      "blocks": {
+        "1rpc": [
+          null,
+          false
+        ],
+        "drpc": [
+          92672974,
+          false
+        ],
+        "publicnode": [
+          92672972,
+          true
+        ],
+        "quiknode-public": [
+          92672974,
+          true
+        ]
+      },
+      "corrected": "UNRESOLVED",
+      "detail": "2 of 3 required providers report the resolution; waiting on drpc",
+      "recorded_reasons": [
+        "FINALITY_DISAGREEMENT"
+      ],
+      "recorded_state": "AMBIGUOUS",
+      "slug": "btc-updown-5m-1787714100",
+      "strict": "AMBIGUOUS"
+    }
+  ],
+  "false_halts_removed": 3,
+  "kind": "P10_FINALITY_LAG_REPLAY",
+  "polls_whose_verdict_changed": 3,
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "sources": [
+    "/tmp/claude-1000/-home-hr-hedge/e431766c-1daa-41db-8cd7-50b88edd1dbb/scratchpad/p10/live-settlement-observed.json"
+  ],
+  "verdicts_newly_ambiguous": 0
+}

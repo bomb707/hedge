@@ -887,7 +887,8 @@ orders, which P8 does not place. Both stay OPEN.
 | P10 commits | `eae8b6f` verifier · `c9414c8` settlement + redemption planning · `fde4b38` risk bridge · `4f3789d` first (wrong-premise) split fix · `8b60685` provider-quorum correction · `9fe374a` real-market evidence |
 | P10 own-ledger settlement economics | **UNRUN / DEFERRED TO P14** — every ledger settled is empty |
 | P10 trust-boundary branch | `fix/p10-settlement-trust-boundary` |
-| P10 trust-boundary commits | `836cc87` provider independence · `381e21e` O16 latch · `14ce2d9` corpus revalidation |
+| P10 trust-boundary commits | `836cc87` defects A + B + C and the finality/block corrections · `381e21e` O16 latch · `14ce2d9` corpus revalidation · `fbdc669` fresh real markets · `f4d793d` docs |
+| Where defect C landed | `836cc87`, in `settlement/reader.py`. Its message enumerates A, B, the finality tag and the missing block but not the moving-tag fallback; the change is there and is documented in the evidence. Recorded here rather than corrected by rewriting the commit. |
 | Configured provider independence | **OPERATIONAL assumption** — duplicate ids and URLs refused; organisational independence unproved |
 | GitHub default branch | `main` (verified 2026-08-26; the earlier `bootstrap/phase-0` observation no longer holds) |
 | P9 commits | `4be0032` risk engine · `6576de0` recovery + runner · `1584dee` stale recovery fix · `b2e715e` real-market evidence · `4c2ab1d` full fault market |

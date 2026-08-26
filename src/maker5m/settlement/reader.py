@@ -41,6 +41,7 @@ from maker5m.settlement.resolution import (
 __all__ = [
     "DEFAULT_RPC_ENDPOINTS",
     "USER_AGENT",
+    "AttestationBindingError",
     "AttestedProvider",
     "CtfReader",
     "DuplicateEndpointError",
@@ -142,11 +143,22 @@ class EndpointSet:
         return len(self.endpoints)
 
 
+class AttestationBindingError(ValueError):
+    """A proof of identity being attached to something it does not describe."""
+
+
 @dataclass(frozen=True, slots=True)
 class ProviderIdentity:
-    """What a provider claims about itself and the contracts, before it is trusted."""
+    """What one endpoint proved about itself and the contracts, before it is trusted.
+
+    The endpoint is part of the record, not something supplied afterwards. This says "I
+    identified *this* endpoint" — an earlier version said only "I identified some provider", and
+    left it to a later caller to assert which endpoint the proof belonged to, which is exactly
+    the assertion that needed proving.
+    """
 
     provider_id: str
+    endpoint_fingerprint: str
     chain_id: int | None = None
     ctf_code_bytes: int = 0
     collateral_code_bytes: int = 0
@@ -172,11 +184,15 @@ class ProviderIdentity:
             and self.collateral_decimals == PUSD_DECIMALS
         )
 
-    def attestation(self, endpoint: RpcEndpoint) -> ProviderAttestation:
-        """The carryable form of this check, for attaching to readings."""
+    def to_attestation(self) -> ProviderAttestation:
+        """The carryable form of this check, for attaching to readings.
+
+        Takes no endpoint. The previous signature accepted one and copied its fingerprint in,
+        so the same proof could be re-labelled for any endpoint by changing an argument.
+        """
         return ProviderAttestation(
             provider_id=self.provider_id,
-            endpoint_fingerprint=endpoint.fingerprint,
+            endpoint_fingerprint=self.endpoint_fingerprint,
             chain_id=self.chain_id,
             ctf_code_bytes=self.ctf_code_bytes,
             collateral_code_bytes=self.collateral_code_bytes,
@@ -188,6 +204,7 @@ class ProviderIdentity:
     def summary(self) -> dict[str, object]:
         return {
             "provider_id": self.provider_id,
+            "endpoint_fingerprint": self.endpoint_fingerprint,
             "chain_id": self.chain_id,
             "ctf_code_bytes": self.ctf_code_bytes,
             "collateral_code_bytes": self.collateral_code_bytes,
@@ -238,10 +255,13 @@ class CtfReader:
             finalized = self._rpc("eth_getBlockByNumber", ["finalized", False])
         except (RpcError, urllib.error.URLError, OSError, ValueError, KeyError) as error:
             return ProviderIdentity(
-                self.endpoint.provider_id, error=f"{type(error).__name__}: {error}"
+                provider_id=self.endpoint.provider_id,
+                endpoint_fingerprint=self.endpoint.fingerprint,
+                error=f"{type(error).__name__}: {error}",
             )
         return ProviderIdentity(
             provider_id=self.endpoint.provider_id,
+            endpoint_fingerprint=self.endpoint.fingerprint,
             chain_id=chain_id,
             ctf_code_bytes=(len(ctf_code) - 2) // 2,
             collateral_code_bytes=(len(collateral_code) - 2) // 2,
@@ -249,6 +269,22 @@ class CtfReader:
             finalized_block=None if finalized is None else int(finalized["number"], 16),
             latest_block=None if latest is None else int(latest["number"], 16),
         )
+
+    def _check_binding(self, attestation: ProviderAttestation) -> None:
+        if attestation.provider_id != self.endpoint.provider_id:
+            raise AttestationBindingError(
+                f"attestation for {attestation.provider_id!r} offered to reader "
+                f"{self.endpoint.provider_id!r}"
+            )
+        if attestation.endpoint_fingerprint != self.endpoint.fingerprint:
+            raise AttestationBindingError(
+                f"{self.endpoint.provider_id}: attestation describes "
+                f"{attestation.endpoint_fingerprint!r}, not {self.endpoint.fingerprint!r}"
+            )
+        if not attestation.valid:
+            raise AttestationBindingError(
+                f"{self.endpoint.provider_id}: attestation does not pass its own checks"
+            )
 
     def read_condition(
         self,
@@ -262,7 +298,14 @@ class CtfReader:
         ``attestation`` is what makes the result eligible for a quorum. Reading without one is
         still allowed — it is useful for diagnostics — but the verifier will refuse the result,
         which is the intended asymmetry: gathering is not trusting.
+
+        An attestation that describes a *different* endpoint is refused outright, and refused
+        before any request is sent: a foreign proof must never end up decorating a real reading,
+        and there is no reason to spend network calls discovering that it would have.
         """
+        if attestation is not None:
+            self._check_binding(attestation)
+
         word = condition_id.removeprefix("0x").rjust(64, "0")
         try:
             chain_id = int(self._rpc("eth_chainId", []), 16)
@@ -302,6 +345,7 @@ class CtfReader:
                 condition_id=condition_id,
                 payout=None,
                 error=f"{type(error).__name__}: {error}",
+                source_endpoint_fingerprint=self.endpoint.fingerprint,
                 attestation=attestation,
             )
         return ProviderResolution(
@@ -315,6 +359,7 @@ class CtfReader:
                 numerators=tuple(numerators),
                 outcome_slot_count=slot_count or 0,
             ),
+            source_endpoint_fingerprint=self.endpoint.fingerprint,
             attestation=attestation,
         )
 
@@ -345,13 +390,40 @@ class AttestedProvider:
     """An endpoint that proved which chain and contracts it serves, and its proof.
 
     This type is the trust boundary. It exists so that "this provider passed identity" is
-    something the code *holds* rather than something it printed earlier and hoped was still
-    true: the only way to obtain one is :func:`attest_all`, and only readings carrying its
-    attestation can reach a quorum.
+    something the code *holds* rather than something it printed earlier and hoped was still true.
+
+    It is **not** an unforgeable capability, and nothing here pretends otherwise: this is Python,
+    and a value constructor is not a cryptographic primitive. What can honestly be claimed is
+    narrower and still useful:
+
+    * :func:`attest_all` is the normal production factory;
+    * this value refuses to exist unless its identity actually describes its endpoint;
+    * the reading records its own source independently of the proof attached to it;
+    * the pure verifier re-checks the binding, so a hand-built mismatch fails there too.
+
+    A determined caller can still construct nonsense. It will not count.
     """
 
     endpoint: RpcEndpoint
     identity: ProviderIdentity
+
+    def __post_init__(self) -> None:
+        if not self.identity.trustworthy:
+            raise AttestationBindingError(
+                f"{self.endpoint.provider_id}: identity did not pass "
+                f"({self.identity.error or 'chain or contract check failed'})"
+            )
+        if self.identity.provider_id != self.endpoint.provider_id:
+            raise AttestationBindingError(
+                f"identity for {self.identity.provider_id!r} attached to endpoint "
+                f"{self.endpoint.provider_id!r}; a proof describes one endpoint only"
+            )
+        if self.identity.endpoint_fingerprint != self.endpoint.fingerprint:
+            raise AttestationBindingError(
+                f"{self.endpoint.provider_id}: identity was obtained from "
+                f"{self.identity.endpoint_fingerprint!r} but is being attached to "
+                f"{self.endpoint.fingerprint!r}"
+            )
 
     @property
     def provider_id(self) -> str:
@@ -361,7 +433,7 @@ class AttestedProvider:
         return CtfReader(self.endpoint).read_condition(
             condition_id,
             block_tag=block_tag,
-            attestation=self.identity.attestation(self.endpoint),
+            attestation=self.identity.to_attestation(),
         )
 
 

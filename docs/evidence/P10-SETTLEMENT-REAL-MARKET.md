@@ -292,9 +292,13 @@ bytecode present, pUSD `decimals() == 6`. The runner then printed the result and
 from every endpoint anyway**, so a provider that failed those checks could still produce a
 reading that counted.
 
-**Now:** `ProviderAttestation` carries what an endpoint proved, `AttestedProvider` is the only
-way to obtain one, and `attest_all` is the only way to obtain that. A reading whose attestation
-is missing or invalid is refused with `PROVIDER_NOT_ATTESTED`.
+**Now:** `ProviderAttestation` carries what an endpoint proved, `AttestedProvider` holds it, and
+`attest_all` is the production factory. A reading whose attestation is missing or invalid is
+refused with `PROVIDER_NOT_ATTESTED`.
+
+*(This paragraph originally said `AttestedProvider` was "the only way to obtain one". That was
+not true — these are ordinary Python values — and P10C below both corrects the claim and closes
+the gap it was papering over.)*
 
 Refused rather than silently dropped, deliberately: dropping it would turn a wiring bug into a
 smaller-than-configured quorum that still looked like consensus. The *runner* excludes untrusted

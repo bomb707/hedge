@@ -94,6 +94,13 @@ class AmbiguityReason(Enum):
     one opinion repeated, and counting them would let a single RPC authorise a redemption on its
     own, which is the only thing the quorum exists to prevent."""
 
+    ATTESTATION_BINDING_MISMATCH = "ATTESTATION_BINDING_MISMATCH"
+    """A reading carrying a proof that describes a different provider or a different endpoint.
+
+    Kept separate from ``PROVIDER_NOT_ATTESTED`` because the two say different things to whoever
+    reads the audit. A missing proof is usually a wiring mistake; a proof belonging to somebody
+    else is evidence being moved around, and an auditor should not have to guess which happened."""
+
     PROVIDER_NOT_ATTESTED = "PROVIDER_NOT_ATTESTED"
     """A reading arrived from an endpoint that never proved which chain and contracts it serves.
 
@@ -215,6 +222,13 @@ class ProviderResolution(NamedTuple):
     condition_id: str
     payout: PayoutVector | None
     error: str | None = None
+    source_endpoint_fingerprint: str = ""
+    """Which endpoint actually produced this reading.
+
+    Recorded by the reader from its own endpoint, deliberately not copied out of the attestation.
+    The proof must not be allowed to supply both sides of its own comparison — that is what made
+    the earlier check vacuous."""
+
     attestation: ProviderAttestation | None = None
     """Set only by a reader that actually performed the identity checks. ``None`` means the
     reading is not eligible for a quorum, whatever it says."""
@@ -224,8 +238,18 @@ class ProviderResolution(NamedTuple):
         return self.error is None and self.payout is not None
 
     @property
+    def bound(self) -> bool:
+        """Whether the proof describes this reading's own provider and endpoint."""
+        attestation = self.attestation
+        return (
+            attestation is not None
+            and attestation.provider_id == self.provider_id
+            and attestation.endpoint_fingerprint == self.source_endpoint_fingerprint
+        )
+
+    @property
     def attested(self) -> bool:
-        return self.attestation is not None and self.attestation.valid
+        return self.attestation is not None and self.attestation.valid and self.bound
 
     def summary(self) -> dict[str, object]:
         return {
@@ -236,7 +260,9 @@ class ProviderResolution(NamedTuple):
             "condition_id": self.condition_id,
             "payout": None if self.payout is None else self.payout.summary(),
             "error": self.error,
+            "source_endpoint_fingerprint": self.source_endpoint_fingerprint,
             "attested": self.attested,
+            "binding_valid": self.bound,
             "attestation": None if self.attestation is None else self.attestation.summary(),
         }
 
@@ -398,6 +424,21 @@ def _ambiguous(
     )
 
 
+def _binding_fault(reading: ProviderResolution) -> str:
+    """Say which half of the binding failed, so the audit does not have to guess."""
+    attestation = reading.attestation
+    assert attestation is not None
+    if attestation.provider_id != reading.provider_id:
+        return (
+            f"reading from {reading.provider_id!r} carries a proof for {attestation.provider_id!r}"
+        )
+    return (
+        f"{reading.provider_id}: read from "
+        f"{reading.source_endpoint_fingerprint or '<unrecorded>'!r} but the proof describes "
+        f"{attestation.endpoint_fingerprint!r}"
+    )
+
+
 def _repeated_fingerprints(readings: tuple[ProviderResolution, ...]) -> list[str]:
     """Provider ids that reach the same endpoint under different names."""
     by_fingerprint: dict[str, list[str]] = {}
@@ -451,6 +492,23 @@ def verify(
             answering=answering,
             advisory=advisory_readings,
             detail=f"provider id repeated in one evidence set: {', '.join(repeated)}",
+            block_tag=block_tag,
+        )
+
+    # Checked here as well as at the reader, because this function is pure and must be able to
+    # judge a ProviderResolution somebody built by hand. The reader refuses a foreign proof
+    # before it sends a request; this refuses one that never went through a reader at all.
+    misbound = sorted(
+        _binding_fault(reading)
+        for reading in provider_readings
+        if reading.attestation is not None and not reading.bound
+    )
+    if misbound:
+        return _ambiguous(
+            (AmbiguityReason.ATTESTATION_BINDING_MISMATCH,),
+            answering=answering,
+            advisory=advisory_readings,
+            detail=f"proof does not describe the reading it is attached to: {'; '.join(misbound)}",
             block_tag=block_tag,
         )
 

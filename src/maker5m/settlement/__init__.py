@@ -18,6 +18,7 @@ from maker5m.settlement.contracts import (
 from maker5m.settlement.payout import PaperSettlement, outcome_payout, settle_on_paper
 from maker5m.settlement.reader import (
     DEFAULT_RPC_ENDPOINTS,
+    AttestationBindingError,
     AttestedProvider,
     CtfReader,
     DuplicateEndpointError,
@@ -64,6 +65,7 @@ __all__ = [
     "SETTLEMENT_SCHEMA_VERSION",
     "AdvisoryResolution",
     "AmbiguityReason",
+    "AttestationBindingError",
     "AttestedProvider",
     "CtfReader",
     "DuplicateEndpointError",

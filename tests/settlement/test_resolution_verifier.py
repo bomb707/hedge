@@ -16,6 +16,7 @@ from maker5m.settlement import (
     AmbiguityReason,
     MarketResolutionTarget,
     PayoutVector,
+    ProviderAttestation,
     ProviderResolution,
     ResolutionState,
     SettlementPolicy,
@@ -36,6 +37,21 @@ def target(**overrides: object) -> MarketResolutionTarget:
     return base._replace(**overrides)  # type: ignore[arg-type]
 
 
+def attestation(provider: str, *, url: str = "", **overrides: object) -> ProviderAttestation:
+    """A passing attestation. Failing ones are built by overriding one field."""
+    base = {
+        "provider_id": provider,
+        "endpoint_fingerprint": url or f"https://{provider}.example/rpc",
+        "chain_id": 137,
+        "ctf_code_bytes": 12_345,
+        "collateral_code_bytes": 6_789,
+        "collateral_decimals": 6,
+        "attested_at_block": 92_665_370,
+    }
+    base.update(overrides)
+    return ProviderAttestation(**base)  # type: ignore[arg-type]
+
+
 def reading(
     provider: str,
     numerators: tuple[int, ...] = (1, 0),
@@ -46,6 +62,9 @@ def reading(
     condition_id: str = CONDITION,
     block: int | None = 92_665_372,
     error: str | None = None,
+    block_tag: str = "finalized",
+    attested: ProviderAttestation | None = None,
+    url: str = "",
 ) -> ProviderResolution:
     payout = (
         None
@@ -55,11 +74,12 @@ def reading(
     return ProviderResolution(
         provider_id=provider,
         chain_id=None if error else chain_id,
-        block_tag="finalized",
+        block_tag=block_tag,
         block_number=None if error else block,
         condition_id=condition_id,
         payout=payout,
         error=error,
+        attestation=attestation(provider, url=url) if attested is None else attested,
     )
 
 

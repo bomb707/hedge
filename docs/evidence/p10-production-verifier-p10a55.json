@@ -1,4 +1,60 @@
 {
+  "attestation": {
+    "attestations": {
+      "drpc": {
+        "attested_at_block": 92685335,
+        "chain_id": 137,
+        "collateral_code_bytes": 61,
+        "collateral_decimals": 6,
+        "ctf_code_bytes": 15007,
+        "endpoint_fingerprint": "https://polygon.drpc.org",
+        "error": null,
+        "provider_id": "drpc",
+        "valid": true
+      },
+      "publicnode": {
+        "attested_at_block": 92685333,
+        "chain_id": 137,
+        "collateral_code_bytes": 61,
+        "collateral_decimals": 6,
+        "ctf_code_bytes": 15007,
+        "endpoint_fingerprint": "https://polygon-bor-rpc.publicnode.com",
+        "error": null,
+        "provider_id": "publicnode",
+        "valid": true
+      },
+      "quiknode-public": {
+        "attested_at_block": 92685336,
+        "chain_id": 137,
+        "collateral_code_bytes": 61,
+        "collateral_decimals": 6,
+        "ctf_code_bytes": 15007,
+        "endpoint_fingerprint": "https://rpc-mainnet.matic.quiknode.pro",
+        "error": null,
+        "provider_id": "quiknode-public",
+        "valid": true
+      }
+    },
+    "attested_at_replay": [
+      "drpc",
+      "publicnode",
+      "quiknode-public"
+    ],
+    "note": "Endpoint identity attested at replay time, NOT at capture time: the P10A corpus predates the attestation boundary and carries no proof of endpoint identity for the moment its readings were taken. No such proof was invented.",
+    "rejected_at_replay": [
+      {
+        "chain_id": null,
+        "collateral_code_bytes": 0,
+        "collateral_decimals": null,
+        "ctf_code_bytes": 0,
+        "error": "RpcError: {'code': -32001, 'message': \"You've reached the usage limit for your current plan. To continue with higher limits and uninterrupted access, please upgrade here: https://www.1rpc.io/#pricing\"}",
+        "finalized_block": null,
+        "latest_block": null,
+        "provider_id": "1rpc",
+        "trustworthy": false
+      }
+    ]
+  },
   "kind": "P10_PRODUCTION_VERIFIER_OVER_P10A_CORPUS",
   "markets": 55,
   "mismatches": [],
@@ -7,23 +63,23 @@
     "UP": 27
   },
   "policy": {
-    "block_tag": "captured-latest (the corpus was read at `latest`)",
+    "block_tag": "captured-latest",
+    "block_tag_note": "The corpus was captured at the chain's `latest` tag, so the replay policy names that rule. It is deliberately NOT `finalized`: this evidence is not finalized evidence, and a `finalized` policy correctly refuses it.",
     "minimum_agreeing_providers": 3,
     "require_binary_singleton": true,
+    "require_unanimous_resolution": false,
     "status": "OPERATIONAL"
   },
   "provenance": "REAL_PUBLIC_MARKET_DATA",
-  "replayed_utc": "2026-08-26T01:57:22Z",
+  "replayed_utc": "2026-08-26T08:30:34Z",
   "rows": [
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -44,13 +100,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -71,13 +125,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -98,13 +150,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -150,13 +200,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -202,13 +250,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -229,13 +275,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -281,13 +325,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -308,13 +350,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -335,13 +375,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -387,13 +425,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -414,13 +450,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -441,13 +475,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -468,13 +500,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -495,13 +525,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -522,13 +550,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -549,13 +575,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -601,13 +625,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -653,13 +675,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -680,13 +700,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -707,13 +725,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -759,13 +775,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -786,13 +800,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -863,13 +875,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -890,13 +900,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
@@ -917,13 +925,11 @@
     },
     {
       "agreeing_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"
       ],
       "answering_providers": [
-        "1rpc",
         "drpc",
         "publicnode",
         "quiknode-public"

@@ -48,12 +48,46 @@ def markets() -> list[dict[str, Any]]:
     return rows
 
 
+CORPUS_POLICY = SettlementPolicy(block_tag="captured-latest")
+"""The finality rule the P10A corpus was actually captured under. Naming it here rather than
+replaying under `finalized` keeps the evidence honest: this corpus is not finalized evidence."""
+
+
+def committed_attestations() -> dict[str, Any]:
+    """The real endpoint attestations recorded when the replay was committed.
+
+    Read from evidence rather than constructed, and deliberately not backdated: the corpus
+    predates the attestation boundary, so these attest the endpoints as of the replay. Tests stay
+    offline by consuming what that run recorded.
+    """
+    from maker5m.settlement import ProviderAttestation
+
+    stored = REPLAY["attestation"]["attestations"]
+    return {
+        name: ProviderAttestation(
+            provider_id=row["provider_id"],
+            endpoint_fingerprint=row["endpoint_fingerprint"],
+            chain_id=row["chain_id"],
+            ctf_code_bytes=row["ctf_code_bytes"],
+            collateral_code_bytes=row["collateral_code_bytes"],
+            collateral_decimals=row["collateral_decimals"],
+            attested_at_block=row["attested_at_block"],
+            error=row["error"],
+        )
+        for name, row in stored.items()
+    }
+
+
 def build(
     market: dict[str, Any],
 ) -> tuple[MarketResolutionTarget, tuple[Any, ...], tuple[Any, ...]]:
     from tools.p10_replay_corpus import advisory_from, readings_from, target_from
 
-    return target_from(market), readings_from(market), advisory_from(market)
+    return (
+        target_from(market),
+        readings_from(market, committed_attestations()),
+        advisory_from(market),
+    )
 
 
 # -- the corpus is what we think it is -------------------------------------------------------
@@ -85,7 +119,7 @@ def test_no_market_in_the_corpus_is_negrisk() -> None:
 
 
 def test_the_production_verifier_resolves_every_real_market() -> None:
-    policy = SettlementPolicy(minimum_agreeing_providers=3)
+    policy = SettlementPolicy(minimum_agreeing_providers=3, block_tag="captured-latest")
     states: Counter[str] = Counter()
     outcomes: Counter[str] = Counter()
     for market in markets():
@@ -100,7 +134,7 @@ def test_the_production_verifier_resolves_every_real_market() -> None:
 
 def test_the_verifier_agrees_with_the_stored_payout_vector_market_by_market() -> None:
     """Checked against the recorded chain state, not against the verifier's own answer."""
-    policy = SettlementPolicy(minimum_agreeing_providers=3)
+    policy = SettlementPolicy(minimum_agreeing_providers=3, block_tag="captured-latest")
     for market in markets():
         target, readings, advisory = build(market)
         decision = verify(target, readings, advisory, policy)
@@ -111,30 +145,59 @@ def test_the_verifier_agrees_with_the_stored_payout_vector_market_by_market() ->
         assert list(decision.payout.numerators) == stored
 
 
-def test_real_provider_errors_are_never_counted_as_agreement() -> None:
-    """1rpc rate-limited the original capture on 29 markets. Those must count as absent."""
-    errored = [
-        market
-        for market in markets()
-        if any(reading.get("error") for reading in market["chain"].values())
-    ]
-    assert errored, "the corpus should contain real provider errors"
-    for market in errored:
+def test_the_unattested_provider_contributes_no_reading_at_all() -> None:
+    """1rpc fails identity for real — a usage-limit error — so it never enters the evidence.
+
+    This is the production rule, not a corpus quirk: an endpoint that has not proved which chain
+    and contracts it serves does not get to produce a reading that someone downstream might
+    count. Its 29 rate-limited answers in this corpus are gone for the same reason its 26 good
+    ones are.
+    """
+    rejected = {row["provider_id"] for row in REPLAY["attestation"]["rejected_at_replay"]}
+    assert "1rpc" in rejected
+    assert "1rpc" not in REPLAY["attestation"]["attested_at_replay"]
+
+    raw = {provider for market in markets() for provider in market["chain"]}
+    assert "1rpc" in raw, "the corpus really does contain its readings"
+
+    for market in markets():
         _, readings, _ = build(market)
-        answered = [reading for reading in readings if reading.answered]
-        failed = [reading for reading in readings if not reading.answered]
-        assert failed
-        assert all(reading.error for reading in failed)
-        decision = verify(*build(market), SettlementPolicy(minimum_agreeing_providers=3))
-        assert set(decision.answering_providers) == {r.provider_id for r in answered}
+        assert all(reading.provider_id != "1rpc" for reading in readings)
+        assert all(reading.attested for reading in readings)
 
 
-def test_a_quorum_higher_than_the_real_data_supports_refuses() -> None:
-    """29 markets had only three providers answer. Demanding four must not invent a fourth."""
-    policy = SettlementPolicy(minimum_agreeing_providers=4)
+def test_real_provider_errors_are_never_counted_as_agreement() -> None:
+    """An attested provider that fails one read is absent for that read, not concurring."""
+    policy = SettlementPolicy(minimum_agreeing_providers=2, block_tag="captured-latest")
+    market = markets()[0]
+    target, readings, advisory = build(market)
+    assert len(readings) == 3
+
+    broken = (readings[0]._replace(payout=None, error="RpcError: timeout"), *readings[1:])
+    assert not broken[0].answered
+
+    decision = verify(target, broken, advisory, policy)
+    assert decision.state is ResolutionState.RESOLVED, "two attested providers still agree"
+    assert broken[0].provider_id not in decision.answering_providers
+    assert broken[0].provider_id not in decision.agreeing_providers
+
+
+def test_a_quorum_higher_than_the_attested_providers_can_never_be_met() -> None:
+    """Three endpoints pass identity, so demanding four refuses every market, not some of them.
+
+    Before the trust boundary this returned 26 RESOLVED and 29 INSUFFICIENT, because a fourth
+    provider that had merely *answered* could make up the number. It cannot any more.
+    """
+    policy = SettlementPolicy(minimum_agreeing_providers=4, block_tag="captured-latest")
     states = Counter(verify(*build(market), policy).state.value for market in markets())
-    assert states["INSUFFICIENT_EVIDENCE"] == 29
-    assert states["RESOLVED"] == 26
+    assert states == Counter({"INSUFFICIENT_EVIDENCE": 55}), dict(states)
+
+
+def test_corpus_readings_are_refused_by_a_finalized_policy() -> None:
+    """The corpus was captured at `latest`. It must not be able to pass as finalized evidence."""
+    decision = verify(*build(markets()[0]), SettlementPolicy())
+    assert decision.state is ResolutionState.AMBIGUOUS
+    assert AmbiguityReason.FINALITY_POLICY_MISMATCH in decision.reasons
 
 
 # -- outcome mapping, from the real corpus ------------------------------------------------------
@@ -200,7 +263,9 @@ def test_the_committed_replay_matches_a_fresh_one() -> None:
 def test_individual_replay_rows_reproduce(index: int) -> None:
     row = REPLAY["rows"][index]
     market = next(m for m in markets() if m["gamma"]["slug"] == row["slug"])
-    decision = verify(*build(market), SettlementPolicy(minimum_agreeing_providers=3))
+    decision = verify(
+        *build(market), SettlementPolicy(minimum_agreeing_providers=3, block_tag="captured-latest")
+    )
     assert decision.state.value == row["state"]
     assert (None if decision.winning_outcome is None else decision.winning_outcome.value) == row[
         "winning_outcome"
@@ -217,7 +282,7 @@ def test_individual_replay_rows_reproduce(index: int) -> None:
 def test_corrupting_one_real_provider_reading_fails_closed() -> None:
     from maker5m.settlement import PayoutVector, Redeemer, SettlementPreconditions
 
-    policy = SettlementPolicy(minimum_agreeing_providers=3)
+    policy = SettlementPolicy(minimum_agreeing_providers=3, block_tag="captured-latest")
     market = markets()[0]
     target, readings, advisory = build(market)
 
@@ -248,7 +313,7 @@ def test_corrupting_one_real_provider_reading_fails_closed() -> None:
 def test_corrupting_a_real_advisory_winner_fails_closed() -> None:
     from maker5m.settlement import Redeemer, SettlementPreconditions
 
-    policy = SettlementPolicy(minimum_agreeing_providers=3)
+    policy = SettlementPolicy(minimum_agreeing_providers=3, block_tag="captured-latest")
     market = markets()[1]
     target, readings, advisory = build(market)
     clean = verify(target, readings, advisory, policy)
@@ -269,7 +334,7 @@ def test_corrupting_a_real_advisory_winner_fails_closed() -> None:
 
 def test_removing_the_corruption_restores_normal_resolution() -> None:
     """The fault is ours and reversible; the underlying evidence never changed."""
-    policy = SettlementPolicy(minimum_agreeing_providers=3)
+    policy = SettlementPolicy(minimum_agreeing_providers=3, block_tag="captured-latest")
     for market in markets()[:5]:
         target, readings, advisory = build(market)
         assert verify(target, readings, advisory, policy).state is ResolutionState.RESOLVED
@@ -377,6 +442,11 @@ def test_those_splits_were_not_finality_lag_and_the_corrected_ones_were() -> Non
 def test_replaying_the_recorded_halts_through_the_current_verifier_clears_them() -> None:
     from maker5m.settlement import PayoutVector, ProviderResolution
 
+    # These polls predate the attestation boundary, so they carry no proof of their own. The
+    # attestations attached are the real ones recorded by the corpus replay, for the same three
+    # endpoints — reused, not invented, and not backdated: what is being replayed here is the
+    # quorum logic, which is what halted.
+    attestations = committed_attestations()
     policy = SettlementPolicy()
     cleared = 0
     for watch in LIVE_PRE["watches"]:
@@ -414,8 +484,12 @@ def test_replaying_the_recorded_halts_through_the_current_verifier_clears_them()
                         else None
                     ),
                     error=None if row["answered"] else "did not answer",
+                    attestation=attestations.get(str(row["provider"])),
                 )
+                # 1rpc never passed identity, so production would not have created a reading
+                # from it at all. Filtering here is that rule, not a convenience.
                 for row in poll["per_provider"]
+                if str(row["provider"]) in attestations
             )
             decision = verify(target, readings, (), policy)
             assert decision.state is ResolutionState.UNRESOLVED, poll

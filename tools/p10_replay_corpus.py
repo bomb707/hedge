@@ -7,7 +7,21 @@ redemptions independently consumes the real captured evidence and reaches the sa
 Every provider error in the captured evidence is carried through faithfully, so a market where a
 provider rate-limited the original capture is judged on the providers that actually answered.
 
-Read-only: consumes committed evidence, touches no network.
+Read-only. It consumes committed evidence and, unless told not to, performs one live
+**identity attestation** of the RPC endpoints — `eth_chainId`, `eth_getCode`, `decimals()`.
+No market data is fetched; the settlement answers still come entirely from the committed corpus.
+
+Two things about that attestation are stated rather than glossed:
+
+* It is **contemporaneous with the replay, not with the capture**. The P10A corpus predates the
+  attestation boundary, so no proof of endpoint identity exists for the moment those readings
+  were taken. Rather than fabricate one, the endpoints are attested now and the record says so.
+* The corpus was captured under the chain's **`latest`** tag, not `finalized`. The replay is run
+  under a policy that names that rule (`captured-latest`), because pretending otherwise would be
+  claiming finalized evidence this corpus does not contain. A reading tagged `captured-latest`
+  is correctly refused by a `finalized` policy, which is the finality check doing its job.
+
+An endpoint that fails attestation contributes **no reading at all**, exactly as in production.
 """
 
 import argparse
@@ -19,11 +33,16 @@ from typing import Any
 
 from maker5m.domain import Outcome
 from maker5m.settlement import (
+    DEFAULT_RPC_ENDPOINTS,
     AdvisoryResolution,
+    EndpointSet,
     MarketResolutionTarget,
     PayoutVector,
+    ProviderAttestation,
     ProviderResolution,
+    RpcEndpoint,
     SettlementPolicy,
+    attest_all,
     verify,
 )
 
@@ -40,9 +59,22 @@ def target_from(market: dict[str, Any]) -> MarketResolutionTarget:
     )
 
 
-def readings_from(market: dict[str, Any]) -> tuple[ProviderResolution, ...]:
+def readings_from(
+    market: dict[str, Any],
+    attestations: dict[str, ProviderAttestation] | None = None,
+) -> tuple[ProviderResolution, ...]:
+    """Rebuild the captured chain readings, dropping any provider that is not attested.
+
+    Dropping rather than flagging is deliberate and mirrors the production coordinator: an
+    endpoint that has not proved its identity never produces evidence, so its absence shows up
+    as a smaller quorum rather than as a malformed evidence set.
+    """
+    attested = {} if attestations is None else attestations
     out: list[ProviderResolution] = []
     for provider, reading in sorted(market["chain"].items()):
+        attestation = attested.get(provider)
+        if attestations is not None and (attestation is None or not attestation.valid):
+            continue
         error = reading.get("error")
         payout = (
             None
@@ -62,9 +94,22 @@ def readings_from(market: dict[str, Any]) -> tuple[ProviderResolution, ...]:
                 condition_id=market["gamma"]["condition_id"],
                 payout=payout,
                 error=error,
+                attestation=attestation,
             )
         )
     return tuple(out)
+
+
+def live_attestations() -> tuple[dict[str, ProviderAttestation], list[dict[str, object]]]:
+    """Attest the reference endpoints now. The only network this tool touches."""
+    trusted, rejected = attest_all(
+        EndpointSet(tuple(RpcEndpoint(pid, url) for pid, url in DEFAULT_RPC_ENDPOINTS))
+    )
+    attestations = {
+        provider.provider_id: provider.identity.attestation(provider.endpoint)
+        for provider in trusted
+    }
+    return attestations, [identity.summary() for identity in rejected]
 
 
 def advisory_from(market: dict[str, Any]) -> tuple[AdvisoryResolution, ...]:
@@ -92,10 +137,23 @@ def main() -> None:
     parser.add_argument("corpus", type=Path)
     parser.add_argument("--out", type=Path)
     parser.add_argument("--min-providers", type=int, default=3)
+    parser.add_argument(
+        "--no-attest",
+        action="store_true",
+        help="skip the live identity attestation; the replay then cannot resolve anything, "
+        "which is the point of running it that way",
+    )
     args = parser.parse_args()
 
     payload = json.loads(args.corpus.read_text(encoding="utf-8"))
-    policy = SettlementPolicy(minimum_agreeing_providers=args.min_providers)
+    policy = SettlementPolicy(
+        minimum_agreeing_providers=args.min_providers, block_tag="captured-latest"
+    )
+
+    attestations: dict[str, ProviderAttestation] = {}
+    rejected: list[dict[str, object]] = []
+    if not args.no_attest:
+        attestations, rejected = live_attestations()
 
     states: Counter[str] = Counter()
     outcomes: Counter[str] = Counter()
@@ -104,7 +162,7 @@ def main() -> None:
 
     for market in payload["markets"]:
         target = target_from(market)
-        readings = readings_from(market)
+        readings = readings_from(market, attestations)
         decision = verify(target, readings, advisory_from(market), policy)
         states[decision.state.value] += 1
         if decision.winning_outcome is not None:
@@ -143,9 +201,24 @@ def main() -> None:
         "source_corpus": str(args.corpus.name),
         "source_captured_utc": payload.get("captured_utc"),
         "replayed_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "attestation": {
+            "note": (
+                "Endpoint identity attested at replay time, NOT at capture time: the P10A "
+                "corpus predates the attestation boundary and carries no proof of endpoint "
+                "identity for the moment its readings were taken. No such proof was invented."
+            ),
+            "attested_at_replay": sorted(attestations),
+            "rejected_at_replay": rejected,
+            "attestations": {name: value.summary() for name, value in sorted(attestations.items())},
+        },
         "policy": {
             "minimum_agreeing_providers": policy.minimum_agreeing_providers,
-            "block_tag": "captured-latest (the corpus was read at `latest`)",
+            "block_tag": policy.block_tag,
+            "block_tag_note": (
+                "The corpus was captured at the chain's `latest` tag, so the replay policy "
+                "names that rule. It is deliberately NOT `finalized`: this evidence is not "
+                "finalized evidence, and a `finalized` policy correctly refuses it."
+            ),
             "require_binary_singleton": policy.require_binary_singleton,
             "require_unanimous_resolution": policy.require_unanimous_resolution,
             "status": policy.status.value,

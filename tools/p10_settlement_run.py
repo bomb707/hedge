@@ -24,12 +24,20 @@ from typing import Any, Final
 
 from maker5m.market.events import HealthStatus
 from maker5m.market.timebase import TimestampNs
-from maker5m.risk import RiskProvenance
+from maker5m.risk import (
+    RiskProvenance,
+    RiskReason,
+    RiskRecord,
+    RiskSignal,
+    RiskSignalKind,
+    RiskState,
+)
 from maker5m.risk.trace import HealthFrame, RiskController
 from maker5m.settlement import (
     DEFAULT_RPC_ENDPOINTS,
     AdvisoryResolution,
-    CtfReader,
+    AttestedProvider,
+    EndpointSet,
     MarketResolutionTarget,
     PayoutVector,
     ProviderResolution,
@@ -39,6 +47,7 @@ from maker5m.settlement import (
     RpcEndpoint,
     SettlementPolicy,
     SettlementPreconditions,
+    attest_all,
     verify,
 )
 from maker5m.settlement.reader import USER_AGENT
@@ -185,6 +194,24 @@ HEALTHY: Final[HealthFrame] = HealthFrame(
 )
 
 
+def _latched(control: RiskController) -> list[str]:
+    return sorted(reason.value for reason in control.engine.snapshot.latched)
+
+
+def _record(record: RiskRecord, at: float, *, note: str = "") -> dict[str, Any]:
+    return {
+        "at": round(at, 3),
+        "risk_sequence": record.risk_sequence,
+        "signal": record.signal.kind.value,
+        "state": record.state.value,
+        "active": sorted(reason.value for reason in record.active),
+        "latched": sorted(reason.value for reason in record.latched),
+        "allows_place": record.allows_place,
+        "allows_cancel": record.allows_cancel,
+        "note": note,
+    }
+
+
 def risk_step(
     control: RiskController, decision: ResolutionDecision, at: float
 ) -> dict[str, Any] | None:
@@ -199,21 +226,13 @@ def risk_step(
     )
     if record is None:
         return None
-    return {
-        "at": round(at, 3),
-        "risk_sequence": record.risk_sequence,
-        "signal": record.signal.kind.value,
-        "state": record.state.value,
-        "active": sorted(reason.value for reason in record.active),
-        "allows_place": record.allows_place,
-        "allows_cancel": record.allows_cancel,
-    }
+    return _record(record, at)
 
 
 def watch(
     t0: int,
     policy: SettlementPolicy,
-    endpoints: tuple[RpcEndpoint, ...],
+    providers: tuple[AttestedProvider, ...],
     control: RiskController,
     injection: str = "",
 ) -> Watch:
@@ -237,7 +256,9 @@ def watch(
         down_token_id=result.down_token_id,
         neg_risk=result.neg_risk,
     )
-    readers = [CtfReader(endpoint) for endpoint in endpoints]
+    # Only attested providers exist here at all. An endpoint that failed identity was excluded
+    # before this point and cannot produce a reading, so it can never be mistaken for agreement.
+    readers = list(providers)
     print(f"  watching {slug} (ends in {t0 + 300 - int(time.time())}s)", flush=True)
 
     deadline = t0 + 300 + WATCH_AFTER_END
@@ -313,7 +334,57 @@ def watch(
                     result.risk_records.append(recovery_record)
                 print(
                     f"    corruption removed, fresh read -> {recovered.state.value}  "
-                    f"risk={control.state.value}",
+                    f"risk={control.state.value}  latched={_latched(control)}",
+                    flush=True,
+                )
+
+                # O16, on real data. The clean reread above is NOT what lifts the halt: the
+                # reason is latched, so the operator must first clear the condition and then
+                # positively state that the contradiction was understood. Both are ordered,
+                # recorded signals, and each is shown here as its own step.
+                result.risk_records.append(
+                    _record(
+                        control.apply(
+                            RiskSignal(
+                                kind=RiskSignalKind.RESOLUTION_SAFETY_UPDATE,
+                                as_of_ingress_ordinal=control.sequence + 1,
+                                timestamp=TimestampNs(int(time.time() * 1e9)),
+                                provenance=RiskProvenance.REAL_PUBLIC_MARKET_DATA,
+                                reason=RiskReason.RESOLUTION_AMBIGUOUS,
+                                flag=False,
+                            )
+                        ),
+                        time.time(),
+                        note="condition cleared by the operator; the latch is untouched",
+                    )
+                )
+                result.risk_records.append(
+                    _record(
+                        control.apply(
+                            RiskSignal(
+                                kind=RiskSignalKind.RECONCILIATION_CONFIRMED,
+                                as_of_ingress_ordinal=control.sequence + 1,
+                                timestamp=TimestampNs(int(time.time() * 1e9)),
+                                provenance=RiskProvenance.REAL_PUBLIC_MARKET_DATA,
+                                reason=RiskReason.RESOLUTION_AMBIGUOUS,
+                            )
+                        ),
+                        time.time(),
+                        note="operator confirms the contradiction was ours and is understood",
+                    )
+                )
+                for _ in range(12):
+                    step = control.evaluate(
+                        HEALTHY,
+                        as_of_ingress_ordinal=control.sequence + 1,
+                        now_ns=TimestampNs(int(time.time() * 1e9)),
+                    )
+                    result.risk_records.append(_record(step, time.time(), note="recovery hold"))
+                    if step.state is RiskState.SAFE:
+                        break
+                print(
+                    f"    reconciled -> risk={control.state.value} "
+                    f"latched={_latched(control)} allows_place={step.allows_place}",
                     flush=True,
                 )
             else:
@@ -339,12 +410,25 @@ def main() -> None:
     args = parser.parse_args()
 
     policy = SettlementPolicy(minimum_agreeing_providers=args.min_providers)
-    endpoints = tuple(RpcEndpoint(provider_id=name, url=url) for name, url in DEFAULT_RPC_ENDPOINTS)
-    identities = [CtfReader(endpoint).identify().summary() for endpoint in endpoints]
+    configured = EndpointSet(
+        tuple(RpcEndpoint(provider_id=name, url=url) for name, url in DEFAULT_RPC_ENDPOINTS)
+    )
+    providers, rejected = attest_all(configured)
+    identities = [provider.identity.summary() for provider in providers]
+    untrusted = [identity.summary() for identity in rejected]
     for identity in identities:
+        print(f"  provider {identity['provider_id']}: ATTESTED", flush=True)
+    for identity in untrusted:
         print(
-            f"  provider {identity['provider_id']}: trustworthy={identity['trustworthy']}",
+            f"  provider {identity['provider_id']}: UNTRUSTED — excluded, contributes nothing",
             flush=True,
+        )
+
+    if len(providers) < policy.minimum_agreeing_providers:
+        raise SystemExit(
+            f"only {len(providers)} endpoint(s) passed identity; "
+            f"{policy.minimum_agreeing_providers} independent providers are required. "
+            "Refusing to run rather than settling on a smaller quorum than configured."
         )
 
     # One controller for the whole run: the risk sequence is a single ordered stream across
@@ -362,7 +446,7 @@ def main() -> None:
         while time.time() < t0 + 300 - WATCH_BEFORE_END:
             time.sleep(2)
         injection = args.inject if len(watches) == args.inject_on else ""
-        watches.append(watch(t0, policy, endpoints, control, injection))
+        watches.append(watch(t0, policy, providers, control, injection))
         print(f"  [{len(watches)}/{args.markets}] done", flush=True)
 
     args.out.write_text(
@@ -379,6 +463,12 @@ def main() -> None:
                     "No order, no credential, no transaction, no redemption."
                 ),
                 "captured_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "attested_providers": [str(row["provider_id"]) for row in identities],
+                "untrusted_providers": untrusted,
+                "distinct_provider_ids": sorted({str(row["provider_id"]) for row in identities}),
+                "distinct_endpoint_fingerprints": sorted(
+                    {provider.endpoint.fingerprint for provider in providers}
+                ),
                 "final_risk_state": control.state.value,
                 "risk_sequence_length": control.sequence + 1,
                 "policy": {

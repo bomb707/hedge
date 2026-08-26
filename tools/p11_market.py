@@ -29,6 +29,8 @@ from maker5m.market.timebase import NANOS_PER_SECOND, TimestampNs
 from maker5m.persistence import (
     DEFAULT_RISK_CAPACITY,
     MANIFEST_SCHEMA_VERSION,
+    ArchiveIdentity,
+    ArchiveVerificationError,
     BoundedChannel,
     Manifest,
     MarketIdentity,
@@ -38,6 +40,7 @@ from maker5m.persistence import (
     TelemetryStore,
     archive_store,
     database_digest,
+    open_verified_archive,
     settlement_row,
     verify_store,
 )
@@ -355,26 +358,6 @@ async def main(out: Path, stall_window: tuple[int, int] | None, buffer_capacity:
     # says so rather than carrying a number that cannot be right.
     size, digest = database_digest(database)
     sidecar = database.with_suffix(".manifest.json")
-    sidecar.write_text(
-        json.dumps(
-            {
-                "schema_version": MANIFEST_SCHEMA_VERSION,
-                "database": database.name,
-                "database_bytes": size,
-                "database_sha256": digest,
-                "note": (
-                    "The digest is of the closed database and is held here rather than inside "
-                    "it: a file cannot contain its own hash."
-                ),
-                "manifest": {f: getattr(manifest, f) for f in manifest.__dataclass_fields__},
-                "telemetry_complete": manifest.telemetry_complete,
-            },
-            indent=2,
-            sort_keys=True,
-            default=str,
-        ),
-        encoding="utf-8",
-    )
     stamped = manifest
 
     verification = verify_store(database, expected_sha256=digest)
@@ -391,6 +374,39 @@ async def main(out: Path, stall_window: tuple[int, int] | None, buffer_capacity:
         f"verified={archive.verified}",
         flush=True,
     )
+
+    # The sidecar is written last, and carries the identity the read path checks: the archive's
+    # own hash, the raw database hash it must restore to, and the market it holds. A file cannot
+    # contain its own hash, and an artifact with no identity is not evidence — so the identity
+    # lives here and `open_verified_archive` refuses anything that does not match it.
+    sidecar.write_text(
+        json.dumps(
+            {
+                "schema_version": MANIFEST_SCHEMA_VERSION,
+                "database": database.name,
+                "database_bytes": size,
+                "database_sha256": digest,
+                "archive": archive.archive_path.name,
+                "archive_bytes": archive.archive_bytes,
+                "archive_sha256": archive.archive_sha256,
+                "archive_verified": archive.verified,
+                "note": (
+                    "Identity for the durable read path. The digests are of the closed database "
+                    "and of its archive, and are held here rather than inside either: a file "
+                    "cannot contain its own hash."
+                ),
+                "manifest": {f: getattr(manifest, f) for f in manifest.__dataclass_fields__},
+                "telemetry_complete": manifest.telemetry_complete,
+            },
+            indent=2,
+            sort_keys=True,
+            default=str,
+        ),
+        encoding="utf-8",
+    )
+
+    # Prove the supported P12/P15 path works on this artifact, now, rather than promising it.
+    readback = _verified_readback(archive.archive_path, sidecar, out)
     evidence = {
         "kind": "P11_TELEMETRY_PERSISTENCE",
         "provenance": provenance.value,
@@ -427,6 +443,7 @@ async def main(out: Path, stall_window: tuple[int, int] | None, buffer_capacity:
         "analyzer": analyzer.summary(),
         "verification": verification.summary(),
         "archive": archive.summary(),
+        "verified_readback": readback,
         "stall": {
             "requested_window_s": list(stall_window) if stall_window else None,
             "started_at_s": stalling["started_at"] or None,
@@ -453,6 +470,19 @@ async def main(out: Path, stall_window: tuple[int, int] | None, buffer_capacity:
     path.write_text(json.dumps(evidence, indent=2, sort_keys=True, default=str), encoding="utf-8")
     print(json.dumps({k: evidence[k] for k in ("telemetry_complete", "verification")}, indent=2))
     print(f"wrote {path}", flush=True)
+
+
+def _verified_readback(archive: Path, sidecar: Path, out: Path) -> dict[str, object]:
+    """Restore through the verified path and re-verify the store that comes back."""
+    scratch = out / "readback.sqlite3"
+    try:
+        open_verified_archive(archive, ArchiveIdentity.from_sidecar(sidecar), scratch)
+        result = verify_store(scratch)
+        return {"opened": True, "verification": result.summary()}
+    except ArchiveVerificationError as error:
+        return {"opened": False, "error": str(error)}
+    finally:
+        scratch.unlink(missing_ok=True)
 
 
 def _plain(value: object) -> object:

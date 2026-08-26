@@ -14,8 +14,11 @@ recorded in the manifest and enforced by the verifier.
 from maker5m.persistence.analytics import MetricsAccumulator, risk_row, settlement_row
 from maker5m.persistence.archive import (
     ARCHIVE_SUFFIX,
+    ArchiveIdentity,
     ArchiveResult,
+    ArchiveVerificationError,
     archive_store,
+    open_verified_archive,
     restore_store,
     verify_archive,
 )
@@ -82,7 +85,9 @@ __all__ = [
     "RISK_ROW_SCHEMA_VERSION",
     "SETTLEMENT_ROW_SCHEMA_VERSION",
     "STORE_SCHEMA_VERSION",
+    "ArchiveIdentity",
     "ArchiveResult",
+    "ArchiveVerificationError",
     "BoundedChannel",
     "DecisionRecord",
     "ExactRatio",
@@ -109,6 +114,7 @@ __all__ = [
     "build_fill_record",
     "database_digest",
     "open_for_read",
+    "open_verified_archive",
     "read_manifest",
     "restore_store",
     "risk_row",

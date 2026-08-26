@@ -178,18 +178,38 @@ def verify_store(
         # The reference a decision makes to the verdict that governed it, and whether it placed.
         # Pulled out of the payload because that is where V2 keeps them; the columns carry only
         # what is indexed.
-        decision_rows = [
-            (
-                json.loads(row[0]).get("risk_sequence"),
-                json.loads(row[0]).get("up", {}).get("action") == "PLACE"
-                or json.loads(row[0]).get("down", {}).get("action") == "PLACE",
-                bool(json.loads(row[0]).get("risk_allows_place")),
-                json.loads(row[0]).get("ingress_ordinal"),
+        decision_rows = []
+        for (raw,) in connection.execute(
+            "SELECT payload FROM decisions WHERE market_id = ?", (found_id,)
+        ):
+            record = json.loads(raw)
+            decision_rows.append(
+                {
+                    "risk_sequence": record.get("risk_sequence"),
+                    "place": record.get("up", {}).get("action") == "PLACE"
+                    or record.get("down", {}).get("action") == "PLACE",
+                    "risk_state": record.get("risk_state"),
+                    "allows_place": record.get("risk_allows_place"),
+                    "allows_cancel": record.get("risk_allows_cancel"),
+                    "ingress_ordinal": record.get("ingress_ordinal"),
+                }
             )
-            for row in connection.execute(
-                "SELECT payload FROM decisions WHERE market_id = ?", (found_id,)
-            )
-        ]
+
+        # The authoritative durable verdict, keyed by the thing decisions point at. A decision
+        # carries a *copy* of the verdict it ran under; the RiskRow is the record P9 wrote.
+        risk_by_sequence = {}
+        for raw_seq, raw_ordinal, raw_payload in connection.execute(
+            "SELECT risk_sequence, as_of_ingress_ordinal, payload FROM risk_records"
+            " WHERE market_id = ?",
+            (found_id,),
+        ):
+            payload = json.loads(raw_payload)
+            risk_by_sequence[int(raw_seq)] = {
+                "state": payload.get("state"),
+                "allows_place": payload.get("allows_place"),
+                "allows_cancel": payload.get("allows_cancel"),
+                "as_of_ingress_ordinal": int(raw_ordinal),
+            }
         ingress_ordinals = [int(row[3]) for row in decisions]
 
         manifest = read_manifest(connection, found_id)
@@ -255,24 +275,67 @@ def verify_store(
 
     # Every decision names the verdict that governed it. A PLACE is the one action that creates
     # new risk, so the verdict it points at has to have permitted it — and has to exist.
-    known_risk = set(risk_sequences)
+    # Join every decision to the risk record it names, and check the copy against it. Trusting
+    # the copy would make the invariant circular: a record that misrepresented the verdict it ran
+    # under would be checked against its own misrepresentation and pass.
     dangling = 0
+    mismatches: list[str] = []
     unpermitted: list[str] = []
+    out_of_order = 0
     for row in decision_rows:
-        referenced, place, allows, ordinal = row
+        referenced = row["risk_sequence"]
         if referenced is None:
             continue
-        if int(referenced) not in known_risk:
+        verdict = risk_by_sequence.get(int(referenced))
+        if verdict is None:
             dangling += 1
-        if place and not allows:
-            unpermitted.append(f"ingress {ordinal} placed under risk_sequence {referenced}")
+            continue
+
+        for field_name, copied, authoritative in (
+            ("risk_state", row["risk_state"], verdict["state"]),
+            ("allows_place", row["allows_place"], verdict["allows_place"]),
+            ("allows_cancel", row["allows_cancel"], verdict["allows_cancel"]),
+        ):
+            # Compared directly. An earlier draft also tried `bool(copied) != bool(...)`, which
+            # silently exempted every state mismatch: SAFE and HALTED are both truthy strings.
+            if copied is not None and copied != authoritative:
+                mismatches.append(
+                    f"ingress {row['ingress_ordinal']}: decision says {field_name}={copied!r}, "
+                    f"risk_sequence {referenced} says {authoritative!r}"
+                )
+
+        # A verdict cannot have been taken after the cycle it governed.
+        if verdict["as_of_ingress_ordinal"] > int(row["ingress_ordinal"] or 0):
+            out_of_order += 1
+
+        # Permission is read from the RiskRow, never from the decision's copy of it.
+        if row["place"] and not (verdict["allows_place"] and verdict["state"] == "SAFE"):
+            unpermitted.append(
+                f"ingress {row['ingress_ordinal']} placed under risk_sequence {referenced} "
+                f"(state={verdict['state']}, allows_place={verdict['allows_place']})"
+            )
+
     checks["decision_risk_references_resolve"] = dangling == 0
     if dangling:
         failures.append(f"{dangling} decision(s) name a risk_sequence that is not stored")
+
+    checks["decision_risk_copies_agree"] = not mismatches
+    if mismatches:
+        failures.append(
+            f"{len(mismatches)} decision/risk verdict mismatch(es): " + "; ".join(mismatches[:5])
+        )
+
+    checks["risk_verdict_not_from_the_future"] = out_of_order == 0
+    if out_of_order:
+        failures.append(
+            f"{out_of_order} decision(s) reference a verdict taken at a later ingress ordinal"
+        )
+
     checks["no_place_without_permission"] = not unpermitted
     if unpermitted:
         failures.append(
-            "PLACE recorded against a verdict that forbade it: " + "; ".join(unpermitted[:5])
+            "PLACE recorded against a persisted verdict that forbade it: "
+            + "; ".join(unpermitted[:5])
         )
 
     checks["manifest_present"] = manifest is not None

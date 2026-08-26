@@ -37,11 +37,24 @@ from typing import Final
 
 __all__ = [
     "ARCHIVE_SUFFIX",
+    "ArchiveIdentity",
     "ArchiveResult",
+    "ArchiveVerificationError",
     "archive_store",
+    "open_verified_archive",
     "restore_store",
     "verify_archive",
 ]
+
+
+class ArchiveVerificationError(RuntimeError):
+    """An archive that cannot be shown to be the market it claims to be.
+
+    Raised before any query is answered from it. An unverified archive is not a slightly weaker
+    source — it is an unknown file with a familiar name, and P15 must never close an open item
+    from one.
+    """
+
 
 ARCHIVE_SUFFIX: Final[str] = ".sqlite3.xz"
 PRESET: Final[int] = 6
@@ -162,3 +175,105 @@ def restore_store(archive: Path, destination: Path) -> Path:
 def verify_archive(archive: Path, expected_sha256: str) -> bool:
     """Whether this archive still restores to the database it claims to hold."""
     return _restored_digest(archive) == expected_sha256
+
+
+@dataclass(frozen=True, slots=True)
+class ArchiveIdentity:
+    """What a sidecar says an archive is. Every field is checked before the archive is trusted."""
+
+    market_id: str
+    slug: str
+    raw_sha256: str
+    raw_bytes: int
+    archive_sha256: str | None = None
+    schema_version: int | None = None
+
+    @classmethod
+    def from_sidecar(cls, path: Path) -> ArchiveIdentity:
+        import json
+
+        data = json.loads(path.read_text("utf-8"))
+        manifest = data.get("manifest", {})
+        return cls(
+            market_id=str(manifest.get("market_id", "")),
+            slug=str(manifest.get("slug", "")),
+            raw_sha256=str(data.get("database_sha256", "")),
+            raw_bytes=int(data.get("database_bytes", 0)),
+            archive_sha256=data.get("archive_sha256"),
+            schema_version=data.get("schema_version"),
+        )
+
+
+def open_verified_archive(
+    archive: Path,
+    identity: ArchiveIdentity,
+    destination: Path,
+) -> Path:
+    """Restore an archive to ``destination`` only if it is provably the market ``identity`` names.
+
+    The supported durable read path for P12 and P15. In order:
+
+    1. the compressed artifact's own hash, where the sidecar recorded one;
+    2. decompress;
+    3. hash the restored bytes and require them to equal the raw database hash;
+    4. open the result read-only, which enforces the store schema version;
+    5. confirm the market inside is the market the sidecar names.
+
+    Any failure raises. Nothing is repaired, and no partially-restored file is left behind for a
+    later caller to find and mistake for a good one.
+    """
+    import sqlite3
+
+    from maker5m.persistence.store import open_for_read
+
+    if not archive.exists():
+        raise ArchiveVerificationError(f"no archive at {archive}")
+
+    if identity.archive_sha256:
+        _, actual = _digest(archive)
+        if actual != identity.archive_sha256:
+            raise ArchiveVerificationError(
+                f"{archive.name}: compressed artifact hash {actual[:16]} does not match the "
+                f"sidecar's {identity.archive_sha256[:16]}"
+            )
+
+    restore_store(archive, destination)
+    try:
+        restored_bytes, restored_sha = _digest(destination)
+        if not identity.raw_sha256:
+            raise ArchiveVerificationError(
+                f"{archive.name}: the sidecar records no database hash, so this archive has no "
+                "identity to check; it is not usable as evidence"
+            )
+        if restored_sha != identity.raw_sha256:
+            raise ArchiveVerificationError(
+                f"{archive.name}: restored database hash {restored_sha[:16]} does not match the "
+                f"expected {identity.raw_sha256[:16]}"
+            )
+        if identity.raw_bytes and restored_bytes != identity.raw_bytes:
+            raise ArchiveVerificationError(
+                f"{archive.name}: restored {restored_bytes} bytes, sidecar says "
+                f"{identity.raw_bytes}"
+            )
+
+        connection = open_for_read(destination)
+        try:
+            rows = connection.execute("SELECT market_id, slug FROM markets").fetchall()
+        finally:
+            connection.close()
+        if len(rows) != 1:
+            raise ArchiveVerificationError(
+                f"{archive.name}: expected one market in the store, found {len(rows)}"
+            )
+        if identity.market_id and str(rows[0][0]) != identity.market_id:
+            raise ArchiveVerificationError(
+                f"{archive.name}: holds market {rows[0][0]}, sidecar names {identity.market_id}"
+            )
+        if identity.slug and str(rows[0][1]) != identity.slug:
+            raise ArchiveVerificationError(
+                f"{archive.name}: holds slug {rows[0][1]}, sidecar names {identity.slug}"
+            )
+    except (ArchiveVerificationError, sqlite3.DatabaseError):
+        destination.unlink(missing_ok=True)
+        raise
+    return destination

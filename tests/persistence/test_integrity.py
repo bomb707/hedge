@@ -22,6 +22,7 @@ from maker5m.market.timebase import TimestampNs
 from maker5m.persistence import (
     MANIFEST_SCHEMA_VERSION,
     STORE_SCHEMA_VERSION,
+    ArchiveIdentity,
     Manifest,
     SchemaVersionError,
     TelemetryStore,
@@ -45,6 +46,11 @@ def build_market(
     fills: int = 0,
     place_at: int | None = None,
     place_allowed: bool = True,
+    row_state: str = "SAFE",
+    row_allows_place: bool = True,
+    row_allows_cancel: bool = True,
+    copy_state: str | None = None,
+    copy_allows_cancel: bool | None = None,
     manifest_overrides: dict[str, Any] | None = None,
 ) -> Path:
     """A small, complete, self-consistent market — then broken one way by the caller."""
@@ -64,7 +70,16 @@ def build_market(
     sequence = 0
     for index in range(risk_count):
         sequence += 1
-        store.write_risk(_risk_row(ident.market_id, risk_first + index, sequence))
+        store.write_risk(
+            _risk_row(
+                ident.market_id,
+                risk_first + index,
+                sequence,
+                state=row_state,
+                allows_place=row_allows_place,
+                allows_cancel=row_allows_cancel,
+            )
+        )
 
     for index in range(DECISIONS):
         sequence += 1
@@ -73,7 +88,12 @@ def build_market(
             observation(
                 index,
                 ordinal=index,
-                risk=(risk_first, "SAFE", place_allowed, True),
+                risk=(
+                    risk_first,
+                    copy_state if copy_state is not None else row_state,
+                    place_allowed,
+                    copy_allows_cancel if copy_allows_cancel is not None else row_allows_cancel,
+                ),
                 action=ReconcileAction.PLACE if placing else ReconcileAction.KEEP,
             ),
             ident,
@@ -130,7 +150,15 @@ def build_market(
     return path
 
 
-def _risk_row(market_id: str, risk_sequence: int, persistence_sequence: int) -> Any:
+def _risk_row(
+    market_id: str,
+    risk_sequence: int,
+    persistence_sequence: int,
+    *,
+    state: str = "SAFE",
+    allows_place: bool = True,
+    allows_cancel: bool = True,
+) -> Any:
     from maker5m.persistence import RiskRow
 
     return RiskRow(
@@ -144,11 +172,11 @@ def _risk_row(market_id: str, risk_sequence: int, persistence_sequence: int) -> 
         signal_flag=False,
         signal_timestamp_ns=TimestampNs(risk_sequence),
         signal_value_ns=None,
-        state="SAFE",
+        state=state,
         active=(),
         latched=(),
-        allows_place=True,
-        allows_cancel=True,
+        allows_place=allows_place,
+        allows_cancel=allows_cancel,
         provenance="SYNTHETIC_SUPPORTING_TEST_ONLY",
         risk_schema_version=1,
     )
@@ -269,13 +297,66 @@ def test_a_decision_naming_an_absent_risk_sequence_is_refused(tmp_path: Path) ->
     assert not result.checks["decision_risk_references_resolve"]
 
 
-def test_a_place_under_a_verdict_that_forbade_it_is_refused(tmp_path: Path) -> None:
-    """The load-bearing cross-record invariant: a PLACE creates new risk."""
-    path = build_market(tmp_path, place_at=2, place_allowed=False)
+def test_a_place_under_a_persisted_verdict_that_forbade_it_is_refused(tmp_path: Path) -> None:
+    """The load-bearing invariant, read from the RiskRow rather than the decision's copy.
+
+    The copy agrees with the row here — both say HALTED — so nothing but the join catches it.
+    """
+    path = build_market(
+        tmp_path,
+        place_at=2,
+        place_allowed=False,
+        row_state="HALTED",
+        row_allows_place=False,
+    )
     result = verify_store(path)
     assert result.status is VerificationStatus.INCOMPLETE
     assert not result.checks["no_place_without_permission"]
-    assert any("PLACE recorded" in failure for failure in result.failures)
+    assert any("persisted verdict that forbade it" in f for f in result.failures)
+
+
+def test_a_decision_lying_about_the_verdict_it_ran_under_is_refused(tmp_path: Path) -> None:
+    """§4: the RiskRow says HALTED / no placement; the decision claims SAFE / permitted.
+
+    This is the case that makes trusting the copy circular — a record that misrepresents its own
+    verdict would be checked against its own misrepresentation and pass. Permission comes from
+    the RiskRow, so the PLACE is refused *and* the falsified copy is named.
+    """
+    path = build_market(
+        tmp_path,
+        place_at=2,
+        place_allowed=True,
+        row_state="HALTED",
+        row_allows_place=False,
+        copy_state="SAFE",
+    )
+    result = verify_store(path)
+    assert result.status is VerificationStatus.INCOMPLETE
+    assert not result.checks["decision_risk_copies_agree"]
+    assert not result.checks["no_place_without_permission"]
+    assert any("verdict mismatch" in f for f in result.failures)
+
+
+def test_a_copy_mismatch_is_caught_even_with_no_place_at_all(tmp_path: Path) -> None:
+    """Both directions: the copy claims a halt the RiskRow never recorded."""
+    path = build_market(tmp_path, row_state="SAFE", row_allows_place=True, copy_state="HALTED")
+    result = verify_store(path)
+    assert result.status is VerificationStatus.INCOMPLETE
+    assert not result.checks["decision_risk_copies_agree"]
+    assert result.checks["no_place_without_permission"], "nothing was placed"
+
+
+def test_a_mismatched_allows_cancel_copy_is_caught(tmp_path: Path) -> None:
+    path = build_market(tmp_path, row_allows_cancel=True, copy_allows_cancel=False)
+    assert not verify_store(path).checks["decision_risk_copies_agree"]
+
+
+def test_a_verdict_taken_after_the_cycle_it_governed_is_refused(tmp_path: Path) -> None:
+    """A decision cannot have been governed by a verdict from later in the stream."""
+    path = build_market(tmp_path)
+    _mutate(path, "UPDATE risk_records SET as_of_ingress_ordinal = 9999")
+    result = verify_store(path)
+    assert not result.checks["risk_verdict_not_from_the_future"]
 
 
 def test_a_place_under_a_permitting_verdict_is_fine(tmp_path: Path) -> None:
@@ -460,3 +541,252 @@ def test_payload_encoding_round_trips_every_field() -> None:
     assert decoded["raw_centre"] is None or "numerator" in decoded["raw_centre"]
     assert decoded["up"]["action"] == record.up.action
     assert decoded["schema_version"] == record.schema_version
+
+
+# -- append-only: evidence is never rewritten ---------------------------------------------------
+
+
+def _open_store(tmp_path: Path) -> tuple[TelemetryStore, Any]:
+    ident = identity()
+    store = TelemetryStore(path=tmp_path / "append.sqlite3", batch_size=1)
+    store.open()
+    store.register_market(
+        market_id=ident.market_id,
+        slug=ident.slug,
+        condition_id=ident.condition_id,
+        provenance=ident.provenance,
+    )
+    return store, ident
+
+
+def test_a_second_decision_at_the_same_sequence_cannot_replace_the_first(
+    tmp_path: Path,
+) -> None:
+    """Written through the writer API, not by deleting a row afterwards."""
+    store, ident = _open_store(tmp_path)
+    first = build_decision_record(
+        observation(0, ordinal=41, event_id="clob-000041"), ident, persistence_sequence=10
+    )
+    store.write_decision(first)
+    store.flush()
+
+    connection = sqlite3.connect(str(store.path))
+    original = connection.execute(
+        "SELECT payload FROM decisions WHERE persistence_sequence = 10"
+    ).fetchone()[0]
+    connection.close()
+
+    errors_before = store.sink_errors
+    impostor = build_decision_record(
+        observation(1, ordinal=99, event_id="clob-000099"), ident, persistence_sequence=10
+    )
+    store.write_decision(impostor)
+    store.flush()
+    store.close()
+
+    connection = sqlite3.connect(str(store.path))
+    rows = connection.execute("SELECT payload FROM decisions").fetchall()
+    connection.close()
+
+    assert len(rows) == 1, "the second write must not have added a row"
+    assert rows[0][0] == original, "the first record is byte-for-byte unchanged"
+    assert store.sink_errors > errors_before
+    assert store.duplicate_writes >= 1
+
+
+def test_a_duplicate_risk_row_is_refused_by_the_writer(tmp_path: Path) -> None:
+    store, ident = _open_store(tmp_path)
+    store.write_risk(_risk_row(ident.market_id, 0, 1))
+    store.flush()
+    before = store.sink_errors
+    store.write_risk(_risk_row(ident.market_id, 0, 2, state="HALTED", allows_place=False))
+    store.flush()
+    store.close()
+
+    connection = sqlite3.connect(str(store.path))
+    rows = connection.execute("SELECT payload FROM risk_records").fetchall()
+    connection.close()
+    assert len(rows) == 1
+    assert json.loads(rows[0][0])["state"] == "SAFE", "the original verdict stands"
+    assert store.sink_errors > before
+
+
+def test_the_storage_envelope_itself_refuses_a_duplicate(tmp_path: Path) -> None:
+    """§14: a decision then a risk row at the same sequence must fail at the log.
+
+    Without this the second `_log` would replace the first envelope, and the storage-order
+    history would show only the survivor.
+    """
+    store, ident = _open_store(tmp_path)
+    store.write_decision(build_decision_record(observation(0), ident, persistence_sequence=7))
+    store.flush()
+    before = store.sink_errors
+
+    store.write_risk(_risk_row(ident.market_id, 0, 7))
+    store.flush()
+    store.close()
+
+    connection = sqlite3.connect(str(store.path))
+    entries = connection.execute(
+        "SELECT persistence_sequence, record_type FROM persistence_log ORDER BY 1"
+    ).fetchall()
+    connection.close()
+    assert entries == [(7, "decision")], "the first envelope is the audit history"
+    assert store.sink_errors > before
+
+
+def test_a_duplicate_write_makes_the_market_incomplete(tmp_path: Path) -> None:
+    """A refused duplicate is a sink error, and a sink error is not a complete market."""
+    path = build_market(tmp_path, manifest_overrides={"sink_errors": 1})
+    result = verify_store(path)
+    assert result.status is VerificationStatus.INCOMPLETE
+    assert not result.checks["no_sink_errors"]
+
+
+def test_metadata_tables_may_still_be_updated(tmp_path: Path) -> None:
+    """§12: `markets` and `market_metrics` describe a market rather than record events in it."""
+    store, ident = _open_store(tmp_path)
+    store.register_market(
+        market_id=ident.market_id,
+        slug=ident.slug,
+        condition_id=ident.condition_id,
+        provenance=ident.provenance,
+    )
+    store.flush()
+    store.close()
+    connection = sqlite3.connect(str(store.path))
+    count = connection.execute("SELECT COUNT(*) FROM markets").fetchone()[0]
+    connection.close()
+    assert count == 1
+    assert store.duplicate_writes == 0, "re-registering a market is not a duplicate event"
+
+
+# -- the archive read path proves identity before answering anything ---------------------------
+
+
+def _archived(tmp_path: Path) -> tuple[Path, Any]:
+    from maker5m.persistence import ArchiveIdentity, archive_store
+
+    database = build_market(tmp_path)
+    result = archive_store(database)
+    assert result.verified
+    identity_of = ArchiveIdentity(
+        market_id=identity().market_id,
+        slug=identity().slug,
+        raw_sha256=result.raw_sha256,
+        raw_bytes=result.raw_bytes,
+        archive_sha256=result.archive_sha256,
+    )
+    return result.archive_path, identity_of
+
+
+def test_a_good_archive_restores_and_opens(tmp_path: Path) -> None:
+    from maker5m.persistence import open_verified_archive
+
+    archive, ident = _archived(tmp_path)
+    restored = open_verified_archive(archive, ident, tmp_path / "restored.sqlite3")
+    assert restored.exists()
+    assert verify_store(restored).status is VerificationStatus.COMPLETE
+
+
+def test_a_single_flipped_compressed_byte_is_refused(tmp_path: Path) -> None:
+    from maker5m.persistence import ArchiveVerificationError, open_verified_archive
+
+    archive, ident = _archived(tmp_path)
+    raw = bytearray(archive.read_bytes())
+    raw[len(raw) // 2] ^= 0x01
+    archive.write_bytes(bytes(raw))
+
+    destination = tmp_path / "restored.sqlite3"
+    with pytest.raises(ArchiveVerificationError, match="compressed artifact hash"):
+        open_verified_archive(archive, ident, destination)
+    assert not destination.exists(), "no half-restored file is left for a later caller to find"
+
+
+def test_an_archive_of_a_different_database_is_refused(tmp_path: Path) -> None:
+    """Decompresses perfectly, and is not the market the sidecar names."""
+    from maker5m.persistence import ArchiveVerificationError, open_verified_archive
+
+    archive, ident = _archived(tmp_path)
+    wrong = ArchiveIdentity(
+        market_id=ident.market_id,
+        slug=ident.slug,
+        raw_sha256="0" * 64,
+        raw_bytes=ident.raw_bytes,
+        archive_sha256=ident.archive_sha256,
+    )
+    with pytest.raises(ArchiveVerificationError, match="restored database hash"):
+        open_verified_archive(archive, wrong, tmp_path / "restored.sqlite3")
+
+
+def test_a_sidecar_naming_another_market_is_refused(tmp_path: Path) -> None:
+    from maker5m.persistence import ArchiveVerificationError, open_verified_archive
+
+    archive, ident = _archived(tmp_path)
+    wrong = ArchiveIdentity(
+        market_id="0xsomebodyelse",
+        slug=ident.slug,
+        raw_sha256=ident.raw_sha256,
+        raw_bytes=ident.raw_bytes,
+        archive_sha256=ident.archive_sha256,
+    )
+    with pytest.raises(ArchiveVerificationError, match="sidecar names"):
+        open_verified_archive(archive, wrong, tmp_path / "restored.sqlite3")
+
+
+def test_a_sidecar_naming_another_slug_is_refused(tmp_path: Path) -> None:
+    from maker5m.persistence import ArchiveVerificationError, open_verified_archive
+
+    archive, ident = _archived(tmp_path)
+    wrong = ArchiveIdentity(
+        market_id=ident.market_id,
+        slug="btc-updown-5m-9999999999",
+        raw_sha256=ident.raw_sha256,
+        raw_bytes=ident.raw_bytes,
+        archive_sha256=ident.archive_sha256,
+    )
+    with pytest.raises(ArchiveVerificationError, match="sidecar names"):
+        open_verified_archive(archive, wrong, tmp_path / "restored.sqlite3")
+
+
+def test_an_archive_with_no_recorded_identity_is_refused(tmp_path: Path) -> None:
+    """An artifact without identity is not evidence, whatever it decompresses to."""
+    from maker5m.persistence import ArchiveVerificationError, open_verified_archive
+
+    archive, _ = _archived(tmp_path)
+    anonymous = ArchiveIdentity(market_id="", slug="", raw_sha256="", raw_bytes=0)
+    with pytest.raises(ArchiveVerificationError, match="no identity to check"):
+        open_verified_archive(archive, anonymous, tmp_path / "restored.sqlite3")
+
+
+def test_a_wrong_byte_count_is_refused(tmp_path: Path) -> None:
+    from maker5m.persistence import ArchiveVerificationError, open_verified_archive
+
+    archive, ident = _archived(tmp_path)
+    wrong = ArchiveIdentity(
+        market_id=ident.market_id,
+        slug=ident.slug,
+        raw_sha256=ident.raw_sha256,
+        raw_bytes=ident.raw_bytes + 1,
+        archive_sha256=None,
+    )
+    with pytest.raises(ArchiveVerificationError, match="bytes, sidecar says"):
+        open_verified_archive(archive, wrong, tmp_path / "restored.sqlite3")
+
+
+def test_nothing_is_repaired_on_the_way_through(tmp_path: Path) -> None:
+    """A refused archive is left exactly as it was found."""
+    from maker5m.persistence import ArchiveVerificationError, open_verified_archive
+
+    archive, ident = _archived(tmp_path)
+    before = archive.read_bytes()
+    wrong = ArchiveIdentity(
+        market_id=ident.market_id,
+        slug=ident.slug,
+        raw_sha256="1" * 64,
+        raw_bytes=ident.raw_bytes,
+        archive_sha256=ident.archive_sha256,
+    )
+    with pytest.raises(ArchiveVerificationError):
+        open_verified_archive(archive, wrong, tmp_path / "restored.sqlite3")
+    assert archive.read_bytes() == before

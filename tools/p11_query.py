@@ -12,31 +12,69 @@ Read-only. Opens the database read-only, or restores an archive to a temporary f
 
 import argparse
 import json
-import lzma
-import shutil
 import sqlite3
 import tempfile
 from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from maker5m.persistence import ARCHIVE_SUFFIX, open_for_read
+from maker5m.persistence import (
+    ARCHIVE_SUFFIX,
+    ArchiveIdentity,
+    ArchiveVerificationError,
+    open_for_read,
+    open_verified_archive,
+)
 
 
-def _open(path: Path) -> tuple[sqlite3.Connection, tempfile.TemporaryDirectory[str] | None]:
-    if path.name.endswith(ARCHIVE_SUFFIX):
-        directory = tempfile.TemporaryDirectory()
-        restored = Path(directory.name) / "restored.sqlite3"
-        with lzma.open(path, "rb") as source, restored.open("wb") as target:
-            shutil.copyfileobj(source, target, 1 << 20)
-        return open_for_read(restored), directory
-    return open_for_read(path), None
+def _open(
+    path: Path, sidecar: Path | None
+) -> tuple[sqlite3.Connection, tempfile.TemporaryDirectory[str] | None]:
+    """Open a store, or an archive that has proved it is the market it claims to be.
+
+    An archive is never queried on the strength of decompressing cleanly. lzma will happily
+    restore a file whose contents are not the market the sidecar names, and a query answered
+    from it would be indistinguishable from a real answer.
+    """
+    if not path.name.endswith(ARCHIVE_SUFFIX):
+        return open_for_read(path), None
+
+    found = sidecar or _default_sidecar(path)
+    if found is None or not found.exists():
+        raise ArchiveVerificationError(
+            f"{path.name}: no sidecar manifest, so this archive has no identity to check. "
+            "Pass --sidecar. An artifact without identity is not evidence."
+        )
+    directory = tempfile.TemporaryDirectory()
+    restored = open_verified_archive(
+        path, ArchiveIdentity.from_sidecar(found), Path(directory.name) / "restored.sqlite3"
+    )
+    return open_for_read(restored), directory
 
 
-def summarise(path: Path) -> dict[str, Any]:
-    connection, directory = _open(path)
+def _default_sidecar(archive: Path) -> Path | None:
+    """`<name>.p11.manifest.json` beside `<name>.p11.sqlite3.xz`."""
+    stem = archive.name[: -len(ARCHIVE_SUFFIX)]
+    candidate = archive.with_name(f"{stem}.manifest.json")
+    return candidate if candidate.exists() else None
+
+
+def summarise(path: Path, sidecar: Path | None = None) -> dict[str, Any]:
+    connection, directory = _open(path, sidecar)
     try:
+        verdicts = {
+            int(row[0]): (str(row[1]), bool(row[2]), bool(row[3]))
+            for row in connection.execute(
+                "SELECT risk_sequence,"
+                " json_extract(payload, '$.state'),"
+                " json_extract(payload, '$.allows_place'),"
+                " json_extract(payload, '$.allows_cancel')"
+                " FROM risk_records"
+            )
+        }
         places: Counter[str] = Counter()
+        copy_mismatches = 0
+        dangling_risk = 0
         actions: Counter[str] = Counter()
         risk_states: Counter[str] = Counter()
         withdrawn = 0
@@ -45,7 +83,19 @@ def summarise(path: Path) -> dict[str, Any]:
         for (payload,) in connection.execute("SELECT payload FROM decisions"):
             record = json.loads(payload)
             total += 1
-            state = str(record.get("risk_state"))
+            referenced = record.get("risk_sequence")
+            verdict = verdicts.get(int(referenced)) if referenced is not None else None
+            if referenced is not None and verdict is None:
+                dangling_risk += 1
+            # The persisted verdict, not the decision's copy of it. The copy is compared against
+            # it and counted, never used in its place.
+            state = verdict[0] if verdict is not None else "<no risk row>"
+            if verdict is not None and (
+                record.get("risk_state") != verdict[0]
+                or bool(record.get("risk_allows_place")) != verdict[1]
+                or bool(record.get("risk_allows_cancel")) != verdict[2]
+            ):
+                copy_mismatches += 1
             risk_states[state] += 1
             if not record.get("event_id"):
                 missing_event_id += 1
@@ -79,6 +129,8 @@ def summarise(path: Path) -> dict[str, Any]:
             "places_by_risk_state": dict(sorted(places.items())),
             "actions": dict(sorted(actions.items())),
             "risk_withdrew_intent": withdrawn,
+            "decision_risk_copy_mismatches": copy_mismatches,
+            "decisions_naming_an_absent_risk_row": dangling_risk,
             "risk_records": len(risk),
             "risk_first": risk[0] if risk else None,
             "risk_last": risk[-1] if risk else None,
@@ -100,9 +152,10 @@ def summarise(path: Path) -> dict[str, Any]:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("store", type=Path)
+    parser.add_argument("--sidecar", type=Path, help="manifest identifying an archive")
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
-    report = summarise(args.store)
+    report = summarise(args.store, args.sidecar)
     text = json.dumps(report, indent=2, sort_keys=True)
     if args.out:
         args.out.write_text(text, encoding="utf-8")

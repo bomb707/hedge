@@ -28,6 +28,7 @@ import statistics
 import subprocess
 import sys
 import tempfile
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -56,6 +57,33 @@ def load_events(journal_path: Path, limit: int) -> list[Any]:
     return events
 
 
+def replayed_health(state: Any) -> Any:
+    """P6's health as it actually was, replayed from the journal's own HealthEvents.
+
+    The journal records real `HealthEvent`s — 2,206 of them in the measured market — because P6
+    emits them as normalized events and P2 reduces them into `MarketState.health`. So the
+    benchmark does not have to re-derive health, and must not: re-deriving would be a second
+    staleness authority, and the previous version's alternative was worse still. It read
+    `pipeline.clob_health`, which nothing in a replay ever updates, so every cycle saw CLOB
+    UNKNOWN and awaiting-snapshot, P9 correctly halted, `risk_adjust` emptied every intent, and
+    the benchmark measured a market that never quoted.
+
+    `awaiting_snapshot` is derived from the recorded status rather than invented: P6 clears it
+    when it emits HEALTHY for the book, which is exactly what a HEALTHY record means here.
+    """
+    from maker5m.market.events import HealthStatus
+    from maker5m.risk.trace import HealthFrame
+
+    health = state.health
+    return HealthFrame(
+        clob_status=health.clob_book,
+        clob_awaiting_snapshot=health.clob_book is not HealthStatus.HEALTHY,
+        spot_status=health.spot_feed,
+        order_stream_status=HealthStatus.UNKNOWN,
+        order_stream_required=False,
+    )
+
+
 def child_run(mode: str, journal: Path, limit: int) -> dict[str, object]:
     """One configuration, alone in this interpreter."""
     from maker5m.execution import Executor, RecordingTransport, VenueAdapter
@@ -75,10 +103,11 @@ def child_run(mode: str, journal: Path, limit: int) -> dict[str, object]:
     from maker5m.risk import RiskConfig, RiskEngine, RiskProvenance
     from maker5m.risk.engine import RiskDecision
     from maker5m.risk.overlay import risk_adjust
-    from maker5m.risk.trace import HealthFrame, RiskController
+    from maker5m.risk.trace import RiskController
     from maker5m.strategy import BaseLot, StrategyEngine, default_config
     from maker5m.telemetry import InstrumentedRun, ObservationBuffer, SamplingPolicy, perf_now_ns
     from maker5m.telemetry.metrics import quantile
+    from maker5m.telemetry.observation import OBS_PLAN
 
     with journal.open("rb") as handle:
         header = _dec_header(json.loads(handle.readline()))
@@ -139,6 +168,8 @@ def child_run(mode: str, journal: Path, limit: int) -> dict[str, object]:
     decide_ns: list[int] = []
     cycle_ns: list[int] = []
     reconcile_ns: list[int] = []
+    risk_states: Counter[str] = Counter()
+    actions: Counter[str] = Counter()
     state = MarketState.initial(definition)
 
     try:
@@ -152,11 +183,7 @@ def child_run(mode: str, journal: Path, limit: int) -> dict[str, object]:
             decision = engine.decide(state)
             decided = perf_now_ns()
             record = controller.evaluate(
-                HealthFrame(
-                    clob_status=pipeline.clob_health.status,
-                    clob_awaiting_snapshot=pipeline.clob_health.awaiting_snapshot,
-                    spot_status=pipeline.spot_health.status,
-                ),
+                replayed_health(state),
                 as_of_ingress_ordinal=merger.ordinal,
                 now_ns=state.last_event_timestamp,
             )
@@ -178,6 +205,12 @@ def child_run(mode: str, journal: Path, limit: int) -> dict[str, object]:
                 source_ts,
                 strategy_intent=decision.orders,
             )
+            risk_states[record.state.value] += 1
+            last = harness.buffer.records[-1] if harness.buffer.records else None
+            if last is not None:
+                plan: Any = last[OBS_PLAN]
+                actions[plan.up.action.value] += 1
+                actions[plan.down.action.value] += 1
             finished = perf_now_ns()
             if index >= WARMUP_EVENTS:
                 decide_ns.append(decided - start)
@@ -206,6 +239,8 @@ def child_run(mode: str, journal: Path, limit: int) -> dict[str, object]:
         "decide": tiers(decide_ns),
         "full_cycle": tiers(cycle_ns),
         "receive_to_reconcile": tiers(reconcile_ns),
+        "risk_states": dict(sorted(risk_states.items())),
+        "actions": dict(sorted(actions.items())),
         "buffer_dropped": harness.buffer.dropped,
         "buffer_accepted": harness.buffer.accepted,
         "persisted": 0 if worker is None else worker.stats.decisions_written,

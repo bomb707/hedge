@@ -50,6 +50,16 @@ on one crash. Five hundred is roughly a second of a busy real market (measured p
 decisions/second) and keeps the worst-case loss to about that."""
 
 SCHEMA: Final[str] = """
+-- APPEND-ONLY: decisions, fills, risk_records, settlements, persistence_log.
+--   Once a row exists at an identity it is evidence, and evidence is not rewritten. These are
+--   written with a plain INSERT so a second write at the same identity raises IntegrityError,
+--   is counted as a sink error, and leaves the original row exactly as it was.
+--
+-- FINAL/METADATA: markets, market_metrics.
+--   Genuinely mutable by contract. `markets` is registered when the run starts and updated once
+--   at close with the manifest; `market_metrics` is a single derived summary per market. Both
+--   describe the market rather than recording an event in it, and both are written exactly once
+--   more than they are created, so an upsert is the honest shape.
 CREATE TABLE IF NOT EXISTS markets (
     market_id TEXT PRIMARY KEY,
     slug TEXT NOT NULL,
@@ -181,6 +191,8 @@ class TelemetryStore:
     """Total time spent inside commits. An OPERATIONAL measurement, not a budget."""
 
     writes_after_close: int = 0
+    duplicate_writes: int = 0
+    """Writes refused because an event-like row already existed at that identity."""
     error_samples: list[str] = field(default_factory=list)
     """A few distinct database failures, kept because a bare count names nothing.
 
@@ -233,6 +245,13 @@ class TelemetryStore:
             return
         try:
             connection.execute(statement, parameters)
+        except sqlite3.IntegrityError as error:
+            # A second write at an identity that already holds a record. The first one stands:
+            # audit evidence is append-only, and an upsert here would let a later write silently
+            # replace what actually happened. Counted, so the market cannot verify complete.
+            self._record_error(error)
+            self.duplicate_writes += 1
+            return
         except sqlite3.Error as error:
             self._record_error(error)
             return
@@ -300,7 +319,7 @@ class TelemetryStore:
         block remain the orders that mean something.
         """
         self._execute(
-            "INSERT OR REPLACE INTO persistence_log"
+            "INSERT INTO persistence_log"
             " (persistence_sequence, market_id, record_type, record_key) VALUES (?, ?, ?, ?)",
             (sequence, market_id, record_type, key),
         )
@@ -310,7 +329,7 @@ class TelemetryStore:
             record.persistence_sequence, record.market_id, "decision", str(record.ingress_ordinal)
         )
         self._execute(
-            "INSERT OR REPLACE INTO decisions (persistence_sequence, market_id,"
+            "INSERT INTO decisions (persistence_sequence, market_id,"
             " ingress_ordinal, capture_sequence, event_id, event_kind, schema_version, payload)"
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (
@@ -328,7 +347,7 @@ class TelemetryStore:
     def write_fill(self, record: FillRecord) -> None:
         self._log(record.persistence_sequence, record.market_id, "fill", record.event_id)
         self._execute(
-            "INSERT OR REPLACE INTO fills (persistence_sequence, market_id, ingress_ordinal,"
+            "INSERT INTO fills (persistence_sequence, market_id, ingress_ordinal,"
             " event_id, provenance, liquidity, schema_version, payload)"
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (
@@ -346,7 +365,7 @@ class TelemetryStore:
     def write_risk(self, record: RiskRow) -> None:
         self._log(record.persistence_sequence, record.market_id, "risk", str(record.risk_sequence))
         self._execute(
-            "INSERT OR REPLACE INTO risk_records (persistence_sequence, market_id,"
+            "INSERT INTO risk_records (persistence_sequence, market_id,"
             " risk_sequence, as_of_ingress_ordinal, schema_version, payload)"
             " VALUES (?, ?, ?, ?, ?, ?)",
             (
@@ -362,7 +381,7 @@ class TelemetryStore:
     def write_settlement(self, record: SettlementRow) -> None:
         self._log(record.persistence_sequence, record.market_id, "settlement", record.condition_id)
         self._execute(
-            "INSERT OR REPLACE INTO settlements (persistence_sequence, market_id, condition_id,"
+            "INSERT INTO settlements (persistence_sequence, market_id, condition_id,"
             " resolution_state, schema_version, payload) VALUES (?, ?, ?, ?, ?, ?)",
             (
                 record.persistence_sequence,

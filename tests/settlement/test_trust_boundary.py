@@ -16,6 +16,8 @@ import pytest
 
 from maker5m.settlement import (
     AmbiguityReason,
+    AttestationBindingError,
+    AttestedProvider,
     DuplicateEndpointError,
     EndpointSet,
     MarketResolutionTarget,
@@ -63,7 +65,10 @@ def reading(
     block_tag: str = "finalized",
     url: str = "",
     attested: ProviderAttestation | None = None,
+    source: str | None = None,
 ) -> ProviderResolution:
+    """A correctly bound reading unless `attested` or `source` is overridden to break it."""
+    fingerprint = url or f"https://{provider}.example/rpc"
     return ProviderResolution(
         provider_id=provider,
         chain_id=137,
@@ -71,6 +76,7 @@ def reading(
         block_number=block,
         condition_id=CONDITION,
         payout=PayoutVector(denominator=denominator, numerators=numerators, outcome_slot_count=2),
+        source_endpoint_fingerprint=fingerprint if source is None else source,
         attestation=attestation(provider, url=url) if attested is None else attested,
     )
 
@@ -184,6 +190,7 @@ def test_an_empty_endpoint_set_is_rejected() -> None:
 def identity(**overrides: Any) -> ProviderIdentity:
     base: dict[str, Any] = {
         "provider_id": "a",
+        "endpoint_fingerprint": "https://a.example/rpc",
         "chain_id": 137,
         "ctf_code_bytes": 15_007,
         "collateral_code_bytes": 61,
@@ -336,6 +343,8 @@ class FakeTransport:
             return "0x89"
         if method == "eth_getBlockByNumber":
             return self.block
+        if method == "eth_getCode":
+            return "0x" + "60" * 32
         if method == "eth_call":
             data = params[0]["data"]
             if data.startswith("0xd42dc0c2"):  # getOutcomeSlotCount
@@ -361,8 +370,10 @@ class ScriptedReader(CtfReader):
         return self.transport(method, params)
 
 
-def fake_reader(block: dict[str, str] | None) -> tuple[ScriptedReader, FakeTransport]:
-    reader = ScriptedReader(RpcEndpoint("fake", "https://fake.example"))
+def fake_reader(
+    block: dict[str, str] | None, *, endpoint: RpcEndpoint | None = None
+) -> tuple[ScriptedReader, FakeTransport]:
+    reader = ScriptedReader(endpoint or RpcEndpoint("fake", "https://fake.example"))
     transport = FakeTransport(block)
     reader.transport = transport
     return reader, transport
@@ -395,3 +406,226 @@ def test_a_reading_gathered_without_an_attestation_is_not_eligible() -> None:
     result = reader.read_condition(CONDITION, block_tag="finalized")
     assert result.answered
     assert not result.attested
+
+
+# -- P10C: the proof must describe the thing it is attached to ---------------------------------
+#
+# SUPPORTING UNIT TEST ONLY. Independent review found that an attestation was validated for
+# internal consistency and never compared against the provider or endpoint that produced the
+# reading, so a proof obtained for endpoint A could be attached to a reading from endpoint B.
+#
+# These are software-refusal paths. Nothing here claims a Python value is unforgeable — the
+# claim is narrower: a mismatched one fails closed at every layer that could act on it.
+
+
+def endpoint(name: str) -> RpcEndpoint:
+    return RpcEndpoint(name, f"https://{name}.example/rpc")
+
+
+def identity_for(name: str, **overrides: Any) -> ProviderIdentity:
+    base: dict[str, Any] = {
+        "provider_id": name,
+        "endpoint_fingerprint": endpoint(name).fingerprint,
+        "chain_id": 137,
+        "ctf_code_bytes": 15_007,
+        "collateral_code_bytes": 61,
+        "collateral_decimals": 6,
+        "finalized_block": 92_665_370,
+    }
+    base.update(overrides)
+    return ProviderIdentity(**base)
+
+
+# A. correctly bound
+
+
+def test_an_identity_bound_to_its_own_endpoint_is_accepted() -> None:
+    provider = AttestedProvider(endpoint=endpoint("a"), identity=identity_for("a"))
+    assert provider.provider_id == "a"
+    assert provider.identity.endpoint_fingerprint == endpoint("a").fingerprint
+
+
+def test_identify_records_the_endpoint_it_actually_identified() -> None:
+    reader, _ = fake_reader({"number": hex(92_665_372)}, endpoint=endpoint("a"))
+    result = reader.identify()
+    assert result.provider_id == "a"
+    assert result.endpoint_fingerprint == endpoint("a").fingerprint
+
+
+def test_an_attestation_carries_the_endpoint_without_being_told_it() -> None:
+    """`to_attestation()` takes no endpoint, so there is no argument to re-point."""
+    proof = identity_for("a").to_attestation()
+    assert proof.endpoint_fingerprint == endpoint("a").fingerprint
+    assert not hasattr(ProviderIdentity, "attestation")
+
+
+# B, C, D. rejected bindings
+
+
+def test_an_identity_for_another_provider_cannot_be_attached() -> None:
+    with pytest.raises(AttestationBindingError, match="describes one endpoint only"):
+        AttestedProvider(endpoint=endpoint("b"), identity=identity_for("a"))
+
+
+def test_an_identity_obtained_from_another_endpoint_cannot_be_attached() -> None:
+    """The exact bypass independent review found: same name, different endpoint."""
+    borrowed = identity_for("b", endpoint_fingerprint=endpoint("a").fingerprint)
+    with pytest.raises(AttestationBindingError, match="but is being attached to"):
+        AttestedProvider(endpoint=endpoint("b"), identity=borrowed)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("chain_id", 1),
+        ("ctf_code_bytes", 0),
+        ("collateral_code_bytes", 0),
+        ("collateral_decimals", 18),
+        ("error", "RpcError: usage limit"),
+    ],
+)
+def test_an_untrustworthy_identity_cannot_become_an_attested_provider(
+    field: str, value: Any
+) -> None:
+    with pytest.raises(AttestationBindingError):
+        AttestedProvider(endpoint=endpoint("a"), identity=identity_for("a", **{field: value}))
+
+
+# E, F. the pure verifier re-checks, on readings it never saw created
+
+
+def test_a_reading_carrying_another_providers_proof_is_refused() -> None:
+    forged = reading("b", attested=attestation("a", url=endpoint("a").fingerprint))
+    decision = verify(TARGET, (reading("c"), reading("d"), forged), (), POLICY)
+    assert decision.state is ResolutionState.AMBIGUOUS
+    assert AmbiguityReason.ATTESTATION_BINDING_MISMATCH in decision.reasons
+    assert "carries a proof for 'a'" in decision.detail
+
+
+def test_a_reading_from_another_endpoint_than_its_proof_is_refused() -> None:
+    forged = reading("b", source=endpoint("a").fingerprint)
+    decision = verify(TARGET, (reading("c"), reading("d"), forged), (), POLICY)
+    assert decision.state is ResolutionState.AMBIGUOUS
+    assert AmbiguityReason.ATTESTATION_BINDING_MISMATCH in decision.reasons
+    assert "the proof describes" in decision.detail
+
+
+def test_a_reading_that_records_no_source_at_all_is_refused() -> None:
+    """A proof cannot supply both sides of its own comparison."""
+    decision = verify(TARGET, (reading("a"), reading("b"), reading("c", source="")), (), POLICY)
+    assert decision.state is ResolutionState.AMBIGUOUS
+    assert AmbiguityReason.ATTESTATION_BINDING_MISMATCH in decision.reasons
+
+
+def test_a_binding_mismatch_is_not_reported_as_a_missing_proof() -> None:
+    """The two say different things to an auditor and are kept apart."""
+    forged = reading("b", attested=attestation("a"))
+    misbound = verify(TARGET, (reading("c"), reading("d"), forged), (), POLICY)
+    missing = verify(
+        TARGET,
+        (reading("c"), reading("d"), reading("b")._replace(attestation=None)),
+        (),
+        POLICY,
+    )
+    assert misbound.reasons == (AmbiguityReason.ATTESTATION_BINDING_MISMATCH,)
+    assert missing.reasons == (AmbiguityReason.PROVIDER_NOT_ATTESTED,)
+
+
+# G. the reader refuses a foreign proof before spending any network call
+
+
+def test_a_reader_refuses_an_attestation_belonging_to_another_provider() -> None:
+    reader, transport = fake_reader({"number": hex(92_665_372)}, endpoint=endpoint("b"))
+    with pytest.raises(AttestationBindingError, match="offered to reader"):
+        reader.read_condition(
+            CONDITION, block_tag="finalized", attestation=identity_for("a").to_attestation()
+        )
+    assert transport.calls == [], "refused before any request was sent"
+
+
+def test_a_reader_refuses_an_attestation_describing_another_endpoint() -> None:
+    reader, transport = fake_reader({"number": hex(92_665_372)}, endpoint=endpoint("b"))
+    borrowed = identity_for("b", endpoint_fingerprint=endpoint("a").fingerprint).to_attestation()
+    with pytest.raises(AttestationBindingError, match="attestation describes"):
+        reader.read_condition(CONDITION, block_tag="finalized", attestation=borrowed)
+    assert transport.calls == []
+
+
+def test_a_reader_records_its_own_endpoint_as_the_source() -> None:
+    reader, _ = fake_reader({"number": hex(92_665_372)}, endpoint=endpoint("a"))
+    result = reader.read_condition(
+        CONDITION, block_tag="finalized", attestation=identity_for("a").to_attestation()
+    )
+    assert result.source_endpoint_fingerprint == endpoint("a").fingerprint
+    assert result.bound
+    assert result.attested
+
+
+def test_a_diagnostic_read_without_a_proof_still_works_and_still_does_not_count() -> None:
+    reader, _ = fake_reader({"number": hex(92_665_372)}, endpoint=endpoint("a"))
+    result = reader.read_condition(CONDITION, block_tag="finalized")
+    assert result.answered
+    assert result.source_endpoint_fingerprint == endpoint("a").fingerprint
+    assert not result.attested
+
+
+# H, I, J. what a quorum can and cannot be made of
+
+
+def test_three_correctly_bound_providers_resolve() -> None:
+    decision = verify(TARGET, (reading("a"), reading("b"), reading("c")), (), POLICY)
+    assert decision.state is ResolutionState.RESOLVED
+    assert decision.redeemable
+
+
+def test_two_correct_plus_one_foreign_proof_cannot_make_a_quorum_of_three() -> None:
+    forged = reading("c", attested=attestation("a", url=endpoint("a").fingerprint))
+    decision = verify(TARGET, (reading("a"), reading("b"), forged), (), POLICY)
+    assert decision.state is not ResolutionState.RESOLVED
+    assert decision.winning_outcome is None
+    assert AmbiguityReason.ATTESTATION_BINDING_MISMATCH in decision.reasons
+
+
+def test_a_hand_built_apparently_valid_foreign_attestation_cannot_satisfy_quorum() -> None:
+    """It is a NamedTuple, so it can be built. It still cannot count."""
+    fabricated = ProviderAttestation(
+        provider_id="a",
+        endpoint_fingerprint=endpoint("a").fingerprint,
+        chain_id=137,
+        ctf_code_bytes=15_007,
+        collateral_code_bytes=61,
+        collateral_decimals=6,
+    )
+    assert fabricated.valid, "internally consistent, and that was always the problem"
+
+    smuggled = reading("c", attested=fabricated)
+    decision = verify(TARGET, (reading("a"), reading("b"), smuggled), (), POLICY)
+    assert decision.state is ResolutionState.AMBIGUOUS
+    assert AmbiguityReason.ATTESTATION_BINDING_MISMATCH in decision.reasons
+
+
+def test_both_layers_refuse_the_same_bypass() -> None:
+    """§11: the constructor stops it, and the verifier stops it again if the constructor is
+    bypassed by building the value directly."""
+    identity_a = identity_for("a")
+
+    with pytest.raises(AttestationBindingError):
+        AttestedProvider(endpoint=endpoint("b"), identity=identity_a)
+
+    hand_built = ProviderResolution(
+        provider_id="b",
+        chain_id=137,
+        block_tag="finalized",
+        block_number=92_665_372,
+        condition_id=CONDITION,
+        payout=PayoutVector(denominator=1, numerators=(1, 0), outcome_slot_count=2),
+        source_endpoint_fingerprint=endpoint("b").fingerprint,
+        attestation=identity_a.to_attestation(),
+    )
+    assert hand_built.answered, "it looks like a perfectly good reading"
+    assert not hand_built.bound
+    assert not hand_built.attested
+
+    decision = verify(TARGET, (reading("c"), reading("d"), hand_built), (), POLICY)
+    assert decision.state is ResolutionState.AMBIGUOUS
+    assert AmbiguityReason.ATTESTATION_BINDING_MISMATCH in decision.reasons

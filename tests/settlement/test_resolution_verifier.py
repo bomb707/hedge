@@ -79,6 +79,7 @@ def reading(
         condition_id=condition_id,
         payout=payout,
         error=error,
+        source_endpoint_fingerprint=url or f"https://{provider}.example/rpc",
         attestation=attestation(provider, url=url) if attested is None else attested,
     )
 

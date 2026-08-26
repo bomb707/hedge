@@ -484,6 +484,9 @@ def test_replaying_the_recorded_halts_through_the_current_verifier_clears_them()
                         else None
                     ),
                     error=None if row["answered"] else "did not answer",
+                    source_endpoint_fingerprint=(
+                        attestations[str(row["provider"])].endpoint_fingerprint
+                    ),
                     attestation=attestations.get(str(row["provider"])),
                 )
                 # 1rpc never passed identity, so production would not have created a reading

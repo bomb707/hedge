@@ -353,7 +353,8 @@ opened or closed by assumption.
 | Gate | Status |
 |---|---|
 | Implementation | **PASSED** — versioned schemas, non-blocking worker, exact analytics, verifier |
-| Real-market persistence | **PASSED** — one healthy market, one controlled stalled sink |
+| Real-market persistence | **PASSED** (P11B) — one healthy market, one controlled stalled sink |
+| Durability integrity | **PASSED** (P11B) — exact risk and storage order, real event ids, cross-record invariants |
 | Real own-fill / maker fraction / nonzero own-ledger metrics | **UNRUN / DEFERRED TO P14** |
 
 The acceptance gate below asks that hot-path latency be statistically unchanged with the sink
@@ -362,8 +363,16 @@ p50 overhead is negative (inside noise) for healthy *and* stalled sinks, and a 9
 controlled stall on a real market dropped exactly 62,428 records while 64,416 market events were
 processed and nothing waited.
 
-**An operational finding:** the store is ~5 KB per decision, ~850 MB per five-minute market.
-Recorded rather than buried; narrowing it is a P12/P15 decision about what the data is for.
+**The storage representation is P11's problem and was solved here, not deferred.** A raw market
+is 5,230 bytes per decision; the lossless `lzma` archive is 95.7 — 2.2 GB for P13's whole
+200-market corpus against 120 GB raw. No sampling, no dropped fields, no rounding, and the
+archive is proved to restore byte-identically before it is called verified.
+
+A first round of P11 real-market evidence is **superseded**: independent review found that P9's
+health overlay was never wired into execution, that a truncated risk prefix could verify as
+complete, that the canonical FillRecord had no path to storage, and that `event_id` was
+synthetic. All four are closed in P11B and the earlier evidence is retained rather than
+rewritten.
 
 Evidence: [`evidence/P11-TELEMETRY-PERSISTENCE.md`](evidence/P11-TELEMETRY-PERSISTENCE.md).
 **No strategy open item was closed or opened by P11.**

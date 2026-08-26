@@ -75,7 +75,60 @@ production.
 
 ---
 
-## P11: durable telemetry persistence
+## P11B: persistence integrity closure
+
+Full evidence in
+[`evidence/P11B-PERSISTENCE-INTEGRITY.md`](evidence/P11B-PERSISTENCE-INTEGRITY.md). The first P11
+real-market evidence below is **SUPERSEDED for acceptance** and retained, not rewritten.
+
+Independent review accepted the architecture and found five closure gaps:
+
+| | Was | Is |
+|---|---|---|
+| **A** | risk evaluated against `HealthFrame()` at ordinal 0, unadjusted decision executed | P6's own health, real ordinal, `risk_adjust` before prepare |
+| **B** | fills counted and discarded | `FillCapture` published non-blocking, durably stored |
+| **C** | a risk run starting at 5,000 verified as contiguous | exact from zero, plus drop accounting |
+| **D** | `event_id` built from slug + counter | P2's real `EventMeta.event_id` |
+| **E** | 853 MB/market, deferred | lossless `lzma` archive, measured |
+
+**Gap A mattered most.** `HealthFrame()`'s defaults say CLOB UNKNOWN, awaiting snapshot, SPOT
+UNKNOWN — P9 correctly refuses to trade on that. So the recorded verdict described a market the
+runner had not looked at, at an ordinal that no longer existed, and did not govern the recorded
+action. It now follows P9's own accepted pattern, and raw strategy intent is kept beside the
+post-risk intent so a record can tell "the strategy declined to quote" from "the strategy wanted
+to quote and safety refused". `DecisionRecord` is **V2**, bumped rather than reinterpreted.
+
+### Footprint, measured not deferred
+
+| | Raw | Archived (`lzma`) |
+|---|---:|---:|
+| One market | 600,547,328 B | **10,988,132 B** (54.7×) |
+| Per decision | 5,230 B | **95.7 B** |
+| 200-market P13 corpus | 120.1 GB | **2.20 GB** |
+| 24 h continuous | 173.0 GB | **3.16 GB** |
+
+Lossless — no sampling, no field removal, no rounding. The archive is decompressed and hashed
+before it is called verified, and no raw store is deleted without that check passing.
+
+### Real markets
+
+* **`btc-updown-5m-1787770200`** — 114,823 decisions, 114,823 risk records persisted
+  *continuously*, 1 settlement (UP). Zero drops, gaps, sink errors. Storage order exact
+  1…229,647; risk sequence exact 0…114,822; every event id real. All 25 verifier checks pass.
+  Read back **from the compressed archive**: 532 PLACEs, all under SAFE. **PLACE while HALTED: 0.
+  PLACE while RECOVERING: 0.**
+* **`btc-updown-5m-1787771100`** — controlled local stall. 48,296 market events during 90 s,
+  decision drops exact at 46,718 over 4 gaps, **risk drops explicit at 47,234 of 112,156**,
+  `telemetry_complete=false`, verification INCOMPLETE for six reasons including 516 decisions
+  naming a risk record that is gone. Trading and risk untouched: PLACE only ever under SAFE.
+
+Performance, with P9 in every configuration so only the persistence delta is charged to P11:
+decide p50 **+328 ns (+1.43 %)**, full cycle **+309 ns (+0.76 %)**; stalled within noise of
+healthy. Every P8C limit met with its original number.
+
+---
+
+## P11: durable telemetry persistence (SUPERSEDED for acceptance)
 
 Full evidence in
 [`evidence/P11-TELEMETRY-PERSISTENCE.md`](evidence/P11-TELEMETRY-PERSISTENCE.md).
@@ -106,7 +159,7 @@ walk costs 26 µs.
 ### Real markets
 
 * **`btc-updown-5m-1787748900`** — 171,467 cycles, **171,467 decisions persisted**, 173,460 risk
-  records, 1 settlement (DOWN). **Zero drops, zero gaps, zero sink errors.** Buffer high-water
+  records, 1 settlement (UP). **Zero drops, zero gaps, zero sink errors.** Buffer high-water
   **214 of 320,000** — continuous draining, directly measured. `telemetry_complete = true`,
   verification **COMPLETE** on all 15 checks.
 * **`btc-updown-5m-1787749500`** — `CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET`. Our consumer stopped
@@ -959,7 +1012,9 @@ orders, which P8 does not place. Both stay OPEN.
 |---|---|
 | **Current phase** | **P11 — durable telemetry persistence** |
 | P11 implementation gate | **PASSED** — versioned schemas, non-blocking worker, exact analytics, verifier |
-| P11 real-market gate | **PASSED** — healthy market + controlled stalled sink |
+| P11 real-market gate | **PASSED** — P11B healthy market + controlled stalled sink |
+| P11 durability-integrity gate | **PASSED** — risk exact from zero, global storage order, real event ids, cross-record invariants |
+| P11 storage representation | **CLOSED** — lossless `lzma` archive, 54.7×, 2.2 GB per 200-market corpus |
 | P11 authenticated fill/economics | **UNRUN / DEFERRED TO P14** |
 | P10 implementation gate | **PASSED** — verifier, payout arithmetic, plan, encoder, audit record |
 | P10 real-market resolution gate | **PASSED** — 35 real markets over 6 live runs, 1 full lifecycle |
@@ -1010,7 +1065,8 @@ orders, which P8 does not place. Both stay OPEN.
 | Next milestone | P12 — **not started**, and not to be started before P11 is accepted |
 | `main` | `8c7d435` — fast-forwarded through the whole accepted P10 lineage, pushed |
 | P11 branch | `feature/p11-telemetry-persistence` |
-| P11 store size | ~5 KB/decision, ~850 MB/market — **OPERATIONAL finding**, recorded not resolved |
+| P11B branch | `fix/p11-persistence-integrity` |
+| P11 store size | 5,230 B/decision raw → **95.7 B archived**; engineered in P11B, not deferred |
 | Remote | `origin` → `https://github.com/bomb707/hedge.git` |
 
 Nothing merged by merge commit, rebased, squashed, or force-pushed. `main` advances by

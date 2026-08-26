@@ -1,5 +1,16 @@
 # P11 — durable telemetry persistence
 
+> **SUPERSEDED FOR FINAL P11 ACCEPTANCE.** Everything below happened and is not withdrawn: the
+> SQLite thread-ownership bug, the `RawCentre` serialization bug and the closing-store ownership
+> bug were all real and are recorded here because finding them is what the exercise was for, and
+> the ~850 MB footprint measured here is the number the storage work started from.
+>
+> It does not constitute P11's real-market acceptance, for five reasons found by independent
+> review: P9's health overlay was never actually wired into execution; risk durability would
+> accept a truncated prefix; the canonical `FillRecord` had no path to storage; `event_id` was
+> synthetic; and the durable footprint had not been engineered. The accepted evidence is
+> **[P11B](P11B-PERSISTENCE-INTEGRITY.md)**.
+
 **Provenance: `REAL_PUBLIC_MARKET_DATA`,** except the stalled-sink market, which is labelled
 `CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET`, and the overhead benchmark, which is
 `REPLAY_OF_REAL_CAPTURE`. Every market below is a real Polymarket `btc-updown-5m` with a real
@@ -107,7 +118,7 @@ property the output already had. §37 says do not explain such a regression away
 | Reconnects / malformed | 0 / 0 |
 | **Decision records** | **171,467** |
 | Risk records | 173,460 |
-| Settlement records | 1 — resolved **DOWN** |
+| Settlement records | 1 — resolved **UP** (payout `[1,0]`, block 92696216) |
 | **Dropped** | **0** |
 | **Sequence gaps** | **0** |
 | **Sink errors** | **0** |

@@ -105,9 +105,15 @@ class Rounding:
 
 
 # A plain decimal literal. Deliberately strict: no exponent, no underscores, no whitespace,
-# no bare sign, no leading or trailing dot, and ASCII digits only -- ``str.isdigit()`` would
-# accept characters such as superscripts and non-Latin digits.
-_DECIMAL_RE: Final = re.compile(r"^[+-]?[0-9]+(?:\.[0-9]+)?$")
+# no bare sign, no trailing dot, and ASCII digits only -- ``str.isdigit()`` would accept
+# characters such as superscripts and non-Latin digits.
+#
+# A *leading* dot is accepted: ".63" is a well-formed exact decimal and the P1 acceptance
+# contract required ``parse_fixed_point(".63", decimals=6) == 630000``. An earlier version of
+# this pattern demanded at least one integer digit, which made the implementation narrower
+# than the contract it was accepted against -- and made the parser reject a form that venue
+# and feed payloads may legitimately use.
+_DECIMAL_RE: Final = re.compile(r"^[+-]?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)$")
 
 # ShareUnits * PriceUnits is money scaled by SHARE_SCALE * PRICE_SCALE; dividing by this
 # divisor brings it back to MoneyUnits. Exact by construction for the frozen scales.
@@ -146,8 +152,10 @@ def _parse_fixed_point(text: object, *, field: str, decimals: int = SCALE_DECIMA
         fraction_text = fraction_text[:decimals]
 
     factor: int = 10**decimals
-    # ``or "0"`` covers decimals == 0, where the padded fraction is the empty string.
-    value = int(integer_text) * factor + int(fraction_text.ljust(decimals, "0") or "0")
+    # Both ``or "0"`` guards are load-bearing rather than defensive. A leading-dot literal has
+    # an empty integer component, and ``decimals == 0`` leaves the padded fraction empty;
+    # ``int("")`` raises in either case.
+    value = int(integer_text or "0") * factor + int(fraction_text.ljust(decimals, "0") or "0")
     return -value if negative else value
 
 

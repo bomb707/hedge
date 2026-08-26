@@ -79,7 +79,8 @@ def test_excess_non_zero_digits_are_rejected_not_rounded(text: str) -> None:
         " 1",
         "1 ",
         ".",
-        ".5",
+        "+.",
+        "-.",
         "1.",
         "1..2",
         "1e5",
@@ -99,6 +100,73 @@ def test_excess_non_zero_digits_are_rejected_not_rounded(text: str) -> None:
 def test_malformed_input_is_rejected(text: str) -> None:
     with pytest.raises(ParseError):
         parse_share(text)
+
+
+# -- leading-dot decimals ----------------------------------------------------------------
+#
+# SUPPORTING UNIT TEST ONLY. ".63" is a well-formed exact decimal and the P1 acceptance
+# contract required `parse_fixed_point(".63", decimals=6) == 630000`. The regex demanded at
+# least one integer digit, so the implementation was narrower than the contract it had been
+# accepted against, and the malformed-input list above had ".5" in it -- encoding the defect
+# as though it were the rule.
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (".63", 630_000),
+        ("+.63", 630_000),
+        ("-.63", -630_000),
+        (".000001", 1),
+        (".0", 0),
+        ("-.0", 0),
+        (".100000", 100_000),
+    ],
+)
+def test_a_leading_dot_decimal_parses_exactly(text: str, expected: int) -> None:
+    assert parse_fixed_point(text, decimals=6) == expected
+
+
+def test_a_leading_dot_agrees_with_its_zero_prefixed_form() -> None:
+    """`.63` and `0.63` are the same number, so they must parse to the same units."""
+    for bare, prefixed in ((".63", "0.63"), ("-.5", "-0.5"), (".000001", "0.000001")):
+        assert parse_fixed_point(bare, decimals=6) == parse_fixed_point(prefixed, decimals=6)
+
+
+@pytest.mark.parametrize("parse", [parse_share, parse_money, parse_price])
+def test_every_domain_parser_accepts_a_leading_dot(parse: object) -> None:
+    assert callable(parse)
+    assert parse(".63") == 630_000
+    assert parse(".000001") == 1
+
+
+def test_a_leading_dot_share_and_money_agree_with_the_whole_helpers() -> None:
+    assert parse_share(".5") == share_from_whole(1) // 2
+    assert parse_money(".25") == money_from_whole(1) // 4
+
+
+def test_arbitrary_scales_handle_the_empty_integer_component() -> None:
+    """`int("")` raises, so the empty integer part needs an explicit guard, not luck."""
+    assert parse_fixed_point(".0", decimals=0) == 0
+    assert parse_fixed_point(".5", decimals=1) == 5
+    assert parse_fixed_point("-.25", decimals=2) == -25
+
+
+def test_a_leading_dot_is_still_held_to_the_exactness_rule() -> None:
+    """Accepting the form must not relax what the scale can represent."""
+    with pytest.raises(NotRepresentableError):
+        parse_fixed_point(".5", decimals=0)
+    with pytest.raises(NotRepresentableError):
+        parse_fixed_point(".0000001", decimals=6)
+    # Excess digits that are all zero remain acceptable, as for any other literal.
+    assert parse_fixed_point(".6300000", decimals=6) == 630_000
+
+
+def test_formatting_still_emits_a_leading_zero() -> None:
+    """Accepting the input form does not change the output form."""
+    assert format_share(parse_share(".63")).startswith("0.")
+    assert format_money(parse_money(".63")).startswith("0.")
+    assert format_price(parse_price(".63")).startswith("0.")
 
 
 @pytest.mark.parametrize("value", [1, 1.0, None, b"1", ["1"]])

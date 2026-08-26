@@ -44,6 +44,7 @@ from maker5m.settlement.resolution import (
     SettlementPolicy,
     verify,
 )
+from maker5m.settlement.safety import report_resolution, resolution_safety_signal
 
 __all__ = [
     "CHAIN_ID",
@@ -78,6 +79,8 @@ __all__ = [
     "outcome_payout",
     "plan_redemption",
     "read_all",
+    "report_resolution",
+    "resolution_safety_signal",
     "settle_on_paper",
     "verify",
 ]

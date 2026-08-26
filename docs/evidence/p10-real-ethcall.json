@@ -1,0 +1,115 @@
+{
+  "accepted": 8,
+  "captured_utc": "2026-08-26T01:58:45Z",
+  "collateral_token": "0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB",
+  "ctf_address": "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045",
+  "index_sets": [
+    1,
+    2
+  ],
+  "kind": "REAL_CHAIN_ETH_CALL_SIMULATION",
+  "markets": 8,
+  "note": "eth_call against the real deployed CTF. Proves the calldata encoding is accepted. Does NOT prove collateral moved: the sender holds no position and no transaction was sent. This is not a redemption.",
+  "parent_collection_id": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "rows": [
+    {
+      "accepted_by_contract": true,
+      "calldata_bytes": 228,
+      "condition_id": "0x0302661524ef4227fd6274e5031b8ddb62b81c712c72d5b28d5cfd8085079c73",
+      "error": null,
+      "payout_numerators": [
+        1,
+        0
+      ],
+      "result": "0x",
+      "slug": "btc-updown-5m-1787702400"
+    },
+    {
+      "accepted_by_contract": true,
+      "calldata_bytes": 228,
+      "condition_id": "0x68d937b6b8ab7526cf1f5215ccb69071a53952318a64e8f7ca812a91e6cdc21e",
+      "error": null,
+      "payout_numerators": [
+        1,
+        0
+      ],
+      "result": "0x",
+      "slug": "btc-updown-5m-1787702100"
+    },
+    {
+      "accepted_by_contract": true,
+      "calldata_bytes": 228,
+      "condition_id": "0x02e3a236aad5d570aebb674e3a8a8bee34e93a9d01dec508997461063a84fdaf",
+      "error": null,
+      "payout_numerators": [
+        1,
+        0
+      ],
+      "result": "0x",
+      "slug": "btc-updown-5m-1787701800"
+    },
+    {
+      "accepted_by_contract": true,
+      "calldata_bytes": 228,
+      "condition_id": "0xafb3f5ddc00590a114a29993ae509edffd496784081f5bfcad25f1154bf330d1",
+      "error": null,
+      "payout_numerators": [
+        1,
+        0
+      ],
+      "result": "0x",
+      "slug": "btc-updown-5m-1787700600"
+    },
+    {
+      "accepted_by_contract": true,
+      "calldata_bytes": 228,
+      "condition_id": "0x597e15eaae6d071bdcb9f6b0a140ea113d4b1ccefb7b56da1f6620e7f92de8ef",
+      "error": null,
+      "payout_numerators": [
+        0,
+        1
+      ],
+      "result": "0x",
+      "slug": "btc-updown-5m-1787702700"
+    },
+    {
+      "accepted_by_contract": true,
+      "calldata_bytes": 228,
+      "condition_id": "0x3297dc2718b6cf17f31618c2aea8098041bf7d1df9b20105200f7a205635ea18",
+      "error": null,
+      "payout_numerators": [
+        0,
+        1
+      ],
+      "result": "0x",
+      "slug": "btc-updown-5m-1787701500"
+    },
+    {
+      "accepted_by_contract": true,
+      "calldata_bytes": 228,
+      "condition_id": "0x814960d98d4c60362d7381286a8dd17a7ba22acc322c77181f7d6e445dfbaafa",
+      "error": null,
+      "payout_numerators": [
+        0,
+        1
+      ],
+      "result": "0x",
+      "slug": "btc-updown-5m-1787701200"
+    },
+    {
+      "accepted_by_contract": true,
+      "calldata_bytes": 228,
+      "condition_id": "0x335b9a7bbad014f9d24b7dca9c7bf71275eef0cad837ee5d6f0bf3622b35b9b0",
+      "error": null,
+      "payout_numerators": [
+        0,
+        1
+      ],
+      "result": "0x",
+      "slug": "btc-updown-5m-1787700900"
+    }
+  ],
+  "rpc": "https://polygon-bor-rpc.publicnode.com",
+  "sender": "0x0000000000000000000000000000000000000001"
+}

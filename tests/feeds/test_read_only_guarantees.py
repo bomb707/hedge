@@ -85,51 +85,73 @@ def test_the_credential_boundary_is_a_single_module() -> None:
     assert named == ["credentials.py"], f"credential material leaked into: {named}"
 
 
-SETTLEMENT_RPC = SRC / "settlement" / "reader.py"
+READ_ONLY_RPC_METHODS = frozenset(
+    {"eth_chainId", "eth_getCode", "eth_call", "eth_getBlockByNumber", "eth_getLogs"}
+)
+"""JSON-RPC methods that only read. Stated as an allow-list, because a deny-list passes
+anything nobody thought to forbid."""
 
 
-def test_no_module_posts_to_a_venue() -> None:
-    """No HTTP POST anywhere, with exactly one narrowly-scoped exception.
-
-    P10 reads the Conditional Tokens contract over JSON-RPC, and JSON-RPC is a POST by
-    protocol however read-only its content. Rescoped rather than relaxed: the exception is a
-    single named file, it is not a venue endpoint, and the allow-list test below asserts that
-    every method it can issue is a read.
-    """
-    for path in python_sources():
-        text = path.read_text(encoding="utf-8")
-        if path.resolve() != SETTLEMENT_RPC.resolve():
-            assert 'method="POST"' not in text, f"{path.name} performs an HTTP POST"
-            assert "method='POST'" not in text, f"{path.name} performs an HTTP POST"
-        assert not re.search(r"\.post\s*\(", text), f"{path.name} performs an HTTP POST"
-        assert "/order" not in text, f"{path.name} references an order endpoint"
-
-
-def test_the_settlement_rpc_client_can_only_read() -> None:
-    """The one module allowed to POST may issue read methods and nothing else.
-
-    A JSON-RPC endpoint is one URL: whether a call reads or writes is decided entirely by the
-    method name in the body. So the guard is on the method names, and it is stated as an
-    allow-list, because a deny-list would pass anything nobody thought to forbid.
-    """
-    text = SETTLEMENT_RPC.read_text(encoding="utf-8")
-    tree = ast.parse(text)
+def rpc_method_literals(path: Path) -> set[str]:
+    """Every literal JSON-RPC method name a file can send."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
     methods: set[str] = set()
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
-        target = node.func
-        name = target.attr if isinstance(target, ast.Attribute) else getattr(target, "id", "")
-        if name != "_rpc" or not node.args:
-            continue
-        first = node.args[0]
-        assert isinstance(first, ast.Constant), "RPC method names must be literal, not computed"
-        methods.add(str(first.value))
+        # Either a helper called with the method first, or a JSON body naming it.
+        constants = list(node.args) + [keyword.value for keyword in node.keywords]
+        for item in constants:
+            if (
+                isinstance(item, ast.Constant)
+                and isinstance(item.value, str)
+                and item.value.startswith(("eth_", "personal_", "net_", "web3_"))
+            ):
+                methods.add(item.value)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Dict):
+            for key, value in zip(node.keys, node.values, strict=True):
+                if (
+                    isinstance(key, ast.Constant)
+                    and key.value == "method"
+                    and isinstance(value, ast.Constant)
+                    and isinstance(value.value, str)
+                ):
+                    methods.add(value.value)
+    return methods
 
-    readonly = {"eth_chainId", "eth_getCode", "eth_call", "eth_getBlockByNumber", "eth_getLogs"}
-    assert methods, "expected the settlement reader to issue RPC calls"
-    assert methods <= readonly, f"non-read RPC methods reachable: {sorted(methods - readonly)}"
 
+def posts(path: Path) -> bool:
+    text = path.read_text(encoding="utf-8")
+    return 'method="POST"' in text or "method='POST'" in text
+
+
+def test_no_module_posts_to_a_venue() -> None:
+    """Nothing POSTs to a venue, and anything that POSTs at all may only read.
+
+    JSON-RPC is a POST by protocol however read-only its content, so a flat ban would forbid
+    reading the Conditional Tokens contract at all. Rather than exempt files by name, the rule
+    is behavioural: a file that POSTs must issue only read JSON-RPC methods. On a JSON-RPC
+    endpoint the method name is the *only* thing separating a read from a write.
+    """
+    posting = []
+    for path in python_sources():
+        text = path.read_text(encoding="utf-8")
+        assert not re.search(r"\.post\s*\(", text), f"{path.name} performs an HTTP POST"
+        assert "/order" not in text, f"{path.name} references an order endpoint"
+        if posts(path):
+            posting.append(path)
+
+    assert posting, "expected the settlement reader to be found"
+    for path in posting:
+        methods = rpc_method_literals(path)
+        assert methods, f"{path.name} POSTs without a recognisable JSON-RPC method"
+        offending = methods - READ_ONLY_RPC_METHODS
+        assert not offending, f"{path.name} can send non-read RPC methods: {sorted(offending)}"
+
+
+def test_no_module_can_reach_a_transaction_sending_method() -> None:
+    """Scans code rather than prose: several modules *document* what they refuse to send."""
     forbidden = (
         "eth_sendrawtransaction",
         "eth_sendtransaction",
@@ -137,11 +159,10 @@ def test_the_settlement_rpc_client_can_only_read() -> None:
         "personal_",
         "eth_accounts",
     )
-    # The module *documents* that it contains none of these, so scan the code and not the
-    # prose - the same trap several execution guards already fell into.
-    code = code_without_docstrings(SETTLEMENT_RPC).lower()
-    for marker in forbidden:
-        assert marker not in code, f"settlement reader can reach {marker}"
+    for path in python_sources():
+        code = code_without_docstrings(path).lower()
+        for marker in forbidden:
+            assert marker not in code, f"{path.name} can reach {marker}"
 
 
 def test_the_only_websocket_endpoints_are_public_market_data() -> None:

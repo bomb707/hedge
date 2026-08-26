@@ -1,0 +1,1451 @@
+{
+  "kind": "P10_PRODUCTION_VERIFIER_OVER_P10A_CORPUS",
+  "markets": 55,
+  "mismatches": [],
+  "outcomes": {
+    "DOWN": 28,
+    "UP": 27
+  },
+  "policy": {
+    "block_tag": "captured-latest (the corpus was read at `latest`)",
+    "minimum_agreeing_providers": 3,
+    "require_binary_singleton": true,
+    "status": "OPERATIONAL"
+  },
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "replayed_utc": "2026-08-26T01:57:22Z",
+  "rows": [
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x597e15eaae6d071bdcb9f6b0a140ea113d4b1ccefb7b56da1f6620e7f92de8ef",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787702700",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x0302661524ef4227fd6274e5031b8ddb62b81c712c72d5b28d5cfd8085079c73",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787702400",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x68d937b6b8ab7526cf1f5215ccb69071a53952318a64e8f7ca812a91e6cdc21e",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787702100",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x02e3a236aad5d570aebb674e3a8a8bee34e93a9d01dec508997461063a84fdaf",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787701800",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x3297dc2718b6cf17f31618c2aea8098041bf7d1df9b20105200f7a205635ea18",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787701500",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x814960d98d4c60362d7381286a8dd17a7ba22acc322c77181f7d6e445dfbaafa",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787701200",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x335b9a7bbad014f9d24b7dca9c7bf71275eef0cad837ee5d6f0bf3622b35b9b0",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787700900",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0xafb3f5ddc00590a114a29993ae509edffd496784081f5bfcad25f1154bf330d1",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787700600",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x36398a8c2aa1c6f9e455b9bc939929b8b7515aecf9152bc30107f10dee1ba0d3",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787700300",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x7994c4b222a596080862975bead20e976a201c8cfd1de72890ab3779677adb6e",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787700000",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0xa6715e9eebec6e5180e60ab2b9917c33fa79fe99ac90c2427865d0a9bcda5864",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787699700",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x936a528a75365c87cb046ceddc0c84d6d634038b584afcd55fd0e091cc7eaac7",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787699400",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0xea4287c0dedf54de48b72bbcb1da31029cbde88b17badc880bd0c5908da755e7",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787699100",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0xc559115e340f3308cbbfcd91a3badf0614941b1398728c97b9a5b6e5281255c0",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787698800",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x6170c75942ecf9aec27751c57bcf6e796d1cc3381072003a51322d7e25faa373",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787698500",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0xc38e39bf8179c4b12427fe0684ee34404ba89c666420cc8688efe2e45e82dfdc",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787698200",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x1baa766ccba28ec56693716b8ca421ca8d540c12350f2705999a6418e1c47511",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787697900",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x3ae613f20c113a3dc4a0a73bd12fcdfe42f9704be841cbba5eac406b75cfb0a1",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787697600",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0xa6d4a3b5c8f794ea4e0f7cd0001cb41c0b311614edaf2c85eed48b21bab8aef7",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787697300",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x37c7b15026c1d855e7f947c551088f7751f5b39bfb08ebb815c40482b447f8b1",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787697000",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x6c1dfc163d4ac9db7d0bb2cffb0eb05cfdba3691daded9c12f0a4e75a37547b5",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787696700",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x55734836695768c3a749eee64d2a1020f244bc173dcd7a8321870cdfa2a88466",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787696400",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x0d3e9717ba45107446bbbb4b0338ef3816ceb4d9e387496f857bb0eecf9611f1",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787696100",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0xdac78fd9d8f73c769f0132651b455e26dc059ca6ba7a2518b7c1c5d7711047f4",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787695800",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x872d7d8352ef1499abb4908232791197d2537b343d63fb05ca763a79c57e3469",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787695500",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x639353b2c4731568665b2b5833a4975c0a8fb5663bd500e2ce8ae80081fd5922",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787695200",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x818c07b570fd2e079669b92ede219c78edf6ad29bf6ae4d2fe7e60f1ff8bd266",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787694900",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x568372d57aeaedc15d6d25f726d113354bcaa2fce430ab488cca39001baee3c2",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787694600",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0xefc6f79356567273b82c75cc73f35435bfea1a5005cab1a7adde697f489506e3",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787694300",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0xad279ba0b97ec3aa016d3da340dfc739b6a5c881c39c78a791dc00e35ede606e",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787694000",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0xd4a156bd5d7aaf45be69cab3acfdec322ad6fbc4dd9f6b16451770ade38bcfa6",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787693700",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0xd9139c0c76af878e7b552c2213661e2bcbf85dc64618e5a46ef94ecff551a6b4",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787693400",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x786f5de190531d0f2dd63e721b0193d29b489a5b5bbad6e94f484296561b79b8",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787693100",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0xb5668d959200f934b9ef1a3d9f502278094206564ac54a9a817a1324d909aeae",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787692800",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "1rpc",
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0xdd2ceccd52bb49c533b1f93aa53eabaca0b1406122f9aa2adf50fbb73a0933a9",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787692500",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x262e949abe982f15200d317ce25b49ad3bbaf855077d7d7dc3effaf1076efb3d",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787692200",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x49a7d6b6e3fd4abd30a05806d9dfd0b1e8681a33157deb4fbf20114515605c81",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787691900",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x12897d1a543f93b0ab7ec092e840e470a44cb456b3f257a4b48afbb9065174a1",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787691600",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0xd1fa571463725764fb648434ee86f25509f695a8c0c20fe5888f0f90c28976b2",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787691300",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x243518032168abaa915416021fc3d9fe4e8b99f64b4ec810bd7b5c2f2931430d",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787691000",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0xe51ae3d381da468884a0e546e76ca13fc81fc9342a001bfb515af459bae5c63d",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787690700",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x7dfb0a939488369f4088d271e584240128dadf001fec2b6cbce2d2ca93d4bd54",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787690400",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x3c16394a9bb08b242309160f78e27fcfabe4d3a1447f6782d7ee37d0ddb7b3c6",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787690100",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0xc7da004d2781a75b2019f67bb48e86d904000807245e76a6db583311918d7581",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787689800",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x293bdb39ffbc242ced7886febd8e0e2c1bc05c15955ab753da61799f746bb688",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787689500",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x66e0f12a71b84840502216f84a597e231b19efa482e915e7130fe5ad8980e39e",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787689200",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0xe1e26503250abdc2f8d68ddc1e2ea9e81e3d2effef38a964220c53d5b145395d",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787688900",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x8fa3033c9dc34820622998efef053a9ff080027b6a6f7f38d3ba46381e0a2390",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787688600",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0xa9f50fe3d17fa549f542789f57d9fe0401fbf1fd5adb8d2073f004fed37e2c61",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787688300",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0xb291056e8d772bc6acb86e7534d8b7ef7bf626ce9f3e4823c815fde26d0e7a74",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787688000",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x2610ada1fe5de442d44e48c3598c4d64ae09e476fdeaeda691b9b404d7f2a5fb",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787687700",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0xe691a59bb209fe0a62887d7ab2847b4717ff17822cd31ce10614b8a89a64050d",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787687400",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0xfe6db88c5dc1014404941898fdda5972a60153ee8a4222efaf6b166d6a8d727f",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787687100",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x810f339f4113f877e2cc78c3f6a7cdc47e95933edbbaec6a987b4e6009cbfcc7",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787686800",
+      "state": "RESOLVED",
+      "winning_outcome": "DOWN"
+    },
+    {
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "condition_id": "0x1d60fa049f41a4351778fe0161128bd05523ad44712eb6be71fc465fe2a08895",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "slug": "btc-updown-5m-1787686500",
+      "state": "RESOLVED",
+      "winning_outcome": "UP"
+    }
+  ],
+  "source_captured_utc": "2026-08-26T00:51:00Z",
+  "source_corpus": "p10a-o11-historical.json",
+  "states": {
+    "RESOLVED": 55
+  }
+}

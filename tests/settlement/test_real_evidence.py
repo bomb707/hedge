@@ -1,0 +1,204 @@
+"""The production verifier against real committed evidence.
+
+**REAL MARKET DATA.** Every fixture here is a captured recording of real Polymarket markets and
+real Polygon chain state — `docs/evidence/p10a-o11-historical.json` and its siblings — not a
+constructed one. Where the original fields exist they are consumed as they were recorded rather
+than simplified into a tidier shape, because the shape is part of what is being tested.
+
+These are still automated tests and not the real-market gate: they prove the production code
+reads real evidence correctly. The gate itself is the live runs recorded in
+`docs/evidence/P10-SETTLEMENT-REAL-MARKET.md`.
+"""
+
+from __future__ import annotations
+
+import json
+from collections import Counter
+from itertools import pairwise
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from maker5m.domain import Outcome
+from maker5m.settlement import (
+    CTF_ADDRESS,
+    PUSD_ADDRESS,
+    MarketResolutionTarget,
+    SettlementPolicy,
+    binary_index_sets,
+    verify,
+)
+
+EVIDENCE = Path(__file__).resolve().parents[2] / "docs" / "evidence"
+HISTORICAL = json.loads((EVIDENCE / "p10a-o11-historical.json").read_text("utf-8"))
+TIMING = json.loads((EVIDENCE / "p10a-o11-live-timing.json").read_text("utf-8"))
+ETHCALL = json.loads((EVIDENCE / "p10-real-ethcall.json").read_text("utf-8"))
+REPLAY = json.loads((EVIDENCE / "p10-production-verifier-p10a55.json").read_text("utf-8"))
+
+RESOLVER = "0x58e1745bedda7312c4cddb72618923da1b90efde"
+CHAINLINK_STREAM = "https://data.chain.link/streams/btc-usd-twap-60s-streams"
+
+
+def markets() -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = HISTORICAL["markets"]
+    return rows
+
+
+def build(
+    market: dict[str, Any],
+) -> tuple[MarketResolutionTarget, tuple[Any, ...], tuple[Any, ...]]:
+    from tools.p10_replay_corpus import advisory_from, readings_from, target_from
+
+    return target_from(market), readings_from(market), advisory_from(market)
+
+
+# -- the corpus is what we think it is -------------------------------------------------------
+
+
+def test_the_corpus_is_real_and_non_trivial() -> None:
+    assert HISTORICAL["provenance"] == "REAL_PUBLIC_MARKET_DATA"
+    assert len(markets()) == 55
+    spacing = sorted({b["t0"] - a["t0"] for a, b in pairwise(markets())})
+    assert spacing == [-300], "the corpus must be consecutive 5-minute markets"
+
+
+def test_every_market_names_the_chainlink_rule_source() -> None:
+    sources = {market["gamma"]["resolution_source"] for market in markets()}
+    assert sources == {CHAINLINK_STREAM}
+
+
+def test_every_market_was_resolved_by_the_same_specialised_resolver() -> None:
+    """Not the UMA adapter. Recorded from real ConditionResolution events."""
+    oracles = {market["resolution_log"]["oracle"] for market in markets()}
+    assert oracles == {RESOLVER}
+
+
+def test_no_market_in_the_corpus_is_negrisk() -> None:
+    assert {market["gamma"]["neg_risk"] for market in markets()} == {False}
+
+
+# -- the production verifier over real readings ------------------------------------------------
+
+
+def test_the_production_verifier_resolves_every_real_market() -> None:
+    policy = SettlementPolicy(minimum_agreeing_providers=3)
+    states: Counter[str] = Counter()
+    outcomes: Counter[str] = Counter()
+    for market in markets():
+        target, readings, advisory = build(market)
+        decision = verify(target, readings, advisory, policy)
+        states[decision.state.value] += 1
+        if decision.winning_outcome:
+            outcomes[decision.winning_outcome.value] += 1
+    assert states == Counter({"RESOLVED": 55}), dict(states)
+    assert outcomes == Counter({"UP": 27, "DOWN": 28}), dict(outcomes)
+
+
+def test_the_verifier_agrees_with_the_stored_payout_vector_market_by_market() -> None:
+    """Checked against the recorded chain state, not against the verifier's own answer."""
+    policy = SettlementPolicy(minimum_agreeing_providers=3)
+    for market in markets():
+        target, readings, advisory = build(market)
+        decision = verify(target, readings, advisory, policy)
+        stored = market["chain"]["publicnode"]["payout_numerators"]
+        expected = Outcome.UP if stored == [1, 0] else Outcome.DOWN
+        assert decision.winning_outcome is expected, target.slug
+        assert decision.payout is not None
+        assert list(decision.payout.numerators) == stored
+
+
+def test_real_provider_errors_are_never_counted_as_agreement() -> None:
+    """1rpc rate-limited the original capture on 29 markets. Those must count as absent."""
+    errored = [
+        market
+        for market in markets()
+        if any(reading.get("error") for reading in market["chain"].values())
+    ]
+    assert errored, "the corpus should contain real provider errors"
+    for market in errored:
+        _, readings, _ = build(market)
+        answered = [reading for reading in readings if reading.answered]
+        failed = [reading for reading in readings if not reading.answered]
+        assert failed
+        assert all(reading.error for reading in failed)
+        decision = verify(*build(market), SettlementPolicy(minimum_agreeing_providers=3))
+        assert set(decision.answering_providers) == {r.provider_id for r in answered}
+
+
+def test_a_quorum_higher_than_the_real_data_supports_refuses() -> None:
+    """29 markets had only three providers answer. Demanding four must not invent a fourth."""
+    policy = SettlementPolicy(minimum_agreeing_providers=4)
+    states = Counter(verify(*build(market), policy).state.value for market in markets())
+    assert states["INSUFFICIENT_EVIDENCE"] == 29
+    assert states["RESOLVED"] == 26
+
+
+# -- outcome mapping, from the real corpus ------------------------------------------------------
+
+
+def test_slot_zero_is_up_and_slot_one_is_down_across_the_real_corpus() -> None:
+    labels: Counter[str] = Counter()
+    for market in markets():
+        outcomes = market["gamma"]["outcomes"]
+        stored = market["chain"]["publicnode"]["payout_numerators"]
+        slot = stored.index(1)
+        labels[f"slot{slot}={outcomes[slot]}"] += 1
+    assert labels == Counter({"slot0=Up": 27, "slot1=Down": 28}), dict(labels)
+
+
+# -- the recorded live timing --------------------------------------------------------------------
+
+
+def test_the_real_timing_corpus_is_consecutive_and_chain_first() -> None:
+    watches = TIMING["watches"]
+    assert len(watches) >= 6
+    gaps = {b["t0"] - a["t0"] for a, b in pairwise(watches)}
+    assert gaps == {300}
+    for item in watches:
+        seen = item["seconds_after_end"]
+        assert "ctf_payout_denominator" in seen, item["slug"]
+        assert 0 < seen["ctf_payout_denominator"] < 300
+
+
+# -- the real eth_call validation ----------------------------------------------------------------
+
+
+def test_the_real_contract_accepted_every_redemption_encoding() -> None:
+    assert ETHCALL["kind"] == "REAL_CHAIN_ETH_CALL_SIMULATION"
+    assert ETHCALL["ctf_address"] == CTF_ADDRESS
+    assert ETHCALL["collateral_token"] == PUSD_ADDRESS
+    assert ETHCALL["index_sets"] == list(binary_index_sets())
+    assert ETHCALL["parent_collection_id"] == "0x" + "00" * 32
+    assert ETHCALL["accepted"] == ETHCALL["markets"] >= 6
+    assert all(row["accepted_by_contract"] for row in ETHCALL["rows"])
+    shapes = {tuple(row["payout_numerators"]) for row in ETHCALL["rows"]}
+    assert shapes == {(1, 0), (0, 1)}, "both winning slots must be exercised"
+
+
+def test_the_eth_call_evidence_does_not_claim_a_redemption() -> None:
+    """Wording matters: nobody held a position and no transaction was sent."""
+    note = ETHCALL["note"].lower()
+    assert "does not prove collateral moved" in note
+    assert "not a redemption" in note
+
+
+# -- the committed production replay --------------------------------------------------------------
+
+
+def test_the_committed_replay_matches_a_fresh_one() -> None:
+    assert REPLAY["markets"] == 55
+    assert REPLAY["states"] == {"RESOLVED": 55}
+    assert REPLAY["outcomes"] == {"DOWN": 28, "UP": 27}
+    assert REPLAY["mismatches"] == []
+
+
+@pytest.mark.parametrize("index", [0, 17, 42, 54])
+def test_individual_replay_rows_reproduce(index: int) -> None:
+    row = REPLAY["rows"][index]
+    market = next(m for m in markets() if m["gamma"]["slug"] == row["slug"])
+    decision = verify(*build(market), SettlementPolicy(minimum_agreeing_providers=3))
+    assert decision.state.value == row["state"]
+    assert (None if decision.winning_outcome is None else decision.winning_outcome.value) == row[
+        "winning_outcome"
+    ]

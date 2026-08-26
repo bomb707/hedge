@@ -790,3 +790,161 @@ def test_nothing_is_repaired_on_the_way_through(tmp_path: Path) -> None:
     with pytest.raises(ArchiveVerificationError):
         open_verified_archive(archive, wrong, tmp_path / "restored.sqlite3")
     assert archive.read_bytes() == before
+
+
+# -- a decision must be able to name the verdict that governed it -------------------------------
+#
+# P9 governs every P11 cycle, so a V2 record without its reference is not a record that needs no
+# checking — it is one whose governing verdict cannot be identified at all. The verifier used to
+# `continue` past exactly that case, which let such a record evade the RiskRow join, all three
+# copy comparisons, and the PLACE contract.
+
+
+def _blank_decision_fields(path: Path, *fields: str, where: str = "1=1") -> None:
+    """Set the named payload fields to JSON null on the matching decision rows."""
+    connection = sqlite3.connect(str(path))
+    rows = connection.execute(
+        f"SELECT persistence_sequence, payload FROM decisions WHERE {where}"
+    ).fetchall()
+    for sequence, payload in rows:
+        record = json.loads(payload)
+        for field_name in fields:
+            record[field_name] = None
+        connection.execute(
+            "UPDATE decisions SET payload = ? WHERE persistence_sequence = ?",
+            (json.dumps(record, separators=(",", ":")), sequence),
+        )
+    connection.commit()
+    connection.close()
+
+
+def _placing_row(path: Path) -> str:
+    connection = sqlite3.connect(str(path))
+    sequence = connection.execute(
+        "SELECT persistence_sequence FROM decisions"
+        ' WHERE payload LIKE \'%"action":"PLACE"%\' LIMIT 1'
+    ).fetchone()[0]
+    connection.close()
+    return f"persistence_sequence = {int(sequence)}"
+
+
+def test_a_place_with_no_governing_verdict_at_all_is_refused(tmp_path: Path) -> None:
+    """§6: the risk rows are all intact; the decision simply cannot say which one governed it."""
+    path = build_market(tmp_path, place_at=2)
+    assert verify_store(path).status is VerificationStatus.COMPLETE, "control"
+
+    _blank_decision_fields(
+        path,
+        "risk_sequence",
+        "risk_state",
+        "risk_allows_place",
+        "risk_allows_cancel",
+        where=_placing_row(path),
+    )
+    result = verify_store(path)
+    assert result.status is VerificationStatus.INCOMPLETE
+    assert not result.checks["decision_risk_reference_present"]
+    assert not result.checks["decision_risk_copy_complete"]
+    assert not result.checks["no_place_without_permission"]
+    assert any("no governing risk_sequence" in f for f in result.failures)
+
+
+@pytest.mark.parametrize("field_name", ["risk_state", "risk_allows_place", "risk_allows_cancel"])
+def test_a_partially_absent_verdict_copy_is_refused(tmp_path: Path, field_name: str) -> None:
+    """§7 A-C: the reference is present, one half of the copy is not."""
+    path = build_market(tmp_path)
+    _blank_decision_fields(path, field_name, where="persistence_sequence = 5")
+    result = verify_store(path)
+    assert result.status is VerificationStatus.INCOMPLETE
+    assert not result.checks["decision_risk_copy_complete"]
+    assert result.checks["decision_risk_reference_present"], "the reference itself is intact"
+    assert any(field_name in f for f in result.failures)
+
+
+def test_a_missing_reference_is_refused_even_with_no_place(tmp_path: Path) -> None:
+    """§7 D: the risk link is required for every decision, not only the ones that placed."""
+    path = build_market(tmp_path)
+    _blank_decision_fields(
+        path,
+        "risk_sequence",
+        "risk_state",
+        "risk_allows_place",
+        "risk_allows_cancel",
+        where="persistence_sequence = 6",
+    )
+    result = verify_store(path)
+    assert result.status is VerificationStatus.INCOMPLETE
+    assert not result.checks["decision_risk_reference_present"]
+    assert result.checks["no_place_without_permission"], "nothing was placed"
+
+
+def test_none_does_not_masquerade_as_false(tmp_path: Path) -> None:
+    """A RiskRow saying allows_place=False and a decision saying nothing are different faults."""
+    (tmp_path / "honest").mkdir()
+    (tmp_path / "silent").mkdir()
+    honest = build_market(tmp_path / "honest", row_allows_place=False, row_state="HALTED")
+    assert verify_store(honest).checks["decision_risk_copy_complete"]
+
+    silent = build_market(tmp_path / "silent", row_allows_place=False, row_state="HALTED")
+    _blank_decision_fields(silent, "risk_allows_place", where="persistence_sequence = 5")
+    assert not verify_store(silent).checks["decision_risk_copy_complete"]
+
+
+# -- identity is load-bearing --------------------------------------------------------------------
+
+
+def test_a_blank_event_id_is_refused(tmp_path: Path) -> None:
+    """§9: P2 assigns one to every event, so a blank one is an identity that was lost."""
+    path = build_market(tmp_path)
+    connection = sqlite3.connect(str(path))
+    sequence, payload = connection.execute(
+        "SELECT persistence_sequence, payload FROM decisions LIMIT 1"
+    ).fetchone()
+    record = json.loads(payload)
+    record["event_id"] = ""
+    connection.execute(
+        "UPDATE decisions SET event_id = '', payload = ? WHERE persistence_sequence = ?",
+        (json.dumps(record, separators=(",", ":")), sequence),
+    )
+    connection.commit()
+    connection.close()
+
+    result = verify_store(path)
+    assert result.status is VerificationStatus.INCOMPLETE
+    assert not result.checks["decisions_carry_a_real_event_id"]
+    assert any("no event id" in f for f in result.failures)
+
+
+@pytest.mark.parametrize(
+    ("column", "value"),
+    [
+        ("event_id", "'clob-999999'"),
+        ("ingress_ordinal", "4242"),
+        ("capture_sequence", "9999"),
+    ],
+)
+def test_an_indexed_column_contradicting_the_payload_is_refused(
+    tmp_path: Path, column: str, value: str
+) -> None:
+    """§10: two representations of one record. Neither is believed over the other."""
+    path = build_market(tmp_path)
+    _mutate(
+        path,
+        f"UPDATE decisions SET {column} = {value} WHERE persistence_sequence = 5",
+    )
+    result = verify_store(path)
+    assert result.status is VerificationStatus.INCOMPLETE
+    assert not result.checks["decision_columns_match_payload"]
+    assert any(column in f for f in result.failures)
+
+
+def test_a_consistent_market_passes_every_identity_check(tmp_path: Path) -> None:
+    result = verify_store(build_market(tmp_path, place_at=1, fills=1))
+    assert result.status is VerificationStatus.COMPLETE, result.failures
+    for name in (
+        "decision_risk_reference_present",
+        "decision_risk_copy_complete",
+        "decisions_carry_a_real_event_id",
+        "decision_columns_match_payload",
+    ):
+        assert result.checks[name], name

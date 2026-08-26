@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from maker5m.persistence.schema import (
+    DECISION_SCHEMA_VERSION,
     MANIFEST_SCHEMA_VERSION,
     Manifest,
 )
@@ -178,13 +179,19 @@ def verify_store(
         # The reference a decision makes to the verdict that governed it, and whether it placed.
         # Pulled out of the payload because that is where V2 keeps them; the columns carry only
         # what is indexed.
+        # The indexed columns and the payload are two representations of one record. Both are
+        # read so they can be compared: trusting either silently would mean a store that
+        # contradicts itself still verifies.
         decision_rows = []
-        for (raw,) in connection.execute(
-            "SELECT payload FROM decisions WHERE market_id = ?", (found_id,)
+        for row in connection.execute(
+            "SELECT payload, market_id, ingress_ordinal, capture_sequence, event_id, schema_version"
+            " FROM decisions WHERE market_id = ?",
+            (found_id,),
         ):
-            record = json.loads(raw)
+            record = json.loads(row[0])
             decision_rows.append(
                 {
+                    "schema_version": int(row[5]),
                     "risk_sequence": record.get("risk_sequence"),
                     "place": record.get("up", {}).get("action") == "PLACE"
                     or record.get("down", {}).get("action") == "PLACE",
@@ -192,6 +199,13 @@ def verify_store(
                     "allows_place": record.get("risk_allows_place"),
                     "allows_cancel": record.get("risk_allows_cancel"),
                     "ingress_ordinal": record.get("ingress_ordinal"),
+                    "event_id": record.get("event_id"),
+                    "column_market_id": str(row[1]),
+                    "column_ingress_ordinal": int(row[2]),
+                    "column_capture_sequence": int(row[3]),
+                    "column_event_id": str(row[4]),
+                    "payload_capture_sequence": record.get("capture_sequence"),
+                    "payload_market_id": record.get("market_id"),
                 }
             )
 
@@ -278,17 +292,52 @@ def verify_store(
     # Join every decision to the risk record it names, and check the copy against it. Trusting
     # the copy would make the invariant circular: a record that misrepresented the verdict it ran
     # under would be checked against its own misrepresentation and pass.
+    #
+    # A *missing* reference is not a decision that needs no checking — it is a decision whose
+    # governing verdict cannot be identified at all, which is worse than one whose copy is wrong.
+    # P9 governs every P11 cycle, so a V2 record without its reference is incomplete telemetry,
+    # and skipping it (as this once did) let such a record evade every check below including the
+    # PLACE contract.
     dangling = 0
+    missing_reference = 0
+    missing_copy: list[str] = []
     mismatches: list[str] = []
     unpermitted: list[str] = []
     out_of_order = 0
     for row in decision_rows:
-        referenced = row["risk_sequence"]
-        if referenced is None:
+        if row["schema_version"] < DECISION_SCHEMA_VERSION:
+            # A V1 row means what it meant when it was written and predates these fields.
             continue
+
+        referenced = row["risk_sequence"]
+        absent = [
+            name
+            for name, value in (
+                ("risk_sequence", referenced),
+                ("risk_state", row["risk_state"]),
+                ("risk_allows_place", row["allows_place"]),
+                ("risk_allows_cancel", row["allows_cancel"]),
+            )
+            if value is None
+        ]
+        if absent:
+            if referenced is None:
+                missing_reference += 1
+            missing_copy.append(f"ingress {row['ingress_ordinal']}: missing {', '.join(absent)}")
+            if row["place"]:
+                unpermitted.append(
+                    f"ingress {row['ingress_ordinal']} placed with no identifiable verdict"
+                )
+            continue
+
         verdict = risk_by_sequence.get(int(referenced))
         if verdict is None:
             dangling += 1
+            if row["place"]:
+                unpermitted.append(
+                    f"ingress {row['ingress_ordinal']} placed under risk_sequence {referenced}, "
+                    "which is not stored"
+                )
             continue
 
         for field_name, copied, authoritative in (
@@ -296,9 +345,11 @@ def verify_store(
             ("allows_place", row["allows_place"], verdict["allows_place"]),
             ("allows_cancel", row["allows_cancel"], verdict["allows_cancel"]),
         ):
-            # Compared directly. An earlier draft also tried `bool(copied) != bool(...)`, which
-            # silently exempted every state mismatch: SAFE and HALTED are both truthy strings.
-            if copied is not None and copied != authoritative:
+            # Compared directly, and without a `copied is not None` guard. An earlier draft used
+            # `bool(copied) != bool(...)`, which silently exempted every state mismatch since
+            # SAFE and HALTED are both truthy; a `is not None` guard exempted absence entirely.
+            # None and False are different audit facts and neither is a pass.
+            if copied != authoritative:
                 mismatches.append(
                     f"ingress {row['ingress_ordinal']}: decision says {field_name}={copied!r}, "
                     f"risk_sequence {referenced} says {authoritative!r}"
@@ -315,6 +366,20 @@ def verify_store(
                 f"(state={verdict['state']}, allows_place={verdict['allows_place']})"
             )
 
+    checks["decision_risk_reference_present"] = missing_reference == 0
+    if missing_reference:
+        failures.append(
+            f"{missing_reference} decision(s) name no governing risk_sequence at all; the "
+            "verdict each ran under cannot be identified"
+        )
+
+    checks["decision_risk_copy_complete"] = not missing_copy
+    if missing_copy:
+        failures.append(
+            f"{len(missing_copy)} decision(s) are missing their governing verdict: "
+            + "; ".join(missing_copy[:5])
+        )
+
     checks["decision_risk_references_resolve"] = dangling == 0
     if dangling:
         failures.append(f"{dangling} decision(s) name a risk_sequence that is not stored")
@@ -323,6 +388,40 @@ def verify_store(
     if mismatches:
         failures.append(
             f"{len(mismatches)} decision/risk verdict mismatch(es): " + "; ".join(mismatches[:5])
+        )
+
+    # Identity. P11 claims to persist P2's real event id, so a blank one is a claim it did not
+    # keep — and the indexed columns duplicate the payload, so a disagreement means the record
+    # contradicts itself and neither half can be believed over the other.
+    blank_event_ids = 0
+    inconsistent: list[str] = []
+    for row in decision_rows:
+        if row["schema_version"] >= DECISION_SCHEMA_VERSION and not row["event_id"]:
+            blank_event_ids += 1
+        for name, column, payload in (
+            ("event_id", row["column_event_id"], row["event_id"]),
+            ("market_id", row["column_market_id"], row["payload_market_id"]),
+            ("ingress_ordinal", row["column_ingress_ordinal"], row["ingress_ordinal"]),
+            ("capture_sequence", row["column_capture_sequence"], row["payload_capture_sequence"]),
+        ):
+            if payload is not None and column != payload:
+                inconsistent.append(
+                    f"ingress {row['column_ingress_ordinal']}: column {name}={column!r}, "
+                    f"payload {name}={payload!r}"
+                )
+
+    checks["decisions_carry_a_real_event_id"] = blank_event_ids == 0
+    if blank_event_ids:
+        failures.append(
+            f"{blank_event_ids} decision(s) carry no event id; P2 assigns one to every event, "
+            "so a blank one is an identity that was lost rather than one that never existed"
+        )
+
+    checks["decision_columns_match_payload"] = not inconsistent
+    if inconsistent:
+        failures.append(
+            f"{len(inconsistent)} decision(s) whose indexed columns contradict their payload: "
+            + "; ".join(inconsistent[:5])
         )
 
     checks["risk_verdict_not_from_the_future"] = out_of_order == 0

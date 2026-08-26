@@ -134,17 +134,19 @@ def test_a_later_clean_reading_does_not_clear_the_halt_by_itself() -> None:
     assert not after.allows_place
 
 
-def test_p9_does_not_latch_resolution_ambiguity() -> None:
-    """Recorded because it is surprising, not because it is desirable.
+def test_p9_latches_resolution_ambiguity() -> None:
+    """O16, closed as an OPERATIONAL safety policy.
 
-    Unlike ``POSITION_MISMATCH`` and friends, P9 lets this condition clear with the flag. The
-    safety of the arrangement rests entirely on `resolution_safety_signal` never emitting
-    ``flag=False``. Whether P9 should latch it instead is an open P9 question.
+    Through P10's first round this reason was an ordinary flag, and the stickiness of a
+    settlement halt rested on this package choosing never to emit ``flag=False``. A safety
+    property that depends on one caller's restraint is not a contract, so it is now stated in
+    the risk engine's own.
     """
-    assert RiskReason.RESOLUTION_AMBIGUOUS not in REQUIRES_RECONCILIATION
+    assert RiskReason.RESOLUTION_AMBIGUOUS in REQUIRES_RECONCILIATION
 
 
-def test_only_a_deliberate_clearing_signal_lifts_the_halt() -> None:
+def test_clearing_the_condition_does_not_by_itself_lift_the_halt() -> None:
+    """The whole point of the latch: the condition going quiet is not evidence."""
     ctrl = controller()
     report_resolution(
         ctrl,
@@ -157,6 +159,92 @@ def test_only_a_deliberate_clearing_signal_lifts_the_halt() -> None:
             kind=RiskSignalKind.RESOLUTION_SAFETY_UPDATE,
             as_of_ingress_ordinal=4,
             timestamp=TimestampNs(4),
+            provenance=RiskProvenance.REAL_PUBLIC_MARKET_DATA,
+            reason=RiskReason.RESOLUTION_AMBIGUOUS,
+            flag=False,
+        )
+    )
+    assert RiskReason.RESOLUTION_AMBIGUOUS not in cleared.active
+    assert RiskReason.RESOLUTION_AMBIGUOUS in cleared.latched
+    assert cleared.state is RiskState.RECOVERING
+    assert not cleared.allows_place
+
+
+def test_only_explicit_reconciliation_clears_the_latch() -> None:
+    ctrl = controller()
+    report_resolution(
+        ctrl,
+        decision(ResolutionState.AMBIGUOUS),
+        as_of_ingress_ordinal=1,
+        now_ns=TimestampNs(1),
+    )
+    ctrl.apply(
+        RiskSignal(
+            kind=RiskSignalKind.RESOLUTION_SAFETY_UPDATE,
+            as_of_ingress_ordinal=4,
+            timestamp=TimestampNs(4),
+            provenance=RiskProvenance.REAL_PUBLIC_MARKET_DATA,
+            reason=RiskReason.RESOLUTION_AMBIGUOUS,
+            flag=False,
+        )
+    )
+    confirmed = ctrl.apply(
+        RiskSignal(
+            kind=RiskSignalKind.RECONCILIATION_CONFIRMED,
+            as_of_ingress_ordinal=5,
+            timestamp=TimestampNs(5),
+            provenance=RiskProvenance.REAL_PUBLIC_MARKET_DATA,
+            reason=RiskReason.RESOLUTION_AMBIGUOUS,
+        )
+    )
+    assert RiskReason.RESOLUTION_AMBIGUOUS not in confirmed.latched
+    assert confirmed.risk_sequence > 0, "lifting a halt is itself an ordered, recorded signal"
+
+    # P9 does not hand permission straight back; the recovery hold does that.
+    state = confirmed
+    for ordinal in range(6, 16):
+        state = ctrl.evaluate(HEALTHY, as_of_ingress_ordinal=ordinal, now_ns=TimestampNs(ordinal))
+        if state.state is RiskState.SAFE:
+            break
+    assert state.state is RiskState.SAFE
+    assert state.allows_place
+
+
+def test_reconciling_while_the_contradiction_is_still_active_does_not_clear_it() -> None:
+    """Confirming a problem you are still looking at is not a resolution of it."""
+    ctrl = controller()
+    report_resolution(
+        ctrl,
+        decision(ResolutionState.AMBIGUOUS),
+        as_of_ingress_ordinal=1,
+        now_ns=TimestampNs(1),
+    )
+    confirmed = ctrl.apply(
+        RiskSignal(
+            kind=RiskSignalKind.RECONCILIATION_CONFIRMED,
+            as_of_ingress_ordinal=2,
+            timestamp=TimestampNs(2),
+            provenance=RiskProvenance.REAL_PUBLIC_MARKET_DATA,
+            reason=RiskReason.RESOLUTION_AMBIGUOUS,
+        )
+    )
+    assert RiskReason.RESOLUTION_AMBIGUOUS in confirmed.latched
+    assert confirmed.state is RiskState.HALTED
+
+
+def test_a_generic_clearing_signal_cannot_stand_in_for_reconciliation() -> None:
+    ctrl = controller()
+    report_resolution(
+        ctrl,
+        decision(ResolutionState.AMBIGUOUS),
+        as_of_ingress_ordinal=1,
+        now_ns=TimestampNs(1),
+    )
+    cleared = ctrl.apply(
+        RiskSignal(
+            kind=RiskSignalKind.RESOLUTION_SAFETY_UPDATE,
+            as_of_ingress_ordinal=2,
+            timestamp=TimestampNs(2),
             provenance=RiskProvenance.REAL_PUBLIC_MARKET_DATA,
             reason=RiskReason.RESOLUTION_AMBIGUOUS,
             flag=False,

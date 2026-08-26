@@ -239,6 +239,7 @@ def test_reasons_needing_reconciliation_latch_past_their_condition(reason: RiskR
         RiskReason.POSITION_MISMATCH: "position_mismatch",
         RiskReason.COST_LEDGER_MISMATCH: "cost_ledger_mismatch",
         RiskReason.TAKER_FILL: "taker_fill_seen",
+        RiskReason.RESOLUTION_AMBIGUOUS: "resolution_ambiguous",
     }[reason]
     engine = settled(healthy())
     engine.evaluate(healthy(**{field: True}))

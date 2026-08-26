@@ -75,14 +75,21 @@ REQUIRES_RECONCILIATION: Final[frozenset[RiskReason]] = frozenset(
         RiskReason.POSITION_MISMATCH,
         RiskReason.COST_LEDGER_MISMATCH,
         RiskReason.TAKER_FILL,
+        RiskReason.RESOLUTION_AMBIGUOUS,
     }
 )
 """Reasons whose condition going quiet is *not* evidence that the problem is resolved.
 
 An unknown order does not become known because the socket reconnected; a position mismatch does
-not become a match because the next snapshot happened to agree. These require an explicit
-reconciliation result before SAFE can return, and until one arrives the engine stays in
-RECOVERING however healthy everything looks.
+not become a match because the next snapshot happened to agree; and contradictory settlement
+evidence does not become trustworthy because the next read of the same chain looked tidier.
+These require an explicit reconciliation result before SAFE can return, and until one arrives
+the engine stays in RECOVERING however healthy everything looks.
+
+``RESOLUTION_AMBIGUOUS`` is here as of the P10 trust-boundary round (O16, CLOSED — OPERATIONAL
+safety policy). It was previously an ordinary flag, and the intended stickiness rested on
+``maker5m.settlement.safety`` choosing never to emit ``flag=False``. That made a safety property
+depend on one caller's restraint rather than on this contract, so the contract now states it.
 
 The feed reasons are deliberately absent: their conditions already encode their own evidence.
 ``CLOB_CONTINUITY_UNCERTAIN`` clears only when P6 reports HEALTHY *and* is no longer awaiting a

@@ -220,14 +220,14 @@ class SettlementPolicy:
     """This strategy's economics are binary. Anything else is ambiguous *for us*, which is not
     the same as invalid on chain."""
 
-    tolerate_provider_block_lag: bool = True
-    """Whether a provider that is demonstrably behind counts as lagging rather than disagreeing.
+    require_unanimous_resolution: bool = False
+    """Whether every answering provider must report the resolution, not merely a quorum of them.
 
-    OPERATIONAL, and configurable because the strict reading is defensible: with this ``False``
-    any split is ambiguity, which is safer in the abstract and unusable in practice — it halted
-    3 of the first 9 real markets on ordinary provider skew. Turning it off does not make the
-    verifier stricter about anything the chain said; it makes it stricter about clock skew
-    between people reading the chain."""
+    OPERATIONAL. ``True`` is the strict reading and it is genuinely defensible in the abstract;
+    it is also unusable here. Live observation halted 3 of 6 and 3 of 9 real markets under it,
+    every time because one provider briefly failed to serve state it demonstrably had at that
+    block — not because the chain said two different things. Kept reachable and tested, because
+    the argument for it is about trust in providers rather than about the data."""
 
     status: ParameterStatus = SETTLEMENT_POLICY_STATUS
 
@@ -383,54 +383,8 @@ def verify(
             detail="payoutDenominator is zero at every answering provider",
         )
 
-    if len(resolved) != len(answered):
-        # "Comparable finalized state" is a claim that has to be checked, not assumed.
-        #
-        # P10A measured 1-4 blocks of spread between providers' `finalized` heads. For the few
-        # seconds while the resolving block sits above one provider's head and below another's,
-        # a split is not a contradiction — it is one provider being behind, which is the normal
-        # condition of a distributed chain and not a reason to stop trading. Treating it as
-        # disagreement halted 3 of the first 9 real markets observed, with nothing wrong.
-        #
-        # A provider is lagging only if it is demonstrably behind the earliest block at which
-        # anyone saw the resolution. A provider at or past that block which still reports
-        # nothing is a genuine disagreement, and an unknown block number is not evidence of
-        # anything, so both fail closed.
-        behind = [reading for reading in answered if reading not in resolved]
-        resolved_blocks = [r.block_number for r in resolved if r.block_number is not None]
-        earliest_resolved = min(resolved_blocks) if len(resolved_blocks) == len(resolved) else None
-        lagging = (
-            earliest_resolved is not None
-            and all(
-                reading.block_number is not None and reading.block_number < earliest_resolved
-                for reading in behind
-            )
-            and policy.tolerate_provider_block_lag
-        )
-        if not lagging:
-            split = sorted(reading.provider_id for reading in behind)
-            return _ambiguous(
-                (AmbiguityReason.FINALITY_DISAGREEMENT,),
-                answering=answering,
-                advisory=advisory_readings,
-                detail="some providers report resolved and others unresolved at comparable "
-                f"finalized state; unresolved: {', '.join(split)}",
-                block_tag=block_tag,
-            )
-        return ResolutionDecision(
-            state=ResolutionState.UNRESOLVED,
-            answering_providers=answering,
-            advisory=advisory_readings,
-            block_tag=block_tag,
-            authoritative_block=min(
-                (r.block_number for r in answered if r.block_number is not None), default=None
-            ),
-            detail=(
-                f"{len(behind)} provider(s) have not reached block {earliest_resolved} yet; "
-                "waiting for the quorum to catch up rather than treating lag as disagreement"
-            ),
-        )
-
+    # Contradiction first, absence second. A provider reporting a *different* payout vector is
+    # dangerous; a provider reporting nothing yet is merely not evidence.
     distinct = {reading.payout for reading in resolved}
     if len(distinct) != 1:
         return _ambiguous(
@@ -440,6 +394,43 @@ def verify(
             detail=f"{len(distinct)} distinct payout vectors across answering providers",
             block_tag=block_tag,
         )
+
+    if len(resolved) != len(answered):
+        # Not enough positive agreement yet — which is a reason to wait, not to fault.
+        #
+        # This branch used to be ambiguity, and that was wrong twice over. The quorum is named
+        # `minimum_agreeing_providers` but was being applied to providers that merely *answered*,
+        # so unanimity was required by accident. And live observation showed the split is not
+        # what it looks like: drpc reported a payout absent at the same block, and once at a
+        # block *ahead* of a provider that had it. That is one provider's internal
+        # inconsistency, not the chain contradicting itself, and it is not something a
+        # cross-provider block comparison can adjudicate.
+        #
+        # So: wait. Nothing here authorises a redemption, and nothing here halts trading either.
+        behind = sorted(reading.provider_id for reading in answered if reading not in resolved)
+        if policy.require_unanimous_resolution:
+            return _ambiguous(
+                (AmbiguityReason.FINALITY_DISAGREEMENT,),
+                answering=answering,
+                advisory=advisory_readings,
+                detail="some providers report resolved and others unresolved; "
+                f"unresolved: {', '.join(behind)}",
+                block_tag=block_tag,
+            )
+        if len(resolved) < policy.minimum_agreeing_providers:
+            return ResolutionDecision(
+                state=ResolutionState.UNRESOLVED,
+                answering_providers=answering,
+                advisory=advisory_readings,
+                block_tag=block_tag,
+                authoritative_block=min(
+                    (r.block_number for r in answered if r.block_number is not None), default=None
+                ),
+                detail=(
+                    f"{len(resolved)} of {policy.minimum_agreeing_providers} required providers "
+                    f"report the resolution; waiting on {', '.join(behind)}"
+                ),
+            )
 
     payout = next(iter(distinct))
     assert payout is not None

@@ -22,6 +22,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Final
 
+from maker5m.market.events import HealthStatus
+from maker5m.market.timebase import TimestampNs
+from maker5m.risk import RiskProvenance
+from maker5m.risk.trace import HealthFrame, RiskController
 from maker5m.settlement import (
     DEFAULT_RPC_ENDPOINTS,
     AdvisoryResolution,
@@ -30,6 +34,7 @@ from maker5m.settlement import (
     PayoutVector,
     ProviderResolution,
     Redeemer,
+    ResolutionDecision,
     ResolutionState,
     RpcEndpoint,
     SettlementPolicy,
@@ -37,6 +42,7 @@ from maker5m.settlement import (
     verify,
 )
 from maker5m.settlement.reader import USER_AGENT
+from maker5m.settlement.safety import report_resolution
 
 GAMMA: Final = "https://gamma-api.polymarket.com"
 CLOB: Final = "https://clob.polymarket.com"
@@ -137,6 +143,8 @@ class Watch:
     final: dict[str, Any] | None = None
     injection: str = ""
     injected_decision: dict[str, Any] | None = None
+    recovery_decision: dict[str, Any] | None = None
+    risk_records: list[dict[str, Any]] = field(default_factory=list)
     redeem_plan: dict[str, Any] | None = None
     redeem_blockers: list[str] = field(default_factory=list)
     note: str = ""
@@ -154,20 +162,60 @@ class Watch:
             "state_trajectory": [row["state"] for row in self.states],
             "distinct_states": sorted({row["state"] for row in self.states}),
             "samples": len(self.states),
+            "polls": self.states,
             "resolved_seconds_after_end": (
                 None if self.resolved_at is None else round(self.resolved_at - end, 3)
             ),
             "final_decision": self.final,
             "injection": self.injection,
             "injected_decision": self.injected_decision,
+            "recovery_decision": self.recovery_decision,
+            "risk_records": self.risk_records,
             "redeem_plan": self.redeem_plan,
             "redeem_blockers": self.redeem_blockers,
             "note": self.note,
         }
 
 
+HEALTHY: Final[HealthFrame] = HealthFrame(
+    clob_status=HealthStatus.HEALTHY,
+    clob_awaiting_snapshot=False,
+    spot_status=HealthStatus.HEALTHY,
+    order_stream_status=HealthStatus.HEALTHY,
+)
+
+
+def risk_step(
+    control: RiskController, decision: ResolutionDecision, at: float
+) -> dict[str, Any] | None:
+    """Push one resolution decision through the ordered P9 risk stream.
+
+    Returns ``None`` when the decision warranted no signal, which is the ordinary case: a market
+    that has simply not resolved yet must not spend its whole life halted.
+    """
+    ordinal = control.sequence + 1
+    record = report_resolution(
+        control, decision, as_of_ingress_ordinal=ordinal, now_ns=TimestampNs(int(at * 1e9))
+    )
+    if record is None:
+        return None
+    return {
+        "at": round(at, 3),
+        "risk_sequence": record.risk_sequence,
+        "signal": record.signal.kind.value,
+        "state": record.state.value,
+        "active": sorted(reason.value for reason in record.active),
+        "allows_place": record.allows_place,
+        "allows_cancel": record.allows_cancel,
+    }
+
+
 def watch(
-    t0: int, policy: SettlementPolicy, endpoints: tuple[RpcEndpoint, ...], injection: str = ""
+    t0: int,
+    policy: SettlementPolicy,
+    endpoints: tuple[RpcEndpoint, ...],
+    control: RiskController,
+    injection: str = "",
 ) -> Watch:
     slug = f"btc-updown-5m-{t0}"
     result = Watch(slug=slug, t0=t0, injection=injection)
@@ -205,9 +253,25 @@ def watch(
             {
                 "at": round(now, 3),
                 "state": decision.state.value,
+                "reasons": [reason.value for reason in decision.reasons],
                 "answering": list(decision.answering_providers),
+                "agreeing": list(decision.agreeing_providers),
+                "detail": decision.detail,
+                "per_provider": [
+                    {
+                        "provider": reading.provider_id,
+                        "answered": reading.answered,
+                        "block": reading.block_number,
+                        "resolved": bool(reading.payout and reading.payout.resolved),
+                    }
+                    for reading in readings
+                ],
             }
         )
+
+        record = risk_step(control, decision, now)
+        if record is not None:
+            result.risk_records.append(record)
 
         if decision.state is ResolutionState.RESOLVED:
             result.resolved_at = now
@@ -222,12 +286,34 @@ def watch(
                 bad_readings, bad_advisory = corrupt(readings, advisory, injection)
                 bad = verify(target, bad_readings, bad_advisory, policy)
                 result.injected_decision = bad.summary()
+                bad_record = risk_step(control, bad, now)
+                if bad_record is not None:
+                    result.risk_records.append(bad_record)
                 plan, blockers = Redeemer().prepare(target, bad, SettlementPreconditions())
                 result.redeem_plan = None if plan is None else plan.summary()
                 result.redeem_blockers = [blocker.value for blocker in blockers]
                 print(
                     f"    injected '{injection}' -> {bad.state.value} "
                     f"reasons={[r.value for r in bad.reasons]} plan={plan is not None}",
+                    flush=True,
+                )
+
+                # Remove the corruption and consume FRESH real readings, not the copy we already
+                # hold: the point is that the halt was caused by our fault and by nothing the
+                # venue did, so the venue must still read cleanly a moment later.
+                time.sleep(POLL_SECONDS)
+                fresh = tuple(
+                    reader.read_condition(result.condition_id, block_tag=policy.block_tag)
+                    for reader in readers
+                )
+                recovered = verify(target, fresh, advisories(slug, result.condition_id), policy)
+                result.recovery_decision = recovered.summary()
+                recovery_record = risk_step(control, recovered, time.time())
+                if recovery_record is not None:
+                    result.risk_records.append(recovery_record)
+                print(
+                    f"    corruption removed, fresh read -> {recovered.state.value}  "
+                    f"risk={control.state.value}",
                     flush=True,
                 )
             else:
@@ -261,6 +347,12 @@ def main() -> None:
             flush=True,
         )
 
+    # One controller for the whole run: the risk sequence is a single ordered stream across
+    # markets, not a fresh one per market. A halt raised by market 3 is therefore still visible
+    # in market 4's records, which is exactly the property that makes it a halt.
+    control = RiskController(provenance=RiskProvenance.REAL_PUBLIC_MARKET_DATA)
+    control.evaluate(HEALTHY, as_of_ingress_ordinal=0, now_ns=TimestampNs(int(time.time() * 1e9)))
+
     watches: list[Watch] = []
     while len(watches) < args.markets:
         now = int(time.time())
@@ -270,7 +362,7 @@ def main() -> None:
         while time.time() < t0 + 300 - WATCH_BEFORE_END:
             time.sleep(2)
         injection = args.inject if len(watches) == args.inject_on else ""
-        watches.append(watch(t0, policy, endpoints, injection))
+        watches.append(watch(t0, policy, endpoints, control, injection))
         print(f"  [{len(watches)}/{args.markets}] done", flush=True)
 
     args.out.write_text(
@@ -287,6 +379,8 @@ def main() -> None:
                     "No order, no credential, no transaction, no redemption."
                 ),
                 "captured_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "final_risk_state": control.state.value,
+                "risk_sequence_length": control.sequence + 1,
                 "policy": {
                     "minimum_agreeing_providers": policy.minimum_agreeing_providers,
                     "block_tag": policy.block_tag,

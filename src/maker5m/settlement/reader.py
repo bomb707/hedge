@@ -165,14 +165,23 @@ class CtfReader:
             chain_id = int(self._rpc("eth_chainId", []), 16)
             block = self._rpc("eth_getBlockByNumber", [block_tag, False])
             block_number = None if block is None else int(block["number"], 16)
-            denominator = self._call(CTF_ADDRESS, SELECTOR_PAYOUT_DENOMINATOR + word, block_tag)
-            slot_count = self._call(CTF_ADDRESS, SELECTOR_GET_OUTCOME_SLOT_COUNT + word, block_tag)
+
+            # Pin every call to that concrete block, never to the tag again.
+            #
+            # Resolving "finalized" once per request is not the same read. Live observation
+            # caught drpc reporting a finalized head and, in the same breath, a payout from a
+            # backend that did not have it — the block in the audit record was simply not the
+            # block the payout came from, which made the record wrong and made a healthy
+            # provider look like it was contradicting the chain.
+            at = block_tag if block_number is None else hex(block_number)
+            denominator = self._call(CTF_ADDRESS, SELECTOR_PAYOUT_DENOMINATOR + word, at)
+            slot_count = self._call(CTF_ADDRESS, SELECTOR_GET_OUTCOME_SLOT_COUNT + word, at)
             numerators: list[int] = []
             for index in range(slot_count or 0):
                 value = self._call(
                     CTF_ADDRESS,
                     SELECTOR_PAYOUT_NUMERATORS + word + encode_uint(index),
-                    block_tag,
+                    at,
                 )
                 numerators.append(0 if value is None else value)
         except (RpcError, urllib.error.URLError, OSError, ValueError, KeyError) as error:

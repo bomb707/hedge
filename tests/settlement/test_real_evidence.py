@@ -24,7 +24,10 @@ from maker5m.domain import Outcome
 from maker5m.settlement import (
     CTF_ADDRESS,
     PUSD_ADDRESS,
+    AmbiguityReason,
     MarketResolutionTarget,
+    RedeemBlocker,
+    ResolutionState,
     SettlementPolicy,
     binary_index_sets,
     verify,
@@ -202,3 +205,71 @@ def test_individual_replay_rows_reproduce(index: int) -> None:
     assert (None if decision.winning_outcome is None else decision.winning_outcome.value) == row[
         "winning_outcome"
     ]
+
+
+# -- controlled local corruption of REAL readings -------------------------------------------
+#
+# The market and chain data below are the genuine recorded ones; only our COPY is corrupted.
+# That is what CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET means, and none of it is a claim that
+# Polygon or Polymarket ever disagreed with themselves — in 55 real markets, they did not.
+
+
+def test_corrupting_one_real_provider_reading_fails_closed() -> None:
+    from maker5m.settlement import PayoutVector, Redeemer, SettlementPreconditions
+
+    policy = SettlementPolicy(minimum_agreeing_providers=3)
+    market = markets()[0]
+    target, readings, advisory = build(market)
+
+    clean = verify(target, readings, advisory, policy)
+    assert clean.state is ResolutionState.RESOLVED, "the real reading must resolve first"
+
+    corrupted = list(readings)
+    for index, reading in enumerate(corrupted):
+        if reading.answered and reading.payout and reading.payout.resolved:
+            payout = reading.payout
+            corrupted[index] = reading._replace(
+                payout=PayoutVector(
+                    payout.denominator,
+                    tuple(reversed(payout.numerators)),
+                    payout.outcome_slot_count,
+                )
+            )
+            break
+
+    decision = verify(target, tuple(corrupted), advisory, policy)
+    assert decision.state is ResolutionState.AMBIGUOUS
+    assert AmbiguityReason.PROVIDER_DISAGREEMENT in decision.reasons
+    plan, blockers = Redeemer().prepare(target, decision, SettlementPreconditions())
+    assert plan is None
+    assert RedeemBlocker.RESOLUTION_AMBIGUOUS in blockers
+
+
+def test_corrupting_a_real_advisory_winner_fails_closed() -> None:
+    from maker5m.settlement import Redeemer, SettlementPreconditions
+
+    policy = SettlementPolicy(minimum_agreeing_providers=3)
+    market = markets()[1]
+    target, readings, advisory = build(market)
+    clean = verify(target, readings, advisory, policy)
+    assert clean.state is ResolutionState.RESOLVED
+
+    flipped = tuple(
+        item._replace(winning_slot=1 - item.winning_slot)
+        if item.conclusive and item.winning_slot in (0, 1)
+        else item
+        for item in advisory
+    )
+    decision = verify(target, readings, flipped, policy)
+    assert decision.state is ResolutionState.AMBIGUOUS
+    assert AmbiguityReason.ADVISORY_DISAGREEMENT in decision.reasons
+    plan, _ = Redeemer().prepare(target, decision, SettlementPreconditions())
+    assert plan is None
+
+
+def test_removing_the_corruption_restores_normal_resolution() -> None:
+    """The fault is ours and reversible; the underlying evidence never changed."""
+    policy = SettlementPolicy(minimum_agreeing_providers=3)
+    for market in markets()[:5]:
+        target, readings, advisory = build(market)
+        assert verify(target, readings, advisory, policy).state is ResolutionState.RESOLVED

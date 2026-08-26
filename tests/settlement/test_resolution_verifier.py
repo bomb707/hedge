@@ -125,16 +125,21 @@ def test_provider_disagreement_is_ambiguous() -> None:
     assert not decision.redeemable
 
 
-def test_a_split_between_resolved_and_unresolved_is_ambiguous() -> None:
-    """At comparable finalized state this is a contradiction, not a wait."""
+def test_a_split_between_resolved_and_unresolved_is_a_wait_not_a_contradiction() -> None:
+    """One provider not showing the resolution is an absence of evidence, not contrary evidence.
+
+    This assertion is the inverse of what it originally said. See the module note above: the
+    original reading of this split cost 6 false halts across 15 real markets.
+    """
     readings = (
         reading("a", (1, 0)),
         reading("b", (0, 0), denominator=0),
         reading("c", (1, 0)),
     )
     decision = verify(target(), readings, (), POLICY)
-    assert decision.state is ResolutionState.AMBIGUOUS
-    assert AmbiguityReason.FINALITY_DISAGREEMENT in decision.reasons
+    assert decision.state is ResolutionState.UNRESOLVED
+    assert not decision.reasons
+    assert "waiting on b" in decision.detail
 
 
 def test_too_few_providers_is_insufficient_not_ambiguous() -> None:
@@ -251,125 +256,115 @@ def test_the_verifier_reads_no_clock_or_network() -> None:
             assert node.module.split(".")[0] not in banned
 
 
-# -- provider lag is not provider disagreement ------------------------------------------------
+# -- absence of evidence is not contrary evidence ---------------------------------------------
 #
-# Motivated by real data, not by tidiness: the first nine live settlements halted three times on
-# ordinary skew between providers' `finalized` heads.
+# Motivated by real data, not by tidiness. Across 15 live settlements one provider repeatedly
+# failed to serve a payout it demonstrably had at that block — twice at a block *ahead* of a
+# provider that had it — and the verifier called that a chain contradiction and halted trading.
 # See docs/evidence/P10-SETTLEMENT-REAL-MARKET.md.
 
-RESOLVED_AT = 92_665_372
 UNSETTLED = (0, 0)
 
 
-def test_a_provider_behind_the_resolving_block_is_waiting_not_disagreeing() -> None:
+def test_a_quorum_of_agreeing_providers_resolves_without_unanimity() -> None:
     decision = verify(
         target(),
         (
-            reading("publicnode", block=RESOLVED_AT),
-            reading("drpc", block=RESOLVED_AT + 2),
-            reading("quiknode", UNSETTLED, denominator=0, block=RESOLVED_AT - 3),
+            reading("publicnode", (1, 0)),
+            reading("drpc", (1, 0)),
+            reading("quiknode", (1, 0)),
+            reading("slow", UNSETTLED, denominator=0),
+        ),
+        (),
+        POLICY,
+    )
+    assert decision.state is ResolutionState.RESOLVED
+    assert decision.winning_outcome is Outcome.UP
+    assert "slow" not in decision.agreeing_providers
+
+
+def test_below_the_quorum_it_waits_and_names_who_is_missing() -> None:
+    decision = verify(
+        target(),
+        (
+            reading("publicnode", (1, 0)),
+            reading("drpc", (1, 0)),
+            reading("quiknode", UNSETTLED, denominator=0),
         ),
         (),
         POLICY,
     )
     assert decision.state is ResolutionState.UNRESOLVED
     assert not decision.reasons
-    assert "catch up" in decision.detail
-
-
-def test_a_provider_past_the_resolving_block_reporting_nothing_is_a_real_disagreement() -> None:
-    decision = verify(
-        target(),
-        (
-            reading("publicnode", block=RESOLVED_AT),
-            reading("drpc", block=RESOLVED_AT + 2),
-            reading("quiknode", UNSETTLED, denominator=0, block=RESOLVED_AT + 5),
-        ),
-        (),
-        POLICY,
-    )
-    assert decision.state is ResolutionState.AMBIGUOUS
-    assert AmbiguityReason.FINALITY_DISAGREEMENT in decision.reasons
+    assert "2 of 3" in decision.detail
     assert "quiknode" in decision.detail
 
 
-def test_a_provider_exactly_at_the_resolving_block_reporting_nothing_disagrees() -> None:
-    """The boundary is inclusive: at that block the resolution was visible to somebody."""
+def test_a_contradicting_payout_is_still_ambiguous_even_at_quorum() -> None:
+    """Waiting is for absence. A provider that says something else is a different matter."""
     decision = verify(
         target(),
         (
-            reading("publicnode", block=RESOLVED_AT),
-            reading("drpc", block=RESOLVED_AT + 2),
-            reading("quiknode", UNSETTLED, denominator=0, block=RESOLVED_AT),
+            reading("publicnode", (1, 0)),
+            reading("drpc", (1, 0)),
+            reading("quiknode", (0, 1)),
         ),
         (),
         POLICY,
     )
     assert decision.state is ResolutionState.AMBIGUOUS
-    assert AmbiguityReason.FINALITY_DISAGREEMENT in decision.reasons
+    assert AmbiguityReason.PROVIDER_DISAGREEMENT in decision.reasons
 
 
-def test_an_unknown_block_on_the_lagging_provider_fails_closed() -> None:
+def test_contradiction_is_checked_before_quorum_is_counted() -> None:
+    """Two providers disagreeing must not be reported as merely 'waiting for a third'."""
     decision = verify(
         target(),
         (
-            reading("publicnode", block=RESOLVED_AT),
-            reading("drpc", block=RESOLVED_AT + 2),
-            reading("quiknode", UNSETTLED, denominator=0, block=None),
+            reading("publicnode", (1, 0)),
+            reading("drpc", (0, 1)),
+            reading("quiknode", UNSETTLED, denominator=0),
         ),
         (),
         POLICY,
     )
     assert decision.state is ResolutionState.AMBIGUOUS
-    assert AmbiguityReason.FINALITY_DISAGREEMENT in decision.reasons
+    assert AmbiguityReason.PROVIDER_DISAGREEMENT in decision.reasons
 
 
-def test_an_unknown_block_on_a_resolved_provider_fails_closed() -> None:
-    """Without knowing where the resolution was seen, nothing can be called 'behind' it."""
+def test_the_strict_unanimous_reading_remains_available() -> None:
+    strict = SettlementPolicy(require_unanimous_resolution=True)
     decision = verify(
         target(),
         (
-            reading("publicnode", block=None),
-            reading("drpc", block=RESOLVED_AT + 2),
-            reading("quiknode", UNSETTLED, denominator=0, block=RESOLVED_AT - 3),
-        ),
-        (),
-        POLICY,
-    )
-    assert decision.state is ResolutionState.AMBIGUOUS
-    assert AmbiguityReason.FINALITY_DISAGREEMENT in decision.reasons
-
-
-def test_the_strict_reading_remains_available_and_still_halts() -> None:
-    strict = SettlementPolicy(tolerate_provider_block_lag=False)
-    decision = verify(
-        target(),
-        (
-            reading("publicnode", block=RESOLVED_AT),
-            reading("drpc", block=RESOLVED_AT + 2),
-            reading("quiknode", UNSETTLED, denominator=0, block=RESOLVED_AT - 3),
+            reading("publicnode", (1, 0)),
+            reading("drpc", (1, 0)),
+            reading("quiknode", (1, 0)),
+            reading("slow", UNSETTLED, denominator=0),
         ),
         (),
         strict,
     )
     assert decision.state is ResolutionState.AMBIGUOUS
     assert AmbiguityReason.FINALITY_DISAGREEMENT in decision.reasons
+    assert "slow" in decision.detail
 
 
-def test_waiting_for_a_lagging_provider_does_not_halt_execution() -> None:
+def test_waiting_for_a_provider_does_not_halt_execution() -> None:
     """The whole point of the correction: no risk signal, so no halt."""
     from maker5m.settlement import resolution_safety_signal
 
     decision = verify(
         target(),
         (
-            reading("publicnode", block=RESOLVED_AT),
-            reading("drpc", block=RESOLVED_AT + 2),
-            reading("quiknode", UNSETTLED, denominator=0, block=RESOLVED_AT - 3),
+            reading("publicnode", (1, 0)),
+            reading("drpc", (1, 0)),
+            reading("quiknode", UNSETTLED, denominator=0),
         ),
         (),
         POLICY,
     )
+    assert decision.state is ResolutionState.UNRESOLVED
     assert (
         resolution_safety_signal(decision, as_of_ingress_ordinal=1, now_ns=TimestampNs(1)) is None
     )

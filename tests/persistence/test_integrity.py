@@ -171,7 +171,7 @@ def test_a_lost_risk_prefix_is_refused(tmp_path: Path) -> None:
     result = verify_store(build_market(tmp_path, risk_first=5))
     assert result.status is VerificationStatus.INCOMPLETE
     assert not result.checks["risk_sequence_exact_from_zero"]
-    assert any("starts at 5" in failure for failure in result.failures)
+    assert any("begins at 5 rather than 0" in failure for failure in result.failures)
 
 
 def test_a_risk_middle_gap_is_refused(tmp_path: Path) -> None:

@@ -1,0 +1,33 @@
+{
+  "actions": {
+    "BLOCKED": 54160,
+    "CANCEL": 154,
+    "KEEP": 60222,
+    "NOTHING": 15840,
+    "PLACE": 327,
+    "REPLACE": 173
+  },
+  "decisions": 65438,
+  "decisions_with_no_event_id": 0,
+  "fills": 0,
+  "places_by_risk_state": {
+    "SAFE": 327
+  },
+  "risk_exact_from_zero": false,
+  "risk_first": 0,
+  "risk_last": 112155,
+  "risk_records": 64922,
+  "risk_states": {
+    "HALTED": 48,
+    "RECOVERING": 1,
+    "SAFE": 65389
+  },
+  "risk_withdrew_intent": 0,
+  "settlements": 1,
+  "source": "/tmp/claude-1000/-home-hr-hedge/e431766c-1daa-41db-8cd7-50b88edd1dbb/scratchpad/p11/s2/btc-updown-5m-1787771100.p11.sqlite3.xz",
+  "storage_count": 130361,
+  "storage_duplicates": 0,
+  "storage_exact_from_one": true,
+  "storage_first": 1,
+  "storage_last": 130361
+}

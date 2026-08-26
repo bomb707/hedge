@@ -242,9 +242,15 @@ def verify_store(
     checks["risk_sequence_exact_from_zero"] = _exact_from(risk_sequences, 0)
     if not checks["risk_sequence_exact_from_zero"]:
         first = risk_sequences[0] if risk_sequences else None
+        last = risk_sequences[-1] if risk_sequences else None
+        expected = (last - first + 1) if first is not None and last is not None else 0
+        fault = (
+            f"begins at {first} rather than 0"
+            if first not in (0, None)
+            else f"spans 0..{last} but holds only {len(risk_sequences)} of {expected}"
+        )
         failures.append(
-            f"risk sequence is not 0..N (starts at {first}); a lost prefix, gap, duplicate or "
-            "reordering, any of which makes the P9 audit trail unverifiable"
+            f"risk sequence {fault}; the P9 audit trail is not verifiable from this file"
         )
 
     # Every decision names the verdict that governed it. A PLACE is the one action that creates

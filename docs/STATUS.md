@@ -75,6 +75,41 @@ production.
 
 ---
 
+## P11D: reference completeness closure
+
+Full evidence in
+[`evidence/P11D-REFERENCE-COMPLETENESS.md`](evidence/P11D-REFERENCE-COMPLETENESS.md).
+**Read-side only** — the diff against P11C is the verifier, its tests, and the query tool, so the
+existing real evidence was re-verified rather than re-gathered and no market was spent.
+
+The verifier skipped any decision whose `risk_sequence` was `None`, so a V2 record that declined
+to name its governing verdict evaded the RiskRow join, all three copy comparisons **and** the
+PLACE contract. The check that existed to stop a decision misrepresenting its verdict did not
+apply to one that named no verdict at all — the worse of the two facts.
+
+Now, for every V2 decision in a COMPLETE market: the reference and all three copied fields must
+be present, the sequence must resolve to a stored `RiskRow`, and each copy must *equal* it. The
+`is not None` guard on the comparison is gone — **`None` and `False` are different audit facts**
+and neither is a pass. `event_id` must be non-empty, and the indexed columns must agree with the
+payload they duplicate.
+
+**P11C baseline `btc-updown-5m-1787780700` re-verified COMPLETE** through the verified archive
+path: 114,287 decisions, `decisions_missing_risk_reference` 0, `incomplete_risk_copy` 0,
+`absent_risk_row` 0, `copy_mismatches` 0, `no_event_id` 0, **678 PLACEs all under a persisted
+SAFE RiskRow, 0 HALTED, 0 RECOVERING**.
+
+**P11B stalled market re-verified INCOMPLETE**, now with one failure more: PLACEs naming risk
+rows that were dropped. Read precisely — those PLACEs did not happen under a halt; the live run
+was SAFE throughout. What was lost is the record of the verdicts. The verifier refuses because
+the audit cannot produce the permission, which is the correct reading of an incomplete audit.
+
+`p11_query` reports missing references separately from dangling ones and exposes
+`verification_status` beside `evidence_eligible`: identity-verified and telemetry-complete are
+different questions, and an archive can provably be the market it claims to be while missing half
+of it.
+
+---
+
 ## P11C: final audit closure
 
 Full evidence in
@@ -1060,7 +1095,7 @@ orders, which P8 does not place. Both stay OPEN.
 | **Current phase** | **P11 — durable telemetry persistence** |
 | P11 implementation gate | **PASSED** — versioned schemas, non-blocking worker, exact analytics, verifier |
 | P11 real-market gate | **PASSED** — P11B healthy market + controlled stalled sink |
-| P11 durability-integrity gate | **PASSED** — risk exact from zero, global storage order, real event ids, decision→RiskRow join, append-only audit rows, verified archive reads |
+| P11 durability-integrity gate | **PASSED** — every V2 decision names and matches its governing RiskRow; exact risk and storage order; real, self-consistent event ids; append-only audit rows; verified archive reads |
 | P11 storage representation | **CLOSED** — lossless `lzma` archive, 54.7×, 2.2 GB per 200-market corpus |
 | P11 authenticated fill/economics | **UNRUN / DEFERRED TO P14** |
 | P10 implementation gate | **PASSED** — verifier, payout arithmetic, plan, encoder, audit record |
@@ -1114,6 +1149,7 @@ orders, which P8 does not place. Both stay OPEN.
 | P11 branch | `feature/p11-telemetry-persistence` |
 | P11B branch | `fix/p11-persistence-integrity` |
 | P11C branch | `fix/p11-final-audit-closure` |
+| P11D branch | `fix/p11-reference-completeness` |
 | P11 store size | 5,230 B/decision raw → **95.7 B archived**; engineered in P11B, not deferred |
 | Remote | `origin` → `https://github.com/bomb707/hedge.git` |
 

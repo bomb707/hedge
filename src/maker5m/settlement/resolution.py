@@ -220,6 +220,15 @@ class SettlementPolicy:
     """This strategy's economics are binary. Anything else is ambiguous *for us*, which is not
     the same as invalid on chain."""
 
+    tolerate_provider_block_lag: bool = True
+    """Whether a provider that is demonstrably behind counts as lagging rather than disagreeing.
+
+    OPERATIONAL, and configurable because the strict reading is defensible: with this ``False``
+    any split is ambiguity, which is safer in the abstract and unusable in practice — it halted
+    3 of the first 9 real markets on ordinary provider skew. Turning it off does not make the
+    verifier stricter about anything the chain said; it makes it stricter about clock skew
+    between people reading the chain."""
+
     status: ParameterStatus = SETTLEMENT_POLICY_STATUS
 
     def __post_init__(self) -> None:
@@ -375,14 +384,51 @@ def verify(
         )
 
     if len(resolved) != len(answered):
-        split = sorted(reading.provider_id for reading in answered if reading not in resolved)
-        return _ambiguous(
-            (AmbiguityReason.FINALITY_DISAGREEMENT,),
-            answering=answering,
+        # "Comparable finalized state" is a claim that has to be checked, not assumed.
+        #
+        # P10A measured 1-4 blocks of spread between providers' `finalized` heads. For the few
+        # seconds while the resolving block sits above one provider's head and below another's,
+        # a split is not a contradiction — it is one provider being behind, which is the normal
+        # condition of a distributed chain and not a reason to stop trading. Treating it as
+        # disagreement halted 3 of the first 9 real markets observed, with nothing wrong.
+        #
+        # A provider is lagging only if it is demonstrably behind the earliest block at which
+        # anyone saw the resolution. A provider at or past that block which still reports
+        # nothing is a genuine disagreement, and an unknown block number is not evidence of
+        # anything, so both fail closed.
+        behind = [reading for reading in answered if reading not in resolved]
+        resolved_blocks = [r.block_number for r in resolved if r.block_number is not None]
+        earliest_resolved = min(resolved_blocks) if len(resolved_blocks) == len(resolved) else None
+        lagging = (
+            earliest_resolved is not None
+            and all(
+                reading.block_number is not None and reading.block_number < earliest_resolved
+                for reading in behind
+            )
+            and policy.tolerate_provider_block_lag
+        )
+        if not lagging:
+            split = sorted(reading.provider_id for reading in behind)
+            return _ambiguous(
+                (AmbiguityReason.FINALITY_DISAGREEMENT,),
+                answering=answering,
+                advisory=advisory_readings,
+                detail="some providers report resolved and others unresolved at comparable "
+                f"finalized state; unresolved: {', '.join(split)}",
+                block_tag=block_tag,
+            )
+        return ResolutionDecision(
+            state=ResolutionState.UNRESOLVED,
+            answering_providers=answering,
             advisory=advisory_readings,
-            detail="some providers report resolved and others unresolved at comparable "
-            f"finalized state; unresolved: {', '.join(split)}",
             block_tag=block_tag,
+            authoritative_block=min(
+                (r.block_number for r in answered if r.block_number is not None), default=None
+            ),
+            detail=(
+                f"{len(behind)} provider(s) have not reached block {earliest_resolved} yet; "
+                "waiting for the quorum to catch up rather than treating lag as disagreement"
+            ),
         )
 
     distinct = {reading.payout for reading in resolved}

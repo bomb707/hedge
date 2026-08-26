@@ -716,6 +716,40 @@ Two P9 facts belong in the record without being open items:
 
 ---
 
+## P10 added one open item (O16) and closed none of the strategy items
+
+Settlement is `OPERATIONAL` machinery, so almost nothing in it is a strategy question. Two P10
+facts belong in the record:
+
+* **The finality-lag tolerance is a decided engineering question, not an open one.** Real data
+  answered it: `SettlementPolicy.tolerate_provider_block_lag` defaults to `True` because the
+  strict reading halted 3 of the first 9 live markets on ordinary skew between providers'
+  `finalized` heads. The strict behaviour is still reachable by configuration and both are
+  tested. See `docs/evidence/P10-SETTLEMENT-REAL-MARKET.md`.
+* **Authenticated redemption is UNRUN, not unresolved** — `DEFERRED TO P14`, like the rest of
+  the authenticated surface. The transaction plan and its encoding are validated against the
+  real contract by `eth_call`; what is unrun is submitting one.
+
+### O16 — should `RESOLUTION_AMBIGUOUS` latch?
+
+**Status: OPEN.** P9 does not list `RESOLUTION_AMBIGUOUS` in `REQUIRES_RECONCILIATION`, so
+unlike `POSITION_MISMATCH` or `ORDER_STATE_UNCERTAIN` it clears as soon as anything sets its
+flag to `False`. P10 does not exploit that: `maker5m.settlement.safety` never emits
+`flag=False`, so the halt is sticky in practice and only a deliberate operator signal lifts it.
+
+That makes the current behaviour safe but load-bearing on one module's restraint rather than on
+the risk engine's own contract. Whether P9 should latch it instead is a P9 design question and
+is **not** being answered here by quietly editing `REQUIRES_RECONCILIATION`.
+
+**Closing experiment:** decide whether an ambiguous settlement is a condition that can ever be
+observed to have passed (like a stale feed, which recovers) or one that requires positive
+evidence (like a position mismatch, which does not). The distinction is only testable against a
+real ambiguous settlement, which has not yet occurred: in 70 real markets the chain never
+contradicted itself, and every ambiguity observed was either injected by us or ordinary
+provider lag. **UNRUN pending a genuine venue ambiguity.**
+
+---
+
 ## Summary table
 
 | ID | Item | Status | Blocking |
@@ -735,3 +769,4 @@ Two P9 facts belong in the record without being open items:
 | O13 | Quote-centre tick tie-breaking | OPEN | — (reference policy in use) |
 | O14 | Strike chaining unverified / no strike published | OPEN | strike-dependent models |
 | O15 | `LiveOrderTable.current()` linear in orders ever placed | **CLOSED** — indexed, confirmed on real data | — |
+| O16 | Should `RESOLUTION_AMBIGUOUS` latch (P9 `REQUIRES_RECONCILIATION`)? | OPEN | — (halt is sticky by construction) |

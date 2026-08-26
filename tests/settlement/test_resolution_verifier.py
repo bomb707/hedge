@@ -10,6 +10,7 @@ from __future__ import annotations
 import pytest
 
 from maker5m.domain import Outcome
+from maker5m.market.timebase import TimestampNs
 from maker5m.settlement import (
     AdvisoryResolution,
     AmbiguityReason,
@@ -248,3 +249,127 @@ def test_the_verifier_reads_no_clock_or_network() -> None:
                 assert alias.name.split(".")[0] not in banned
         if isinstance(node, ast.ImportFrom) and node.module:
             assert node.module.split(".")[0] not in banned
+
+
+# -- provider lag is not provider disagreement ------------------------------------------------
+#
+# Motivated by real data, not by tidiness: the first nine live settlements halted three times on
+# ordinary skew between providers' `finalized` heads.
+# See docs/evidence/P10-SETTLEMENT-REAL-MARKET.md.
+
+RESOLVED_AT = 92_665_372
+UNSETTLED = (0, 0)
+
+
+def test_a_provider_behind_the_resolving_block_is_waiting_not_disagreeing() -> None:
+    decision = verify(
+        target(),
+        (
+            reading("publicnode", block=RESOLVED_AT),
+            reading("drpc", block=RESOLVED_AT + 2),
+            reading("quiknode", UNSETTLED, denominator=0, block=RESOLVED_AT - 3),
+        ),
+        (),
+        POLICY,
+    )
+    assert decision.state is ResolutionState.UNRESOLVED
+    assert not decision.reasons
+    assert "catch up" in decision.detail
+
+
+def test_a_provider_past_the_resolving_block_reporting_nothing_is_a_real_disagreement() -> None:
+    decision = verify(
+        target(),
+        (
+            reading("publicnode", block=RESOLVED_AT),
+            reading("drpc", block=RESOLVED_AT + 2),
+            reading("quiknode", UNSETTLED, denominator=0, block=RESOLVED_AT + 5),
+        ),
+        (),
+        POLICY,
+    )
+    assert decision.state is ResolutionState.AMBIGUOUS
+    assert AmbiguityReason.FINALITY_DISAGREEMENT in decision.reasons
+    assert "quiknode" in decision.detail
+
+
+def test_a_provider_exactly_at_the_resolving_block_reporting_nothing_disagrees() -> None:
+    """The boundary is inclusive: at that block the resolution was visible to somebody."""
+    decision = verify(
+        target(),
+        (
+            reading("publicnode", block=RESOLVED_AT),
+            reading("drpc", block=RESOLVED_AT + 2),
+            reading("quiknode", UNSETTLED, denominator=0, block=RESOLVED_AT),
+        ),
+        (),
+        POLICY,
+    )
+    assert decision.state is ResolutionState.AMBIGUOUS
+    assert AmbiguityReason.FINALITY_DISAGREEMENT in decision.reasons
+
+
+def test_an_unknown_block_on_the_lagging_provider_fails_closed() -> None:
+    decision = verify(
+        target(),
+        (
+            reading("publicnode", block=RESOLVED_AT),
+            reading("drpc", block=RESOLVED_AT + 2),
+            reading("quiknode", UNSETTLED, denominator=0, block=None),
+        ),
+        (),
+        POLICY,
+    )
+    assert decision.state is ResolutionState.AMBIGUOUS
+    assert AmbiguityReason.FINALITY_DISAGREEMENT in decision.reasons
+
+
+def test_an_unknown_block_on_a_resolved_provider_fails_closed() -> None:
+    """Without knowing where the resolution was seen, nothing can be called 'behind' it."""
+    decision = verify(
+        target(),
+        (
+            reading("publicnode", block=None),
+            reading("drpc", block=RESOLVED_AT + 2),
+            reading("quiknode", UNSETTLED, denominator=0, block=RESOLVED_AT - 3),
+        ),
+        (),
+        POLICY,
+    )
+    assert decision.state is ResolutionState.AMBIGUOUS
+    assert AmbiguityReason.FINALITY_DISAGREEMENT in decision.reasons
+
+
+def test_the_strict_reading_remains_available_and_still_halts() -> None:
+    strict = SettlementPolicy(tolerate_provider_block_lag=False)
+    decision = verify(
+        target(),
+        (
+            reading("publicnode", block=RESOLVED_AT),
+            reading("drpc", block=RESOLVED_AT + 2),
+            reading("quiknode", UNSETTLED, denominator=0, block=RESOLVED_AT - 3),
+        ),
+        (),
+        strict,
+    )
+    assert decision.state is ResolutionState.AMBIGUOUS
+    assert AmbiguityReason.FINALITY_DISAGREEMENT in decision.reasons
+
+
+def test_waiting_for_a_lagging_provider_does_not_halt_execution() -> None:
+    """The whole point of the correction: no risk signal, so no halt."""
+    from maker5m.settlement import resolution_safety_signal
+
+    decision = verify(
+        target(),
+        (
+            reading("publicnode", block=RESOLVED_AT),
+            reading("drpc", block=RESOLVED_AT + 2),
+            reading("quiknode", UNSETTLED, denominator=0, block=RESOLVED_AT - 3),
+        ),
+        (),
+        POLICY,
+    )
+    assert (
+        resolution_safety_signal(decision, as_of_ingress_ordinal=1, now_ns=TimestampNs(1)) is None
+    )

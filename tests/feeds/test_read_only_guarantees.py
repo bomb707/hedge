@@ -20,6 +20,7 @@ import pytest
 
 import maker5m
 from maker5m.feeds import POLYMARKET_MARKET_WS, subscribe_payload
+from tests.execution.builders import code_without_docstrings
 
 SRC = Path(__file__).resolve().parents[2] / "src" / "maker5m"
 REPO = Path(__file__).resolve().parents[2]
@@ -64,10 +65,15 @@ def test_live_trading_remains_disabled() -> None:
 
 @pytest.mark.parametrize("path", python_sources(), ids=lambda p: p.name)
 def test_no_module_outside_execution_contains_credential_material(path: Path) -> None:
-    """Credentials are confined to one module, so there is one place to audit."""
-    text = path.read_text(encoding="utf-8").lower()
+    """Credentials are confined to one module, so there is one place to audit.
+
+    Reads the *code* rather than the prose. Several modules explain which write-path tools they
+    deliberately do not use — the settlement reader says it avoids Web3 for four ``eth_call``s —
+    and a plain text scan would convict them of their own documentation.
+    """
+    code = code_without_docstrings(path).lower()
     for marker in WRITE_PATH_MARKERS:
-        assert marker not in text, f"{path.name} mentions {marker!r}"
+        assert marker not in code, f"{path.name} uses {marker!r}"
 
 
 def test_the_credential_boundary_is_a_single_module() -> None:
@@ -79,14 +85,63 @@ def test_the_credential_boundary_is_a_single_module() -> None:
     assert named == ["credentials.py"], f"credential material leaked into: {named}"
 
 
+SETTLEMENT_RPC = SRC / "settlement" / "reader.py"
+
+
 def test_no_module_posts_to_a_venue() -> None:
-    """Every HTTP call in the project is a GET, and there are no order endpoints."""
+    """No HTTP POST anywhere, with exactly one narrowly-scoped exception.
+
+    P10 reads the Conditional Tokens contract over JSON-RPC, and JSON-RPC is a POST by
+    protocol however read-only its content. Rescoped rather than relaxed: the exception is a
+    single named file, it is not a venue endpoint, and the allow-list test below asserts that
+    every method it can issue is a read.
+    """
     for path in python_sources():
         text = path.read_text(encoding="utf-8")
-        assert 'method="POST"' not in text
-        assert "method='POST'" not in text
+        if path.resolve() != SETTLEMENT_RPC.resolve():
+            assert 'method="POST"' not in text, f"{path.name} performs an HTTP POST"
+            assert "method='POST'" not in text, f"{path.name} performs an HTTP POST"
         assert not re.search(r"\.post\s*\(", text), f"{path.name} performs an HTTP POST"
         assert "/order" not in text, f"{path.name} references an order endpoint"
+
+
+def test_the_settlement_rpc_client_can_only_read() -> None:
+    """The one module allowed to POST may issue read methods and nothing else.
+
+    A JSON-RPC endpoint is one URL: whether a call reads or writes is decided entirely by the
+    method name in the body. So the guard is on the method names, and it is stated as an
+    allow-list, because a deny-list would pass anything nobody thought to forbid.
+    """
+    text = SETTLEMENT_RPC.read_text(encoding="utf-8")
+    tree = ast.parse(text)
+    methods: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        target = node.func
+        name = target.attr if isinstance(target, ast.Attribute) else getattr(target, "id", "")
+        if name != "_rpc" or not node.args:
+            continue
+        first = node.args[0]
+        assert isinstance(first, ast.Constant), "RPC method names must be literal, not computed"
+        methods.add(str(first.value))
+
+    readonly = {"eth_chainId", "eth_getCode", "eth_call", "eth_getBlockByNumber", "eth_getLogs"}
+    assert methods, "expected the settlement reader to issue RPC calls"
+    assert methods <= readonly, f"non-read RPC methods reachable: {sorted(methods - readonly)}"
+
+    forbidden = (
+        "eth_sendrawtransaction",
+        "eth_sendtransaction",
+        "eth_sign",
+        "personal_",
+        "eth_accounts",
+    )
+    # The module *documents* that it contains none of these, so scan the code and not the
+    # prose - the same trap several execution guards already fell into.
+    code = code_without_docstrings(SETTLEMENT_RPC).lower()
+    for marker in forbidden:
+        assert marker not in code, f"settlement reader can reach {marker}"
 
 
 def test_the_only_websocket_endpoints_are_public_market_data() -> None:

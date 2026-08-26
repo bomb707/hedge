@@ -24,21 +24,26 @@ from maker5m.execution import Executor, RecordingTransport, VenueAdapter
 from maker5m.feeds.capture import capture_market
 from maker5m.feeds.discovery import discover_market, slug_for
 from maker5m.feeds.pipeline import MarketDataPipeline
+from maker5m.market.events import HealthStatus
 from maker5m.market.timebase import NANOS_PER_SECOND, TimestampNs
 from maker5m.persistence import (
+    DEFAULT_RISK_CAPACITY,
     MANIFEST_SCHEMA_VERSION,
+    BoundedChannel,
     Manifest,
     MarketIdentity,
     MetricsAccumulator,
     PersistenceWorker,
     TelemetryProvenance,
     TelemetryStore,
+    archive_store,
     database_digest,
-    risk_row,
     settlement_row,
     verify_store,
 )
 from maker5m.risk import RiskConfig, RiskEngine, RiskProvenance
+from maker5m.risk.engine import RiskDecision
+from maker5m.risk.overlay import risk_adjust
 from maker5m.risk.trace import HealthFrame, RiskController
 from maker5m.safety import LIVE_TRADING_ENABLED
 from maker5m.settlement import (
@@ -121,12 +126,16 @@ async def main(out: Path, stall_window: tuple[int, int] | None, buffer_capacity:
         market_id=identity.market_id, slug=slug, provenance=provenance.value
     )
     buffer = ObservationBuffer(capacity=buffer_capacity)
+    risk_channel = BoundedChannel(capacity=min(DEFAULT_RISK_CAPACITY, max(buffer_capacity, 1)))
+    fill_channel = BoundedChannel(capacity=8_192)
     worker = PersistenceWorker(
         buffer=buffer,
         store=TelemetryStore(path=database),
         identity=identity,
         analyzer=analyzer,
         metrics=metrics,
+        risk=risk_channel,
+        fills=fill_channel,
     )
 
     stalling = {"active": False, "started_at": 0.0, "ended_at": 0.0, "events": 0}
@@ -156,18 +165,79 @@ async def main(out: Path, stall_window: tuple[int, int] | None, buffer_capacity:
         )
 
     hot_path_ns: list[int] = []
+    last_evaluated = [-1]
+    places_by_state: dict[str, int] = {}
+
+    def frame(pipeline: MarketDataPipeline) -> HealthFrame:
+        """P6's verdict, read rather than recomputed.
+
+        The default `HealthFrame()` is not a neutral placeholder — it says CLOB UNKNOWN, awaiting
+        snapshot, SPOT UNKNOWN — and P9 correctly refuses to trade on that. The previous runner
+        passed one, so the risk record it wrote described a market it had not looked at. P6
+        remains the sole staleness authority; nothing here recomputes it.
+        """
+        return HealthFrame(
+            clob_status=pipeline.clob_health.status,
+            clob_awaiting_snapshot=pipeline.clob_health.awaiting_snapshot,
+            spot_status=pipeline.spot_health.status,
+            order_stream_status=HealthStatus.UNKNOWN,
+            order_stream_required=False,
+        )
+
+    def evaluate_now(pipeline: MarketDataPipeline, now_ns: TimestampNs) -> RiskDecision:
+        """Take a verdict against health as it stands, at the ordinal that stands.
+
+        `as_of_ingress_ordinal` is the merger's real ordinal, not zero: the audit has to be able
+        to say which point in the event stream a verdict applied to, and every record claiming
+        ordinal 0 says nothing at all.
+        """
+        record = controller.evaluate(
+            frame(pipeline),
+            as_of_ingress_ordinal=pipeline.merger.ordinal,
+            now_ns=now_ns,
+        )
+        risk_channel.publish(record)
+        last_evaluated[0] = pipeline.merger.ordinal
+        return RiskDecision(
+            state=record.state,
+            active=record.active,
+            latched=record.latched,
+            snapshot=controller.engine.snapshot,
+        )
 
     def observe(kind: str, raw_ns: int, decision: Any, pipeline: MarketDataPipeline) -> None:
-        del pipeline
+        """One shadow cycle, with the verdict taken as of this event and applied to it.
+
+        Order is production's: decide, evaluate, adjust, then prepare/reconcile inside `observe`.
+        The verdict is taken here rather than on the surrounding tick so it cannot lag the
+        condition by an event — one PLACE slipping through between a feed going stale and the
+        halt being noticed would defeat the whole mechanism, which is P9's own argument.
+        """
+        verdict = evaluate_now(pipeline, pipeline.merger.state.last_event_timestamp)
+        state = verdict.state.value
         started = perf_now_ns()
-        runs[0].observe(kind, raw_ns, decision, source_timestamp_of(kind))
+        before = runs[0].executor.orders.open_count
+        runs[0].observe(
+            kind,
+            raw_ns,
+            risk_adjust(decision, verdict),
+            source_timestamp_of(kind),
+            strategy_intent=decision.orders,
+        )
         hot_path_ns.append(perf_now_ns() - started)
+        if runs[0].executor.orders.open_count > before:
+            places_by_state[state] = places_by_state.get(state, 0) + 1
         if stalling["active"]:
             stalling["events"] = int(stalling["events"]) + 1
 
     def on_tick(now_ns: TimestampNs, pipeline: MarketDataPipeline) -> None:
-        del pipeline
-        controller.evaluate(HealthFrame(), as_of_ingress_ordinal=0, now_ns=now_ns)
+        """Evaluate when health moved without an event producing a verdict.
+
+        A quiet feed is exactly when a verdict matters and exactly when no event arrives to
+        trigger one.
+        """
+        if pipeline.merger.ordinal != last_evaluated[0]:
+            evaluate_now(pipeline, now_ns)
         if not stall_window:
             return
         offset = (int(now_ns) - int(t0_ns)) / NANOS_PER_SECOND
@@ -222,15 +292,13 @@ async def main(out: Path, stall_window: tuple[int, int] | None, buffer_capacity:
     # routing these through a second worker did not — the writes crossed a thread boundary and
     # sqlite refused every one of them, silently, leaving a market that verified INCOMPLETE. The
     # verifier caught it, which is what the verifier is for.
+    # Risk records were persisted continuously, through the same worker, as they were produced.
+    # Dumping `controller.trace` here instead would have made a mid-market crash lose the whole
+    # risk audit — and RiskTrace is bounded, so a long market's trace can have already lost its
+    # prefix by the time DONE arrives.
     closing = TelemetryStore(path=database)
     closing.open()
-    sequence = worker.stats.decisions_written
-    risk_records = list(controller.trace)
-    for record in risk_records:
-        sequence += 1
-        closing.write_risk(
-            risk_row(record, market_id=identity.market_id, persistence_sequence=sequence)
-        )
+    sequence = worker.persistence_sequence
     if settlement is not None:
         sequence += 1
         closing.write_settlement(
@@ -248,12 +316,12 @@ async def main(out: Path, stall_window: tuple[int, int] | None, buffer_capacity:
         capture_end_ns=TimestampNs(t0_ns + 300 * NANOS_PER_SECOND),
         source_revision=revision(),
         decision_count=worker.stats.decisions_written,
-        fill_count=0,
-        risk_count=len(risk_records),
+        fill_count=worker.stats.fills_written,
+        risk_count=worker.stats.risk_written,
         settlement_count=0 if settlement is None else 1,
-        first_ingress_ordinal=0,
-        last_ingress_ordinal=runs[0].pipeline.merger.ordinal,
-        first_persistence_sequence=1 if worker.stats.decisions_written else None,
+        first_ingress_ordinal=worker.first_ingress_ordinal,
+        last_ingress_ordinal=worker.last_ingress_ordinal,
+        first_persistence_sequence=1 if sequence else None,
         last_persistence_sequence=sequence or None,
         accepted_records=accepted,
         persisted_records=worker.stats.decisions_written,
@@ -265,6 +333,12 @@ async def main(out: Path, stall_window: tuple[int, int] | None, buffer_capacity:
         last_gap_at=worker.stats.last_gap_at,
         buffer_capacity=buffer.capacity,
         buffer_high_water=worker.stats.buffer_high_water,
+        risk_records_accepted=risk_channel.accepted,
+        risk_records_persisted=worker.stats.risk_written,
+        risk_records_dropped=risk_channel.dropped,
+        fill_captures_accepted=fill_channel.accepted,
+        fill_captures_persisted=worker.stats.fills_written,
+        fill_captures_dropped=fill_channel.dropped,
         database_bytes=None,
         database_sha256=None,
         provenance=provenance.value,
@@ -304,6 +378,19 @@ async def main(out: Path, stall_window: tuple[int, int] | None, buffer_capacity:
     stamped = manifest
 
     verification = verify_store(database, expected_sha256=digest)
+
+    # Cold, lossless, and only after the store verified. 853 MB per market is not a durable
+    # representation; ~11 MB is. The archive is proved to restore byte-identically before the
+    # raw file is even considered removable, and this module never removes it — deleting the
+    # only copy of a market's telemetry on the strength of an unchecked archive would be the
+    # worst thing here could do.
+    archive = archive_store(database)
+    print(
+        f"    archived {archive.raw_bytes:,} -> {archive.archive_bytes:,} bytes "
+        f"({archive.ratio:.1f}x) in {archive.compress_seconds:.1f}s, "
+        f"verified={archive.verified}",
+        flush=True,
+    )
     evidence = {
         "kind": "P11_TELEMETRY_PERSISTENCE",
         "provenance": provenance.value,
@@ -339,6 +426,7 @@ async def main(out: Path, stall_window: tuple[int, int] | None, buffer_capacity:
         },
         "analyzer": analyzer.summary(),
         "verification": verification.summary(),
+        "archive": archive.summary(),
         "stall": {
             "requested_window_s": list(stall_window) if stall_window else None,
             "started_at_s": stalling["started_at"] or None,

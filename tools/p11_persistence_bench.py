@@ -65,12 +65,17 @@ def child_run(mode: str, journal: Path, limit: int) -> dict[str, object]:
     from maker5m.market.events import BookUpdate, SpotTick
     from maker5m.numeric import parse_price, parse_share
     from maker5m.persistence import (
+        BoundedChannel,
         MarketIdentity,
         PersistenceWorker,
         TelemetryProvenance,
         TelemetryStore,
     )
     from maker5m.replay.codec import _dec_header
+    from maker5m.risk import RiskConfig, RiskEngine, RiskProvenance
+    from maker5m.risk.engine import RiskDecision
+    from maker5m.risk.overlay import risk_adjust
+    from maker5m.risk.trace import HealthFrame, RiskController
     from maker5m.strategy import BaseLot, StrategyEngine, default_config
     from maker5m.telemetry import InstrumentedRun, ObservationBuffer, SamplingPolicy, perf_now_ns
     from maker5m.telemetry.metrics import quantile
@@ -101,11 +106,25 @@ def child_run(mode: str, journal: Path, limit: int) -> dict[str, object]:
         enabled=True,
     )
 
+    # P9 runs in EVERY configuration, including off. Charging the risk evaluation itself to
+    # persistence would inflate P11's number with work production performs regardless — the same
+    # mistake P8's first benchmark made three times with simulation.
+    controller = RiskController(
+        engine=RiskEngine(config=RiskConfig()),
+        provenance=RiskProvenance.REPLAY_OF_REAL_CAPTURE
+        if hasattr(RiskProvenance, "REPLAY_OF_REAL_CAPTURE")
+        else RiskProvenance.REAL_PUBLIC_MARKET_DATA,
+    )
+    harness.risk = controller
+    risk_channel = BoundedChannel(capacity=400_000)
+
     worker: PersistenceWorker | None = None
     directory = tempfile.TemporaryDirectory()
     if mode != "off":
         worker = PersistenceWorker(
             buffer=harness.buffer,
+            risk=risk_channel,
+            fills=BoundedChannel(capacity=1_024),
             store=TelemetryStore(path=Path(directory.name) / "telemetry.sqlite3"),
             identity=MarketIdentity(
                 market_id=definition.market_id,
@@ -132,10 +151,33 @@ def child_run(mode: str, journal: Path, limit: int) -> dict[str, object]:
             merger.stages_measured = harness.sampling.selects(merger.ordinal, kind)
             decision = engine.decide(state)
             decided = perf_now_ns()
+            record = controller.evaluate(
+                HealthFrame(
+                    clob_status=pipeline.clob_health.status,
+                    clob_awaiting_snapshot=pipeline.clob_health.awaiting_snapshot,
+                    spot_status=pipeline.spot_health.status,
+                ),
+                as_of_ingress_ordinal=merger.ordinal,
+                now_ns=state.last_event_timestamp,
+            )
+            if mode != "off":
+                risk_channel.publish(record)
+            verdict = RiskDecision(
+                state=record.state,
+                active=record.active,
+                latched=record.latched,
+                snapshot=controller.engine.snapshot,
+            )
             source_ts = None
             if isinstance(event, BookUpdate | SpotTick):
                 source_ts = None  # the captured journal carries no venue clock; never invented
-            harness.observe(kind, start, decision, source_ts)
+            harness.observe(
+                kind,
+                start,
+                risk_adjust(decision, verdict),
+                source_ts,
+                strategy_intent=decision.orders,
+            )
             finished = perf_now_ns()
             if index >= WARMUP_EVENTS:
                 decide_ns.append(decided - start)

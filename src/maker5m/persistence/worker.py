@@ -154,6 +154,13 @@ class PersistenceWorker:
     _stop: threading.Event = field(default_factory=threading.Event, repr=False)
     _ready: threading.Event = field(default_factory=threading.Event, repr=False)
     _persistence_sequence: int = 0
+    first_ingress_ordinal: int | None = None
+    last_ingress_ordinal: int | None = None
+    """The ingress span actually persisted, recorded as it happens.
+
+    Taken from the records rather than from the merger at close, so the manifest bound describes
+    what is in the file rather than where the market got to — the two differ exactly when
+    something was dropped, which is when the bound matters."""
     _expected_seq: int = 0
     _started: bool = False
 
@@ -283,6 +290,11 @@ class PersistenceWorker:
         if description not in samples and len(samples) < 8:
             samples.append(description)
 
+    @property
+    def persistence_sequence(self) -> int:
+        """The last storage sequence assigned. Readable so a closing writer can continue it."""
+        return self._persistence_sequence
+
     def drain_side_channels(self) -> int:
         """Persist whatever fills and risk records are waiting. Never raises.
 
@@ -378,6 +390,9 @@ class PersistenceWorker:
             up_estimate=self._estimate("UP"),
             down_estimate=self._estimate("DOWN"),
         )
+        if self.first_ingress_ordinal is None:
+            self.first_ingress_ordinal = record.ingress_ordinal
+        self.last_ingress_ordinal = record.ingress_ordinal
         self.store.write_decision(record)
         if self.metrics is not None:
             self.metrics.observe_decision(record)

@@ -429,3 +429,172 @@ Unchanged by this round, and still the honest limit of P10:
 
 `LIVE_TRADING_ENABLED` is `False`. `REDEMPTION_ENABLED` is `False`. Zero real venue or chain
 writes were performed in this round or any before it.
+
+---
+
+# P10C attestation-binding closure
+
+Independent review accepted the P10B trust boundary above and found one narrow defect left in
+it: **an attestation was not bound to the provider or endpoint that produced the reading.**
+
+P10B is not withdrawn and nothing above is rewritten. It proved what it claimed — that providers
+are distinct and that each endpoint passed an identity check. What it did not prove is that a
+given identity check described the endpoint whose reading it was attached to.
+
+**Capture date:** 2026-08-26 (UTC). Evidence:
+`p10c-attestation-binding-1787739600-1787741400.json`, `p10-production-verifier-p10a55.json`.
+
+## The defect
+
+Five links, none of them fastened:
+
+| | Was |
+| --- | --- |
+| `ProviderIdentity` | recorded a `provider_id` only — "I identified *some* provider", leaving a later caller to assert which endpoint the proof belonged to |
+| `identity.attestation(endpoint)` | copied in whichever endpoint it was handed, so one proof could be re-labelled for any endpoint by changing an argument |
+| `AttestedProvider(endpoint, identity)` | accepted any pairing |
+| `CtfReader.read_condition(..., attestation=)` | attached whatever it was given |
+| `ProviderResolution` | carried no source of its own, so `attested` compared the proof against nothing |
+
+The last one is the heart of it. `ProviderAttestation.valid` checked chain id, CTF bytecode, pUSD
+bytecode and pUSD decimals — all correct, all *internal*. **The proof was supplying both sides of
+its own comparison**, so a perfectly valid attestation for endpoint A made a reading from
+endpoint B count.
+
+## The chain, now fastened
+
+```
+identify()          records the endpoint it ACTUALLY identified
+   |                    ProviderIdentity.endpoint_fingerprint, from self.endpoint
+   v
+to_attestation()    takes NO endpoint — there is no argument to re-point
+   |
+   v
+AttestedProvider    refuses to exist unless identity names its endpoint and passed
+   |                    AttestationBindingError
+   v
+CtfReader           refuses a foreign proof BEFORE any request is sent,
+   |                and stamps its OWN fingerprint on the reading
+   v
+ProviderResolution  records source_endpoint_fingerprint independently of the proof
+   |
+   v
+verify()            re-checks the binding on readings it never saw created
+                        ATTESTATION_BINDING_MISMATCH
+```
+
+`ATTESTATION_BINDING_MISMATCH` is kept distinct from `PROVIDER_NOT_ATTESTED` on purpose. A
+missing proof is usually a wiring mistake; a proof belonging to somebody else is evidence being
+moved around. An auditor should not have to guess which happened.
+
+## A claim that was false, corrected
+
+The P10B text above said `AttestedProvider` was "the only way to obtain" an attestation. That was
+not true. These are ordinary Python values, and a constructor is not a cryptographic capability —
+anyone can build a `ProviderAttestation` with whatever fields they like.
+
+What is defensible is narrower, and is what the code now enforces:
+
+* `attest_all` is the normal production factory;
+* every object validates its own binding at construction;
+* the reading records its source independently of the proof;
+* the pure verifier re-checks the binding on values it never created;
+* a mismatched object fails closed at every layer that could act on it.
+
+A determined caller can still construct nonsense. **It will not count** — which is the honest
+claim, and the one that is tested.
+
+## Both layers refuse the same bypass
+
+The exact bypass, pinned as a test:
+
+```python
+identity_a = <valid identity obtained for endpoint A>
+
+AttestedProvider(endpoint=endpoint_B, identity=identity_a)
+    -> AttestationBindingError
+
+# then bypass the constructor entirely and build the value by hand:
+hand_built = ProviderResolution(provider_id="b", ...,
+                                source_endpoint_fingerprint=B,
+                                attestation=identity_a.to_attestation())
+hand_built.answered   -> True    # it looks like a perfectly good reading
+hand_built.attested   -> False
+
+verify(...)  -> AMBIGUOUS, ATTESTATION_BINDING_MISMATCH
+```
+
+Sixteen of the new tests fail against the P10B code. `SUPPORTING UNIT TEST ONLY` — these are
+software refusal paths, not market evidence.
+
+## 55-market corpus, under the bound verifier
+
+```
+markets 55   RESOLVED 55   UP 27   DOWN 28   mismatches 0
+```
+
+Unchanged and on the same honest footing: historical market data is **real**; attestations are
+**contemporaneous with the replay, not with the capture**, because the corpus predates the
+attestation boundary. No historical attestation was invented.
+
+## Fresh real markets under the bound verifier
+
+Seven consecutive real `btc-updown-5m` settlements, `1787739600` → `1787741400`, newer than all
+P10B evidence.
+
+| Provider | Endpoint fingerprint | id binding | fingerprint binding | attestation |
+| --- | --- | --- | --- | --- |
+| `publicnode` | `https://polygon-bor-rpc.publicnode.com` | exact | exact | valid |
+| `drpc` | `https://polygon.drpc.org` | exact | exact | valid |
+| `quiknode-public` | `https://rpc-mainnet.matic.quiknode.pro` | exact | exact | valid |
+| `1rpc` | — | — | — | **rejected**, vendor usage limit; contributes nothing |
+
+"Exact" means endpoint, identity and attestation all agree on both the `provider_id` and the
+endpoint fingerprint — checked at each layer independently rather than once.
+
+| Market | States | Outcome | Quorum | Block | Lag |
+| --- | --- | --- | --- | --- | --- |
+| `…739600` | UNRESOLVED → RESOLVED | UP | 3 distinct bound | 92689976 | +95.0 s |
+| `…739900` | UNRESOLVED → RESOLVED | UP | 3 distinct bound | 92690174 | +91.1 s |
+| `…740200` | UNRESOLVED → RESOLVED | UP | 3 distinct bound | 92690372 | +88.3 s |
+| `…740500` | UNRESOLVED → RESOLVED | UP | 3 distinct bound | 92690557 | +67.8 s |
+| `…740800` | UNRESOLVED → RESOLVED | UP | 3 distinct bound | 92690776 | +93.7 s |
+| `…741100` | UNRESOLVED → RESOLVED | UP | 3 distinct bound | 92690974 | +91.5 s |
+| `…741400` | UNRESOLVED → RESOLVED | UP | 3 distinct bound | 92691175 | +94.3 s |
+
+**444 real provider readings, 0 binding faults.** Every reading's recorded source matched the
+attestation attached to it, on both the provider id and the endpoint fingerprint.
+
+(All seven resolved UP. That is what BTC did over those 35 minutes; it is an observation about
+the period, not a property of the verifier — the P10B run over a different 35 minutes was five
+DOWN and two UP.)
+
+## O16 still latches, under the bound verifier
+
+Market `btc-updown-5m-1787740500`, `CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET` — real market, real
+chain, corruption applied only to our local copy:
+
+```
+RESOLVED at +67.8s  UP  providers=3
+injected 'provider' -> AMBIGUOUS reasons=['PROVIDER_DISAGREEMENT'] plan=False
+corruption removed, fresh read -> RESOLVED  risk=HALTED  latched=['RESOLUTION_AMBIGUOUS']
+reconciled -> risk=SAFE latched=[] allows_place=True
+```
+
+| seq | signal | state | latched | place |
+| --- | --- | --- | --- | --- |
+| 1 | `RESOLUTION_SAFETY_UPDATE` | HALTED | `RESOLUTION_AMBIGUOUS` | False |
+| 2 | `RESOLUTION_SAFETY_UPDATE` (flag=False) | RECOVERING | `RESOLUTION_AMBIGUOUS` | False |
+| 3 | `RECONCILIATION_CONFIRMED` | SAFE | — | True |
+| 4 | `RISK_EVALUATION` | SAFE | — | True |
+
+**GENUINE REAL SETTLEMENT CONTRADICTION: UNOBSERVED** — now across 83 real markets.
+
+## Unchanged, and still the limit
+
+* **Real own-wallet redemption: UNRUN / P14.**
+* **Nonzero own-ledger settlement: UNRUN / P14.**
+* **`PayoutRedemption` for this bot: UNRUN / P14.**
+
+`LIVE_TRADING_ENABLED` is `False`. `REDEMPTION_ENABLED` is `False`. No transaction, no wallet, no
+credential. Zero venue writes and zero chain writes in this round.

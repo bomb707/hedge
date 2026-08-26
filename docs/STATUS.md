@@ -75,6 +75,58 @@ production.
 
 ---
 
+## P10C attestation-binding closure
+
+Independent review accepted the P10B boundary below and found one narrow defect left in it: **an
+attestation was not bound to the provider or endpoint that produced the reading.** P10B is not
+withdrawn — it proved providers were distinct and each endpoint passed identity. What it did not
+prove is that a given identity check described the endpoint whose reading it was attached to.
+
+`ProviderAttestation.valid` checked chain id, CTF bytecode, pUSD bytecode and pUSD decimals —
+all correct, all *internal*. **The proof supplied both sides of its own comparison**, so a valid
+attestation for endpoint A made a reading from endpoint B count.
+
+The chain is now fastened at every link:
+
+```
+identify()          records the endpoint it ACTUALLY identified
+to_attestation()    takes NO endpoint — no argument left to re-point
+AttestedProvider    refuses to exist unless identity names its endpoint  -> AttestationBindingError
+CtfReader           refuses a foreign proof BEFORE any request; stamps its OWN fingerprint
+ProviderResolution  records source_endpoint_fingerprint independently of the proof
+verify()            re-checks the binding on readings it never created  -> ATTESTATION_BINDING_MISMATCH
+```
+
+`ATTESTATION_BINDING_MISMATCH` is deliberately distinct from `PROVIDER_NOT_ATTESTED`: a missing
+proof is usually a wiring mistake, a proof belonging to somebody else is evidence being moved
+around, and an auditor should not have to guess which happened.
+
+**A false claim, corrected.** The P10B docs said `AttestedProvider` was "the only way to obtain"
+an attestation. It was not — these are ordinary Python values and a constructor is not a
+cryptographic capability. The defensible claim, which is what is now tested: `attest_all` is the
+production factory, every object validates its own binding, the verifier re-checks it, and a
+hand-built mismatch fails closed at every layer. A caller can still construct nonsense; it will
+not count.
+
+### Revalidated
+
+* **55-market corpus:** 55 RESOLVED, 27 UP, 28 DOWN, 0 mismatches — unchanged, and on the same
+  footing: real historical market data, attestations contemporaneous with the *replay*.
+* **7 fresh consecutive real markets** (`1787739600`–`1787741400`), newer than all P10B evidence.
+  **444 real provider readings, 0 binding faults**; every counted provider matched exactly at
+  endpoint, identity and attestation on both `provider_id` and fingerprint. `1rpc` rejected again
+  on a real vendor usage limit.
+* **Every P10B protection asserted as still standing** — finalized tag, concrete block, three
+  distinct providers, three distinct endpoints, no duplicate vote — because this round changed
+  the type those rules operate on.
+* **O16 still latches** on real market `btc-updown-5m-1787740500`: fresh real readings resolved
+  cleanly at sequence 2 and the halt held; only the explicit reconciliation lifted it.
+
+Sixteen of the new tests fail against the P10B code. **GENUINE REAL SETTLEMENT CONTRADICTION:
+UNOBSERVED** — now across 83 real markets.
+
+---
+
 ## P10 trust-boundary closure
 
 Independent review accepted the settlement logic and rejected the phase on three production
@@ -851,8 +903,8 @@ orders, which P8 does not place. Both stay OPEN.
 |---|---|
 | **Current phase** | **P10 — settlement, resolution, and redemption planning** |
 | P10 implementation gate | **PASSED** — verifier, payout arithmetic, plan, encoder, audit record |
-| P10 real-market resolution gate | **PASSED** — 28 real markets over 5 live runs, 1 full lifecycle |
-| P10 trust-boundary gate | **PASSED** — provider independence, identity attestation, atomic finality |
+| P10 real-market resolution gate | **PASSED** — 35 real markets over 6 live runs, 1 full lifecycle |
+| P10 trust-boundary gate | **PASSED** — provider independence, bound identity attestation, atomic finality |
 | P10 authenticated redemption gate | **UNRUN / DEFERRED TO P14** — no key, no credential, no transaction |
 | P9 implementation gate | **PASSED** |
 | P9 real-market integration gate | **PASSED** — fresh baseline + controlled-fault markets |
@@ -890,6 +942,9 @@ orders, which P8 does not place. Both stay OPEN.
 | P10 trust-boundary commits | `836cc87` defects A + B + C and the finality/block corrections · `381e21e` O16 latch · `14ce2d9` corpus revalidation · `fbdc669` fresh real markets · `f4d793d` docs |
 | Where defect C landed | `836cc87`, in `settlement/reader.py`. Its message enumerates A, B, the finality tag and the missing block but not the moving-tag fallback; the change is there and is documented in the evidence. Recorded here rather than corrected by rewriting the commit. |
 | Configured provider independence | **OPERATIONAL assumption** — duplicate ids and URLs refused; organisational independence unproved |
+| P10C branch | `fix/p10-attestation-binding` |
+| P10C commits | `f5011ef` binding · `47f1fa1` refusal tests · `236f369` real revalidation |
+| Attestation binding | identity → endpoint → reading → attestation, checked at each layer; **software trust boundary, not cryptographic** |
 | GitHub default branch | `main` (verified 2026-08-26; the earlier `bootstrap/phase-0` observation no longer holds) |
 | P9 commits | `4be0032` risk engine · `6576de0` recovery + runner · `1584dee` stale recovery fix · `b2e715e` real-market evidence · `4c2ab1d` full fault market |
 | Last accepted milestone | P9C — risk-audit sequence integrity (`44e05e1`) |

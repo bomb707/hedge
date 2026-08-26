@@ -295,8 +295,8 @@ plus `INVARIANTS.md` and `STATUS.md`.
 | Gate | Status |
 |---|---|
 | Implementation | **PASSED** — verifier, exact payout arithmetic, plan, encoder, audit record |
-| Real-market resolution | **PASSED** — 28 real markets over 5 live runs, 1 full lifecycle |
-| Trust boundary | **PASSED** — provider independence, identity attestation, atomic finality |
+| Real-market resolution | **PASSED** — 35 real markets over 6 live runs, 1 full lifecycle |
+| Trust boundary | **PASSED** — provider independence, **bound** identity attestation, atomic finality |
 | Authenticated redemption | **UNRUN / DEFERRED TO P14** — no key, no credential, no transaction |
 
 The acceptance gate below says "realised PnL matching the ledger to the last unit". That was
@@ -311,9 +311,16 @@ trust-boundary defects — a quorum that never required its providers to differ,
 that was printed rather than enforced, and a moving-tag fallback that defeated the atomic read.
 All three are fixed and revalidated on the 55-market corpus and on 7 fresh real markets.
 
-**Provider independence is asserted, not proved:** duplicate ids and duplicate endpoint URLs are
-refused, but organisational independence of the configured vendors remains an OPERATIONAL
-assumption.
+A second review round (P10C) then found that an attestation was not bound to the provider or
+endpoint that produced the reading — the proof supplied both sides of its own comparison, so a
+valid proof for one endpoint made another endpoint's reading count. Identity, endpoint, reading
+and attestation are now one chain, checked at each layer independently.
+
+**Two limits stated rather than glossed.** Provider independence is asserted, not proved:
+duplicate ids and duplicate endpoint URLs are refused, but organisational independence of the
+configured vendors remains an OPERATIONAL assumption. And the attestation boundary is a
+**software** trust boundary, not a cryptographic one — a caller can construct a mismatched value,
+and what is guaranteed is that it fails closed everywhere it could matter.
 
 Evidence: [`evidence/P10-SETTLEMENT-REAL-MARKET.md`](evidence/P10-SETTLEMENT-REAL-MARKET.md).
 **O16 CLOSED** — OPERATIONAL safety policy: `RESOLUTION_AMBIGUOUS` latches, and only an explicit

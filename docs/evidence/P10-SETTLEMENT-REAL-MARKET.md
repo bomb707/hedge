@@ -247,3 +247,181 @@ The redemption calldata was validated against the real Conditional Tokens contra
 from a zero-balance sender — 8 of 8 accepted, 4 UP-resolved and 4 DOWN-resolved
 (`p10-real-ethcall.json`). An `eth_call` proves the contract accepts the encoding and the index
 sets. It does not prove a redemption pays, and it is not represented as doing so.
+
+
+---
+
+# P10 trust-boundary closure
+
+Independent review accepted the settlement logic above and rejected the phase on three
+production trust-boundary defects. All three had the same shape: a rule the code described
+correctly in prose and never enforced.
+
+**Capture date:** 2026-08-26 (UTC). Evidence:
+`p10-trust-boundary-1787733300-1787735100.json`, `p10-production-verifier-p10a55.json`.
+
+## The three defects
+
+### A — one RPC could be three votes
+
+The quorum counted `provider_id`s without ever requiring them to differ. Three readings from one
+endpoint satisfied `minimum_agreeing_providers=3`:
+
+```
+provider_id = "a"   ->  RESOLVED
+provider_id = "a"       3 providers agree
+provider_id = "a"
+```
+
+That is the one thing the quorum exists to prevent. Two names pointing at one URL did the same
+thing more quietly.
+
+**Now:** independence is a property of the evidence *set* and is checked before anything the
+readings say. A repeated id, or two ids sharing one endpoint fingerprint, fails closed with
+`DUPLICATE_PROVIDER_ID`. `EndpointSet` refuses both at configuration time — the moment to refuse
+a mistake whose whole effect is to make a quorum look larger than it is.
+
+The fingerprint compares normalised URLs and nothing more. It cannot show that two vendors are
+organisationally independent, and does not claim to; **the independence of the configured
+endpoint set stays an OPERATIONAL assumption**, now stated in `OPEN_ITEMS.md`.
+
+### B — identity was printed, not enforced
+
+`CtfReader.identify()` checked the right things — chain id 137, CTF bytecode present, pUSD
+bytecode present, pUSD `decimals() == 6`. The runner then printed the result and **built readers
+from every endpoint anyway**, so a provider that failed those checks could still produce a
+reading that counted.
+
+**Now:** `ProviderAttestation` carries what an endpoint proved, `AttestedProvider` is the only
+way to obtain one, and `attest_all` is the only way to obtain that. A reading whose attestation
+is missing or invalid is refused with `PROVIDER_NOT_ATTESTED`.
+
+Refused rather than silently dropped, deliberately: dropping it would turn a wiring bug into a
+smaller-than-configured quorum that still looked like consensus. The *runner* excludes untrusted
+endpoints so they never produce a reading at all, and refuses to start if fewer than the
+configured number pass.
+
+### C — a moving-tag fallback defeated the atomic read
+
+```
+at = block_tag if block_number is None else hex(block_number)
+```
+
+Exactly when the block lookup fails — when the provider is least reliable — the payout calls
+went back to the moving tag, reintroducing the incoherent `(block, payout)` pairing that the
+atomicity fix above existed to remove.
+
+**Now:** no concrete block, no reading. The provider raises and contributes nothing. Proven by a
+scripted transport, because proving a refusal means proving a call that never happens: with
+`eth_getBlockByNumber` returning `None`, **zero** `eth_call` requests follow.
+
+### Also fixed
+
+* **Finality policy was decorative.** `ResolutionDecision.block_tag` came from
+  `provider_readings[0]`, so whichever provider happened to be first defined what the audit
+  record claimed. Two providers on `latest` and one on `finalized` passed as three finalized
+  confirmations. The tag now comes from the policy, and a reading taken under another rule is
+  refused with `FINALITY_POLICY_MISMATCH`.
+* **A RESOLVED verdict could name no block.** Agreement with nothing concrete behind it cannot
+  authorise a redemption, because the audit could not say which finalized state authorised it.
+  Now `MISSING_AUTHORITATIVE_BLOCK`.
+* **`SettlementPolicy.confirmation_depth` was exposed and did nothing.** Removed rather than
+  left as a knob with no effect. A confirmation-depth fallback can be added later with its own
+  evidence if an endpoint we need ever lacks `finalized`.
+
+  `p10-end-to-end-btc-updown-5m-1787716800.json` still records `"confirmation_depth": null`,
+  because it was captured before the removal and describes the code that produced it. Recordings
+  are not edited to match later code; this note is how the difference is reconciled.
+
+## The 55-market corpus, re-run under the boundary
+
+```
+markets 55   RESOLVED 55   UP 27   DOWN 28   mismatches 0
+every market: exactly 3 distinct attested providers
+```
+
+Nothing in the historical data was modified and the boundary was not weakened to keep the count.
+Two things the replay states rather than glosses:
+
+* **The attestation is contemporaneous with the replay, not the capture.** The corpus predates
+  the attestation boundary, so no proof of endpoint identity exists for the moment those readings
+  were taken. None was invented; the endpoints are attested now and the record says so.
+* **The corpus was captured at `latest`, not `finalized`.** The replay policy names that rule.
+  A `finalized` policy correctly refuses the same readings, which is asserted as its own test —
+  that refusal is the finality check working.
+
+`1rpc` fails identity for real (a vendor usage-limit error), so its 55 readings never enter the
+evidence — the 26 good ones for the same reason as the 29 rate-limited ones. Demanding a quorum
+of four is now unreachable on all 55 markets; before the boundary it was met on 26 of them by a
+provider that had merely *answered*.
+
+## Fresh real markets under the corrected code
+
+Seven consecutive real `btc-updown-5m` settlements, `1787733300` → `1787735100`, all newer than
+every market in the P10 evidence above.
+
+```
+attested   publicnode, drpc, quiknode-public
+untrusted  1rpc — RpcError -32001, vendor usage limit; excluded, contributes nothing
+distinct provider ids          3
+distinct endpoint fingerprints 3
+policy     finalized, minimum_agreeing_providers=3
+```
+
+| Market | States | Outcome | Quorum | Authoritative block | Tag |
+| --- | --- | --- | --- | --- | --- |
+| `…733300` | UNRESOLVED → RESOLVED | DOWN | 3 distinct | 92685772 | finalized |
+| `…733600` | UNRESOLVED → RESOLVED | UP | 3 distinct | 92685973 | finalized |
+| `…733900` | UNRESOLVED → RESOLVED | DOWN | 3 distinct | 92686173 | finalized |
+| `…734200` | UNRESOLVED → RESOLVED | DOWN | 3 distinct | 92686372 | finalized |
+| `…734500` | UNRESOLVED → RESOLVED | DOWN | 3 distinct | 92686573 | finalized |
+| `…734800` | UNRESOLVED → RESOLVED | UP | 3 distinct | 92686773 | finalized |
+| `…735100` | UNRESOLVED → RESOLVED | DOWN | 3 distinct | 92686973 | finalized |
+
+Resolution lag 88.0–92.6 s after market end. No duplicate provider vote, no moving-tag fallback,
+no false ambiguity, and six of the seven emitted no risk signal at all.
+
+## O16 on a real market
+
+**Provenance: `CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET`.** Market `btc-updown-5m-1787734200` is
+real and resolved correctly to DOWN at +90.7 s. The contradiction is ours, applied to our local
+copy of readings that had already arrived. **Not a venue incident.**
+
+```
+RESOLVED at +90.7s  DOWN  providers=3
+injected 'provider' -> AMBIGUOUS reasons=['PROVIDER_DISAGREEMENT'] plan=False
+corruption removed, fresh read -> RESOLVED  risk=HALTED  latched=['RESOLUTION_AMBIGUOUS']
+reconciled -> risk=SAFE latched=[] allows_place=True
+```
+
+The ordered risk sequence, in full:
+
+| seq | signal | state | active | latched | place |
+| --- | --- | --- | --- | --- | --- |
+| 1 | `RESOLUTION_SAFETY_UPDATE` | HALTED | `RESOLUTION_AMBIGUOUS` | `RESOLUTION_AMBIGUOUS` | False |
+| 2 | `RESOLUTION_SAFETY_UPDATE` (flag=False) | RECOVERING | — | `RESOLUTION_AMBIGUOUS` | False |
+| 3 | `RECONCILIATION_CONFIRMED` | SAFE | — | — | True |
+| 4 | `RISK_EVALUATION` | SAFE | — | — | True |
+
+Sequence 2 is the point of the change. Fresh **real** readings resolved cleanly and the generic
+clearing signal took the condition away — and the halt stayed up, because the reason is latched.
+Only sequence 3, an explicit statement that somebody established what happened, lifted it.
+
+**O16: CLOSED — OPERATIONAL safety policy.** It latches. This is an engineering fail-safe
+decision about what our engine should do after contradictory settlement evidence, not a claim
+about the venue.
+
+**GENUINE REAL SETTLEMENT CONTRADICTION: UNOBSERVED.** Across 76 real markets neither Polygon
+nor Polymarket ever contradicted itself. Every ambiguity observed was either injected by us or
+was the verifier's own defect, since fixed.
+
+## Still not done
+
+Unchanged by this round, and still the honest limit of P10:
+
+* **Real own-wallet redemption: UNRUN / P14.** No transaction was sent; no wallet key exists.
+* **Nonzero own-ledger settlement: UNRUN / P14.** Every ledger settled is empty.
+* **`PayoutRedemption` for this bot: UNRUN / P14.**
+
+`LIVE_TRADING_ENABLED` is `False`. `REDEMPTION_ENABLED` is `False`. Zero real venue or chain
+writes were performed in this round or any before it.

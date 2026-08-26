@@ -716,37 +716,55 @@ Two P9 facts belong in the record without being open items:
 
 ---
 
-## P10 added one open item (O16) and closed none of the strategy items
+## P10 closed one open item (O16) and closed none of the strategy items
 
-Settlement is `OPERATIONAL` machinery, so almost nothing in it is a strategy question. Two P10
+Settlement is `OPERATIONAL` machinery, so almost nothing in it is a strategy question. Three P10
 facts belong in the record:
 
-* **The finality-lag tolerance is a decided engineering question, not an open one.** Real data
-  answered it: `SettlementPolicy.tolerate_provider_block_lag` defaults to `True` because the
-  strict reading halted 3 of the first 9 live markets on ordinary skew between providers'
-  `finalized` heads. The strict behaviour is still reachable by configuration and both are
-  tested. See `docs/evidence/P10-SETTLEMENT-REAL-MARKET.md`.
+* **How a provider split is read is a decided engineering question, not an open one.** Real data
+  answered it. The strict reading — every answering provider must report the resolution — halted
+  6 of the first 15 live markets on nothing, so `minimum_agreeing_providers` now counts providers
+  positively agreeing on one payout vector and a provider reporting nothing leaves the state
+  `UNRESOLVED`. The strict behaviour stays reachable as
+  `SettlementPolicy.require_unanimous_resolution` and is tested. See
+  `docs/evidence/P10-SETTLEMENT-REAL-MARKET.md`, which also records the first explanation of that
+  defect, which was wrong.
+* **Provider independence is asserted, not proved.** The trust boundary rejects duplicate
+  provider ids and duplicate endpoint URLs, and refuses any reading from an endpoint that has not
+  attested its chain and contracts. It cannot show that two vendors are organisationally
+  independent — that two URLs do not resolve to one operator's infrastructure — and does not
+  claim to. **The independence of the configured endpoint set remains an OPERATIONAL assumption.**
 * **Authenticated redemption is UNRUN, not unresolved** — `DEFERRED TO P14`, like the rest of
   the authenticated surface. The transaction plan and its encoding are validated against the
   real contract by `eth_call`; what is unrun is submitting one.
 
 ### O16 — should `RESOLUTION_AMBIGUOUS` latch?
 
-**Status: OPEN.** P9 does not list `RESOLUTION_AMBIGUOUS` in `REQUIRES_RECONCILIATION`, so
-unlike `POSITION_MISMATCH` or `ORDER_STATE_UNCERTAIN` it clears as soon as anything sets its
-flag to `False`. P10 does not exploit that: `maker5m.settlement.safety` never emits
-`flag=False`, so the halt is sticky in practice and only a deliberate operator signal lifts it.
+**Status: CLOSED — OPERATIONAL safety policy.** It latches.
 
-That makes the current behaviour safe but load-bearing on one module's restraint rather than on
-the risk engine's own contract. Whether P9 should latch it instead is a P9 design question and
-is **not** being answered here by quietly editing `REQUIRES_RECONCILIATION`.
+`RiskReason.RESOLUTION_AMBIGUOUS` is now in P9's `REQUIRES_RECONCILIATION`. Clearing the
+condition enters `RECOVERING` with the reason still latched; only an explicit ordered
+`RECONCILIATION_CONFIRMED` lifts it, and P9 already refuses one for a reason that is still
+active. A generic `RESOLUTION_SAFETY_UPDATE(flag=False)` cannot stand in for it.
 
-**Closing experiment:** decide whether an ambiguous settlement is a condition that can ever be
-observed to have passed (like a stale feed, which recovers) or one that requires positive
-evidence (like a position mismatch, which does not). The distinction is only testable against a
-real ambiguous settlement, which has not yet occurred: in 70 real markets the chain never
-contradicted itself, and every ambiguity observed was either injected by us or ordinary
-provider lag. **UNRUN pending a genuine venue ambiguity.**
+**Why it closes without a genuine venue contradiction.** The question is not "how often does
+Polymarket contradict itself" — it is "what should our engine do after contradictory settlement
+evidence". That is an engineering fail-safe decision, and waiting for the venue to malfunction
+before making it would be waiting for the wrong thing. Contradictory evidence about which side
+was paid is a condition that requires positive evidence to clear, like `POSITION_MISMATCH` and
+unlike a stale feed: a second read of the same chain that happens to look tidier is not evidence
+that the first disagreement was imaginary.
+
+Validated end to end on a real market under `CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET` — real
+market, real chain state, corruption applied only to our local copy — through the full
+lifecycle: clean settlement raises nothing; local contradiction halts and latches; fresh real
+clean readings resolve while the latch holds; explicit reconciliation clears it; SAFE returns
+after the recovery hold.
+
+**GENUINE REAL SETTLEMENT CONTRADICTION: UNOBSERVED.** Across 76 real markets neither Polygon
+nor Polymarket ever contradicted itself. Every ambiguity seen was either injected by us or was
+the verifier's own defect, since fixed. This item is closed as a policy decision and states no
+empirical claim about how often real ambiguities occur.
 
 ---
 
@@ -769,4 +787,4 @@ provider lag. **UNRUN pending a genuine venue ambiguity.**
 | O13 | Quote-centre tick tie-breaking | OPEN | — (reference policy in use) |
 | O14 | Strike chaining unverified / no strike published | OPEN | strike-dependent models |
 | O15 | `LiveOrderTable.current()` linear in orders ever placed | **CLOSED** — indexed, confirmed on real data | — |
-| O16 | Should `RESOLUTION_AMBIGUOUS` latch (P9 `REQUIRES_RECONCILIATION`)? | OPEN | — (halt is sticky by construction) |
+| O16 | Should `RESOLUTION_AMBIGUOUS` latch (P9 `REQUIRES_RECONCILIATION`)? | **CLOSED** — OPERATIONAL safety policy: it latches | — |

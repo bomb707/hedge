@@ -295,7 +295,8 @@ plus `INVARIANTS.md` and `STATUS.md`.
 | Gate | Status |
 |---|---|
 | Implementation | **PASSED** — verifier, exact payout arithmetic, plan, encoder, audit record |
-| Real-market resolution | **PASSED** — 21 real markets over 4 live runs, 1 full lifecycle |
+| Real-market resolution | **PASSED** — 28 real markets over 5 live runs, 1 full lifecycle |
+| Trust boundary | **PASSED** — provider independence, identity attestation, atomic finality |
 | Authenticated redemption | **UNRUN / DEFERRED TO P14** — no key, no credential, no transaction |
 
 The acceptance gate below says "realised PnL matching the ledger to the last unit". That was
@@ -305,9 +306,19 @@ ledger and the same real payout vector; what is **not** demonstrated is agreemen
 Nonzero own-ledger settlement economics are **UNRUN / DEFERRED TO P14** and the word "realised"
 is deliberately absent from the code, which says `paper_settlement_pnl`.
 
+Independent review accepted the settlement logic and rejected the first round on three
+trust-boundary defects — a quorum that never required its providers to differ, an identity check
+that was printed rather than enforced, and a moving-tag fallback that defeated the atomic read.
+All three are fixed and revalidated on the 55-market corpus and on 7 fresh real markets.
+
+**Provider independence is asserted, not proved:** duplicate ids and duplicate endpoint URLs are
+refused, but organisational independence of the configured vendors remains an OPERATIONAL
+assumption.
+
 Evidence: [`evidence/P10-SETTLEMENT-REAL-MARKET.md`](evidence/P10-SETTLEMENT-REAL-MARKET.md).
-One open item added: **O16** (should `RESOLUTION_AMBIGUOUS` latch in P9?). No strategy open item
-was closed, and none was opened by assumption.
+**O16 CLOSED** — OPERATIONAL safety policy: `RESOLUTION_AMBIGUOUS` latches, and only an explicit
+ordered `RECONCILIATION_CONFIRMED` lifts it. No strategy open item was closed, and none was
+opened or closed by assumption.
 
 - **Goal:** correct winner determination and redemption. **O11 must be closed first.**
 - **Inputs:** Canonical §18, §18.1; Detailed §32, §33; I15, I16; O11.
@@ -316,7 +327,8 @@ was closed, and none was opened by assumption.
 - **Delivered:** `contracts` (addresses, selectors, ABI encoding), `resolution` (pure verifier,
   4 states, 11 typed ambiguity reasons, multi-provider quorum), `payout` (exact CTF integer
   arithmetic), `redeem` (preconditions, plan, `REDEMPTION_ENABLED = False` transport), `reader`
-  (read-only multi-RPC), `safety` (ordered P9 halt on ambiguity), `audit` (settlement record).
+  (read-only multi-RPC, attested endpoints only, atomic block-pinned reads), `safety` (ordered
+  P9 halt on ambiguity), `audit` (settlement record).
 - **Modules:** `src/maker5m/settlement/`.
 - **Tests:** cancel-at-`T0+280` then hold; no sell/hedge/merge/split/convert path exists in
   the codebase; ambiguous resolution halts rather than guesses; realised redemption

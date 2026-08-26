@@ -75,6 +75,57 @@ production.
 
 ---
 
+## P10 trust-boundary closure
+
+Independent review accepted the settlement logic and rejected the phase on three production
+trust-boundary defects. All three had one shape: a rule the code described correctly in prose
+and never enforced.
+
+| Defect | Was | Is |
+|---|---|---|
+| **A** — provider independence | `("a", "a", "a")` satisfied a three-provider quorum; two ids could share one URL | `DUPLICATE_PROVIDER_ID` fails closed; `EndpointSet` refuses both at configuration time |
+| **B** — identity attestation | `identify()` checked the right things and the runner built readers from every endpoint anyway | `ProviderAttestation` is carried; an unattested reading is refused with `PROVIDER_NOT_ATTESTED`; the runner excludes untrusted endpoints and refuses to start below quorum |
+| **C** — moving-tag fallback | payout calls fell back to the moving tag exactly when the block lookup failed | no concrete block, no reading — proven by a scripted transport issuing **zero** `eth_call`s |
+
+Also fixed: the finality rule came from `provider_readings[0].block_tag`, so whichever provider
+was first defined what the audit claimed (`FINALITY_POLICY_MISMATCH` now); a RESOLVED verdict
+could name no block (`MISSING_AUTHORITATIVE_BLOCK` now); and `confirmation_depth` was exposed and
+did nothing (removed).
+
+**Independence is asserted, not proved.** The fingerprint compares normalised URLs. It cannot
+show two vendors are organisationally independent, and does not claim to — that stays an
+OPERATIONAL assumption, recorded in `OPEN_ITEMS.md`.
+
+### Revalidated
+
+* **55-market P10A corpus:** 55 RESOLVED, 27 UP, 28 DOWN, 0 mismatches, every market on exactly
+  three distinct attested providers. No historical data was modified and the boundary was not
+  weakened to keep the count. The attestation is contemporaneous with the *replay*, not the
+  capture, and the record says so; the corpus was captured at `latest`, and a `finalized` policy
+  correctly refuses it.
+* **7 fresh consecutive real markets** (`1787733300`–`1787735100`), newer than all prior P10
+  evidence: every verdict on 3 distinct trusted providers and 3 distinct endpoint URLs, every
+  block concrete and `finalized`, no duplicate vote, no moving-tag fallback, no false ambiguity.
+  `1rpc` failed identity for real and contributed nothing.
+
+### O16 — CLOSED, OPERATIONAL safety policy
+
+`RESOLUTION_AMBIGUOUS` now latches. Proven on real market `btc-updown-5m-1787734200` under
+`CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET`:
+
+```
+seq 1  RESOLUTION_SAFETY_UPDATE   HALTED      latched=[RESOLUTION_AMBIGUOUS]  place=False
+seq 2  RESOLUTION_SAFETY_UPDATE   RECOVERING  latched=[RESOLUTION_AMBIGUOUS]  place=False   <- fresh real read was RESOLVED
+seq 3  RECONCILIATION_CONFIRMED   SAFE        latched=[]                      place=True
+```
+
+Sequence 2 is the point: fresh **real** readings resolved cleanly, the generic clearing signal
+took the condition away, and the halt stayed up. **GENUINE REAL SETTLEMENT CONTRADICTION:
+UNOBSERVED** — in 76 real markets the venue never contradicted itself; every ambiguity seen was
+injected by us or was the verifier's own defect.
+
+---
+
 ## P10: settlement against real markets
 
 Full evidence in
@@ -800,7 +851,8 @@ orders, which P8 does not place. Both stay OPEN.
 |---|---|
 | **Current phase** | **P10 — settlement, resolution, and redemption planning** |
 | P10 implementation gate | **PASSED** — verifier, payout arithmetic, plan, encoder, audit record |
-| P10 real-market resolution gate | **PASSED** — 21 real markets, 4 live runs, 1 full lifecycle |
+| P10 real-market resolution gate | **PASSED** — 28 real markets over 5 live runs, 1 full lifecycle |
+| P10 trust-boundary gate | **PASSED** — provider independence, identity attestation, atomic finality |
 | P10 authenticated redemption gate | **UNRUN / DEFERRED TO P14** — no key, no credential, no transaction |
 | P9 implementation gate | **PASSED** |
 | P9 real-market integration gate | **PASSED** — fresh baseline + controlled-fault markets |
@@ -834,6 +886,9 @@ orders, which P8 does not place. Both stay OPEN.
 | P10 branch | `feature/p10-settlement` |
 | P10 commits | `eae8b6f` verifier · `c9414c8` settlement + redemption planning · `fde4b38` risk bridge · `4f3789d` first (wrong-premise) split fix · `8b60685` provider-quorum correction · `9fe374a` real-market evidence |
 | P10 own-ledger settlement economics | **UNRUN / DEFERRED TO P14** — every ledger settled is empty |
+| P10 trust-boundary branch | `fix/p10-settlement-trust-boundary` |
+| P10 trust-boundary commits | `836cc87` provider independence · `381e21e` O16 latch · `14ce2d9` corpus revalidation |
+| Configured provider independence | **OPERATIONAL assumption** — duplicate ids and URLs refused; organisational independence unproved |
 | GitHub default branch | `main` (verified 2026-08-26; the earlier `bootstrap/phase-0` observation no longer holds) |
 | P9 commits | `4be0032` risk engine · `6576de0` recovery + runner · `1584dee` stale recovery fix · `b2e715e` real-market evidence · `4c2ab1d` full fault market |
 | Last accepted milestone | P9C — risk-audit sequence integrity (`44e05e1`) |

@@ -173,7 +173,8 @@ def build_decision_record(
         event_timestamp_ns=event_ts,  # type: ignore[arg-type]
         exchange_timestamp_ns=observation[OBS_SOURCE_TS],  # type: ignore[arg-type]
         phase=telemetry.phase.value,
-        spot_price=None if spot is None else int(spot.price.value),
+        spot_price_units=None if spot is None else spot.price.units,
+        spot_price_scale_decimals=None if spot is None else spot.price.scale_decimals,
         spot_timestamp_ns=spot_ts,
         spot_age_ns=_age(event_ts, spot_ts),
         up_best_bid=None if book is None or book.up_bid is None else book.up_bid.price,

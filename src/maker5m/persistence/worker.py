@@ -109,6 +109,15 @@ class PersistenceWorker:
     can actually be exercised. It stalls the *consumer*, never the producer — which is the whole
     point of the experiment."""
 
+    _draining: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    """Consumer-side only. The producer never sees this lock and never waits on it.
+
+    It exists because sequence accounting is only meaningful with a single consumer: two threads
+    popping the same deque interleave, so each sees the other's observations as forward jumps and
+    reports gaps that never happened. Phantom gaps are worse than no accounting at all — they
+    would mark a whole market's telemetry incomplete for nothing, and would hide a real gap in
+    the noise. Found by running two drainers by accident in a load test."""
+
     _thread: threading.Thread | None = field(default=None, repr=False)
     _stop: threading.Event = field(default_factory=threading.Event, repr=False)
     _persistence_sequence: int = 0
@@ -161,7 +170,21 @@ class PersistenceWorker:
         `popleft` rather than `drain()`: taking the whole deque would race with a producer still
         appending to it, and would also mean holding a market-sized list in this thread — which
         is precisely the retention P11 exists to stop.
+
+        **Single consumer.** Concurrent callers are turned away rather than interleaved; see
+        `_draining`.
         """
+        if not self._draining.acquire(blocking=False):
+            # Another thread is already draining. Returning rather than waiting keeps this a
+            # non-blocking consumer, and the observations are not lost — the other drainer has
+            # them.
+            return 0
+        try:
+            return self._drain_locked()
+        finally:
+            self._draining.release()
+
+    def _drain_locked(self) -> int:
         records = self.buffer.records
         occupancy = len(records)
         if occupancy > self.stats.buffer_high_water:

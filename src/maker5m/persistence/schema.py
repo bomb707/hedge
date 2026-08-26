@@ -186,7 +186,14 @@ class DecisionRecord:
 
     phase: str
 
-    spot_price: int | None
+    spot_price_units: int | None
+    spot_price_scale_decimals: int | None
+    """BTC spot in its own self-describing form, exactly as O12 left it.
+
+    Two fields rather than one decimal: the feed's scale is data, not a formatting choice, and
+    collapsing ``units`` and ``scale_decimals`` into a single number would either lose precision
+    or silently assert a scale the feed never claimed."""
+
     spot_timestamp_ns: TimestampNs | None
     spot_age_ns: int | None
 
@@ -303,7 +310,8 @@ class FillRecord:
     queue_ahead_before: ShareUnits | None
     queue_confidence: str | None
 
-    spot_price_at_fill: int | None
+    spot_price_units_at_fill: int | None
+    spot_price_scale_decimals_at_fill: int | None
     up_best_bid_at_fill: PriceUnits | None
     up_best_ask_at_fill: PriceUnits | None
     down_best_bid_at_fill: PriceUnits | None

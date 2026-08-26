@@ -98,13 +98,17 @@ def _contiguous(values: list[int]) -> bool:
     return values == list(range(values[0], values[0] + len(values)))
 
 
-def verify_store(path: Path, *, market_id: str | None = None) -> VerificationResult:
+def verify_store(
+    path: Path, *, market_id: str | None = None, expected_sha256: str | None = None
+) -> VerificationResult:
     """Check one persisted market end to end.
 
-    ``expected_hash`` is deliberately not a parameter: the manifest carries the hash the writer
-    computed after closing, and comparing the file against its own manifest is the check that
-    catches later modification. Passing the expected value in from outside would only prove that
-    the caller and the file agree.
+    ``expected_sha256`` comes from the sidecar manifest, not from inside the database, because a
+    file cannot contain its own hash: writing the digest into the store would change the store
+    and invalidate the digest in the same act. The sidecar is written once the database is
+    closed and nothing is still touching it.
+
+    Passing ``None`` skips the hash check and says so in ``checks``; it does not quietly pass.
     """
     try:
         connection = open_for_read(path)
@@ -243,14 +247,13 @@ def verify_store(path: Path, *, market_id: str | None = None) -> VerificationRes
     if not checks["no_sink_errors"]:
         failures.append(f"{manifest.sink_errors} sink error(s) while writing")
 
-    if manifest.database_sha256 is not None:
-        size, digest = database_digest(path)
-        checks["database_hash_matches"] = digest == manifest.database_sha256
+    if expected_sha256 is not None:
+        _, digest = database_digest(path)
+        checks["database_hash_matches"] = digest == expected_sha256
         if not checks["database_hash_matches"]:
-            failures.append("database hash does not match the manifest; the file has changed")
-        checks["database_size_matches"] = size == manifest.database_bytes
-        if not checks["database_size_matches"]:
-            failures.append("database size does not match the manifest")
+            failures.append("database hash does not match the sidecar; the file has changed")
+    else:
+        checks["database_hash_checked"] = False
 
     checks["manifest_reports_complete"] = manifest.telemetry_complete
 

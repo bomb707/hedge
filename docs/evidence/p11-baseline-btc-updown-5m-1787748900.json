@@ -1,0 +1,478 @@
+{
+  "analyzer": {
+    "counters": {
+      "actions": {
+        "BLOCKED": 147265,
+        "CANCEL": 379,
+        "KEEP": 166114,
+        "NOTHING": 27735,
+        "PLACE": 910,
+        "REPLACE": 531
+      },
+      "cycles_with_live_order": 167024,
+      "execution_queue_loss_actions": 910,
+      "execution_queue_loss_reasons": {
+        "DESIRED_WITHDRAWN": 3,
+        "PRICE_CHANGED": 531,
+        "UNSAFE_REPLACEMENT": 376
+      },
+      "keep_ratio": 0.9945516811955168,
+      "keeps_with_live_order": 166114,
+      "quality": {
+        "AT_FRONT": 12945,
+        "NOT_QUOTING": 18672,
+        "PRICE_OK_BUT_DEEP": 4985
+      },
+      "reasons": {
+        "CENTRE_UNAVAILABLE": 944,
+        "ENDGAME_GATE": 734,
+        "NO_LIVE_ORDER": 531,
+        "PHASE_NOT_QUOTING": 1126,
+        "POST_ONLY_BLOCK": 15337,
+        "QUOTING": 17930
+      }
+    },
+    "cycles_with_stage_timing": 17120,
+    "latency_ns": {
+      "acting_cycle": {
+        "count": 117,
+        "label": "acting_cycle",
+        "max": 3162008,
+        "p50": 188073,
+        "p90": 690391,
+        "p95": 1101277,
+        "p99": 2852405
+      },
+      "clob_receive_to_decide": {
+        "count": 16634,
+        "label": "clob_receive_to_decide",
+        "max": 74412165,
+        "p50": 177694,
+        "p90": 541812,
+        "p95": 646906,
+        "p99": 1292554
+      },
+      "decide_duration": {
+        "count": 17120,
+        "label": "decide_duration",
+        "max": 74324997,
+        "p50": 55312,
+        "p90": 161332,
+        "p95": 198376,
+        "p99": 240460
+      },
+      "fill_receive_to_decide": {
+        "count": 0,
+        "label": "fill_receive_to_decide"
+      },
+      "keep_cycle": {
+        "count": 817,
+        "label": "keep_cycle",
+        "max": 3934004,
+        "p50": 169789,
+        "p90": 544560,
+        "p95": 759322,
+        "p99": 2630857
+      },
+      "phase_receive_to_decide": {
+        "count": 4,
+        "label": "phase_receive_to_decide",
+        "max": 169237,
+        "p50": 117502,
+        "p90": 169237,
+        "p95": 169237,
+        "p99": 169237
+      },
+      "prepare_duration": {
+        "count": 17120,
+        "label": "prepare_duration",
+        "max": 94647972,
+        "p50": 16833,
+        "p90": 54920,
+        "p95": 64353,
+        "p99": 93137
+      },
+      "queue_ahead": {
+        "count": 17930,
+        "label": "queue_ahead",
+        "max": 1154850000,
+        "p50": 0,
+        "p90": 143470000,
+        "p95": 277780000,
+        "p99": 577790000
+      },
+      "receive_to_reconcile": {
+        "count": 17120,
+        "label": "receive_to_reconcile",
+        "max": 94738289,
+        "p50": 208114,
+        "p90": 629667,
+        "p95": 761290,
+        "p99": 1420689
+      },
+      "reconcile_duration": {
+        "count": 17120,
+        "label": "reconcile_duration",
+        "max": 460674,
+        "p50": 12941,
+        "p90": 37205,
+        "p95": 42104,
+        "p99": 51546
+      },
+      "spot_receive_to_decide": {
+        "count": 482,
+        "label": "spot_receive_to_decide",
+        "max": 686416,
+        "p50": 110626,
+        "p90": 313544,
+        "p95": 373960,
+        "p99": 486045
+      }
+    },
+    "observation_gaps": 0,
+    "observations_lost": 0,
+    "observations_processed": 171467,
+    "shadow": {
+      "label": "SHADOW_ESTIMATE",
+      "shadow_slot_cycles_kept": 166114,
+      "shadow_slot_loss_reasons": {
+        "DESIRED_WITHDRAWN": 3,
+        "PRICE_CHANGE": 531,
+        "UNSAFE_REPLACEMENT": 376
+      },
+      "shadow_slot_losses": 910,
+      "shadow_slots_acquired": 910,
+      "shadow_slots_open": 0
+    }
+  },
+  "bytes_per_decision": 4976,
+  "captured_utc": "2026-08-26T13:02:46Z",
+  "closing_sink_errors": 0,
+  "cycles": 171467,
+  "database_bytes": 853237760,
+  "database_path": "/tmp/claude-1000/-home-hr-hedge/e431766c-1daa-41db-8cd7-50b88edd1dbb/scratchpad/p11/baseline/btc-updown-5m-1787748900.p11.sqlite3",
+  "database_sha256": "2d08378f1c7d676f51ba1a97b56200e820cdad6bb9e30a9e8155a8d5d4f198ca",
+  "feed_counters": {
+    "clob_best_bid_ask": 0,
+    "clob_books": 4140,
+    "clob_last_trade_price": 1962,
+    "clob_messages": 170222,
+    "clob_price_changes": 162630,
+    "clob_tick_size_changes": 0,
+    "clob_unhandled": 0,
+    "malformed": 0,
+    "pongs": 33,
+    "reconnects": 0,
+    "spot_messages": 4693,
+    "telemetry_dropped": 0,
+    "unhandled_kinds": {}
+  },
+  "hot_path_observe_ns": {
+    "max": 498215512,
+    "n": 171467,
+    "p50": 41834,
+    "p95": 146718,
+    "p99": 179804
+  },
+  "kind": "P11_TELEMETRY_PERSISTENCE",
+  "label": "baseline",
+  "limitation": "REAL MARKET PERSISTENCE VALIDATED. REAL NONZERO OWN-LEDGER METRICS UNRUN / P14: live trading is disabled, so no order was placed and the ledger is empty. Real own-fill records, real maker fraction and real taker-fill persistence are all UNRUN / P14.",
+  "live_trading_enabled": false,
+  "manifest": {
+    "accepted_records": 171467,
+    "buffer_capacity": 320000,
+    "buffer_high_water": 214,
+    "capture_end_ns": 1787749200000000000,
+    "capture_start_ns": 1787748900000000000,
+    "closed": true,
+    "condition_id": "0x1a8f694e7df481a8f9e9f7a24de944eb86bdc4004d6980706fa74bc2b963e7f8",
+    "database_bytes": null,
+    "database_sha256": null,
+    "decision_count": 171467,
+    "dropped_records": 0,
+    "fill_count": 0,
+    "first_gap_at": null,
+    "first_ingress_ordinal": 0,
+    "first_persistence_sequence": 1,
+    "last_gap_at": null,
+    "last_ingress_ordinal": 175609,
+    "last_persistence_sequence": 344928,
+    "live_trading_enabled": false,
+    "lost_observations": 0,
+    "market_id": "0x1a8f694e7df481a8f9e9f7a24de944eb86bdc4004d6980706fa74bc2b963e7f8",
+    "notes": [],
+    "persisted_records": 171467,
+    "provenance": "REAL_PUBLIC_MARKET_DATA",
+    "redemption_enabled": false,
+    "risk_count": 173460,
+    "schema_version": 1,
+    "sequence_gaps": 0,
+    "settlement_count": 1,
+    "sink_errors": 0,
+    "slug": "btc-updown-5m-1787748900",
+    "source_revision": "d9da5d4697f1b55433ea0a831cade7f6cb8068f4"
+  },
+  "metrics": {
+    "average_price_loser": {
+      "denominator": 1,
+      "numerator": 0
+    },
+    "average_price_winner": {
+      "denominator": 1,
+      "numerator": 0
+    },
+    "blocked_count": 147265,
+    "cancel_count": 379,
+    "decision_count": 171467,
+    "estimated_rebates": 0,
+    "fees": 0,
+    "fill_count": 0,
+    "gross_payout": 0,
+    "keep_count": 166114,
+    "maker_fill_count": 0,
+    "market_id": "0x1a8f694e7df481a8f9e9f7a24de944eb86bdc4004d6980706fa74bc2b963e7f8",
+    "matched_shares": 0,
+    "n_down": 0,
+    "n_up": 0,
+    "net_pnl": 0,
+    "nothing_count": 27735,
+    "place_count": 910,
+    "pnl_if_down_before_settlement": 0,
+    "pnl_if_up_before_settlement": 0,
+    "provenance": "REAL_PUBLIC_MARKET_DATA",
+    "queue_ahead_samples": 167024,
+    "queue_ahead_sum": 7317928210000,
+    "queue_stale_samples": 0,
+    "quote_intent_count": 167555,
+    "realised_rebates": 0,
+    "rebate_mode": "WITHOUT_REBATE",
+    "replace_count": 531,
+    "schema_version": 1,
+    "settled": true,
+    "slug": "btc-updown-5m-1787748900",
+    "stale_quote_count": 0,
+    "taker_fill_count": 0,
+    "term1": {
+      "denominator": 1,
+      "numerator": 0
+    },
+    "term2": {
+      "denominator": 1,
+      "numerator": 0
+    },
+    "terminal_inventory": 0,
+    "terminal_residual_magnitude": 0,
+    "terminal_residual_side": null,
+    "total_cost": 0,
+    "unknown_liquidity_fill_count": 0,
+    "wait_count": 0,
+    "winner": "UP"
+  },
+  "orders_sent": 0,
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "redemption_enabled": false,
+  "redemptions_sent": 0,
+  "settlement": {
+    "captured_utc": "",
+    "market": {
+      "condition_id": "0x1a8f694e7df481a8f9e9f7a24de944eb86bdc4004d6980706fa74bc2b963e7f8",
+      "down_slot": 1,
+      "down_token_id": "91867833015515606916889402058459255848241173893515152951845800357969298990622",
+      "neg_risk": false,
+      "outcome_slot_count": 2,
+      "slug": "btc-updown-5m-1787748900",
+      "up_slot": 0,
+      "up_token_id": "73451264329252866902548228758447151538624479452671044896883542203526492065547"
+    },
+    "note": "Paper settlement is what the authoritative payout vector entitles these balances to. It is not proof that collateral has moved: no redemption transaction has been sent and none can be in this build.",
+    "paper_settlement": null,
+    "policy": {
+      "block_tag": "finalized",
+      "minimum_agreeing_providers": 3,
+      "require_binary_singleton": true,
+      "require_unanimous_resolution": false,
+      "status": "OPERATIONAL"
+    },
+    "provenance": "REAL_PUBLIC_MARKET_DATA",
+    "provider_readings": [
+      {
+        "attestation": {
+          "attested_at_block": 92696122,
+          "chain_id": 137,
+          "collateral_code_bytes": 61,
+          "collateral_decimals": 6,
+          "ctf_code_bytes": 15007,
+          "endpoint_fingerprint": "https://polygon-bor-rpc.publicnode.com",
+          "error": null,
+          "provider_id": "publicnode",
+          "valid": true
+        },
+        "attested": true,
+        "binding_valid": true,
+        "block_number": 92696216,
+        "block_tag": "finalized",
+        "chain_id": 137,
+        "condition_id": "0x1a8f694e7df481a8f9e9f7a24de944eb86bdc4004d6980706fa74bc2b963e7f8",
+        "error": null,
+        "payout": {
+          "denominator": 1,
+          "numerators": [
+            1,
+            0
+          ],
+          "outcome_slot_count": 2
+        },
+        "provider_id": "publicnode",
+        "source_endpoint_fingerprint": "https://polygon-bor-rpc.publicnode.com"
+      },
+      {
+        "attestation": {
+          "attested_at_block": 92696124,
+          "chain_id": 137,
+          "collateral_code_bytes": 61,
+          "collateral_decimals": 6,
+          "ctf_code_bytes": 15007,
+          "endpoint_fingerprint": "https://polygon.drpc.org",
+          "error": null,
+          "provider_id": "drpc",
+          "valid": true
+        },
+        "attested": true,
+        "binding_valid": true,
+        "block_number": 92696216,
+        "block_tag": "finalized",
+        "chain_id": 137,
+        "condition_id": "0x1a8f694e7df481a8f9e9f7a24de944eb86bdc4004d6980706fa74bc2b963e7f8",
+        "error": null,
+        "payout": {
+          "denominator": 1,
+          "numerators": [
+            1,
+            0
+          ],
+          "outcome_slot_count": 2
+        },
+        "provider_id": "drpc",
+        "source_endpoint_fingerprint": "https://polygon.drpc.org"
+      },
+      {
+        "attestation": {
+          "attested_at_block": 92696124,
+          "chain_id": 137,
+          "collateral_code_bytes": 61,
+          "collateral_decimals": 6,
+          "ctf_code_bytes": 15007,
+          "endpoint_fingerprint": "https://rpc-mainnet.matic.quiknode.pro",
+          "error": null,
+          "provider_id": "quiknode-public",
+          "valid": true
+        },
+        "attested": true,
+        "binding_valid": true,
+        "block_number": 92696218,
+        "block_tag": "finalized",
+        "chain_id": 137,
+        "condition_id": "0x1a8f694e7df481a8f9e9f7a24de944eb86bdc4004d6980706fa74bc2b963e7f8",
+        "error": null,
+        "payout": {
+          "denominator": 1,
+          "numerators": [
+            1,
+            0
+          ],
+          "outcome_slot_count": 2
+        },
+        "provider_id": "quiknode-public",
+        "source_endpoint_fingerprint": "https://rpc-mainnet.matic.quiknode.pro"
+      }
+    ],
+    "redeem_blockers": [],
+    "redeem_plan": null,
+    "resolution": {
+      "advisory": [],
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "publicnode",
+        "drpc",
+        "quiknode-public"
+      ],
+      "authoritative_block": 92696216,
+      "block_tag": "finalized",
+      "detail": "3 providers agree on slot 0 (UP)",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          1,
+          0
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "state": "RESOLVED",
+      "untrusted_providers": [],
+      "winning_outcome": "UP"
+    },
+    "schema_version": 1
+  },
+  "sidecar_manifest": "/tmp/claude-1000/-home-hr-hedge/e431766c-1daa-41db-8cd7-50b88edd1dbb/scratchpad/p11/baseline/btc-updown-5m-1787748900.p11.manifest.json",
+  "slug": "btc-updown-5m-1787748900",
+  "stall": {
+    "ended_at_s": null,
+    "market_events_during_stall": 0,
+    "note": null,
+    "requested_window_s": null,
+    "started_at_s": null
+  },
+  "store": {
+    "batches": 343,
+    "error_samples": [],
+    "rows_written": 171468,
+    "sink_errors": 0,
+    "transaction_ns": 8843612502
+  },
+  "telemetry_complete": true,
+  "verification": {
+    "checks": {
+      "capture_sequence_ordered": true,
+      "database_hash_matches": true,
+      "decision_count_matches_manifest": true,
+      "fill_count_matches_manifest": true,
+      "manifest_present": true,
+      "manifest_reports_complete": true,
+      "market_closed": true,
+      "no_drops": true,
+      "no_sequence_gaps": true,
+      "no_sink_errors": true,
+      "one_market_identity": true,
+      "persistence_sequence_contiguous": true,
+      "risk_count_matches_manifest": true,
+      "risk_sequence_contiguous": true,
+      "settlement_count_matches_manifest": true
+    },
+    "decision_rows": 171467,
+    "failures": [],
+    "fill_rows": 0,
+    "market_id": "0x1a8f694e7df481a8f9e9f7a24de944eb86bdc4004d6980706fa74bc2b963e7f8",
+    "risk_rows": 173460,
+    "settlement_rows": 1,
+    "slug": "btc-updown-5m-1787748900",
+    "status": "COMPLETE"
+  },
+  "worker": {
+    "buffer_high_water": 214,
+    "consume_errors": 0,
+    "decisions_written": 171467,
+    "error_samples": [],
+    "fills_seen": 0,
+    "first_gap_at": null,
+    "last_gap_at": null,
+    "lost_observations": 0,
+    "observations_consumed": 171467,
+    "passes": 10687,
+    "sequence_gaps": 0
+  }
+}

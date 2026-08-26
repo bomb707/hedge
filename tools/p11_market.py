@@ -217,25 +217,26 @@ async def main(out: Path, stall_window: tuple[int, int] | None, buffer_capacity:
     winner = None if settlement is None else settlement.decision.winning_outcome
     market_metrics = metrics.build(ledger, winner=winner)
 
-    # The store is reopened by a fresh worker for the closing writes, so the connection is still
-    # owned by exactly one thread for its whole life.
-    closer = PersistenceWorker(
-        buffer=ObservationBuffer(capacity=1), store=TelemetryStore(path=database), identity=identity
-    )
-    closer.start()
+    # The closing writes happen on this thread, through a store this thread opens. The rule is
+    # that one thread owns a connection for its life, and a plain store used here satisfies it;
+    # routing these through a second worker did not — the writes crossed a thread boundary and
+    # sqlite refused every one of them, silently, leaving a market that verified INCOMPLETE. The
+    # verifier caught it, which is what the verifier is for.
+    closing = TelemetryStore(path=database)
+    closing.open()
     sequence = worker.stats.decisions_written
     risk_records = list(controller.trace)
     for record in risk_records:
         sequence += 1
-        closer.store.write_risk(
+        closing.write_risk(
             risk_row(record, market_id=identity.market_id, persistence_sequence=sequence)
         )
     if settlement is not None:
         sequence += 1
-        closer.store.write_settlement(
+        closing.write_settlement(
             settlement_row(settlement, market_id=identity.market_id, persistence_sequence=sequence)
         )
-    closer.store.write_metrics(market_metrics)
+    closing.write_metrics(market_metrics)
 
     accepted = buffer.accepted
     manifest = Manifest(
@@ -259,7 +260,7 @@ async def main(out: Path, stall_window: tuple[int, int] | None, buffer_capacity:
         dropped_records=buffer.dropped,
         sequence_gaps=worker.stats.sequence_gaps,
         lost_observations=worker.stats.lost_observations,
-        sink_errors=worker.store.sink_errors,
+        sink_errors=worker.store.sink_errors + closing.sink_errors,
         first_gap_at=worker.stats.first_gap_at,
         last_gap_at=worker.stats.last_gap_at,
         buffer_capacity=buffer.capacity,
@@ -271,27 +272,38 @@ async def main(out: Path, stall_window: tuple[int, int] | None, buffer_capacity:
         redemption_enabled=REDEMPTION_ENABLED,
         closed=True,
     )
-    closer.close_market(manifest)
-    closer.stop(timeout=30)
+    closing.write_manifest(manifest)
+    closing.close()
 
-    # The hash describes a file nothing is still writing, so it is taken after the close and
-    # then written back in a final pass.
+    # A file cannot contain its own hash. Writing the digest into the manifest row would change
+    # the file and invalidate the digest it had just recorded, so the hash lives in a sidecar —
+    # the same shape P6 already uses for its capture manifests — and the in-database manifest
+    # says so rather than carrying a number that cannot be right.
     size, digest = database_digest(database)
-    final = PersistenceWorker(
-        buffer=ObservationBuffer(capacity=1), store=TelemetryStore(path=database), identity=identity
+    sidecar = database.with_suffix(".manifest.json")
+    sidecar.write_text(
+        json.dumps(
+            {
+                "schema_version": MANIFEST_SCHEMA_VERSION,
+                "database": database.name,
+                "database_bytes": size,
+                "database_sha256": digest,
+                "note": (
+                    "The digest is of the closed database and is held here rather than inside "
+                    "it: a file cannot contain its own hash."
+                ),
+                "manifest": {f: getattr(manifest, f) for f in manifest.__dataclass_fields__},
+                "telemetry_complete": manifest.telemetry_complete,
+            },
+            indent=2,
+            sort_keys=True,
+            default=str,
+        ),
+        encoding="utf-8",
     )
-    final.start()
-    stamped = Manifest(
-        **{
-            **{f: getattr(manifest, f) for f in manifest.__dataclass_fields__},
-            "database_bytes": size,
-            "database_sha256": digest,
-        }
-    )
-    final.close_market(stamped)
-    final.stop(timeout=30)
+    stamped = manifest
 
-    verification = verify_store(database)
+    verification = verify_store(database, expected_sha256=digest)
     evidence = {
         "kind": "P11_TELEMETRY_PERSISTENCE",
         "provenance": provenance.value,
@@ -305,6 +317,14 @@ async def main(out: Path, stall_window: tuple[int, int] | None, buffer_capacity:
         "cycles": runs[0].cycles,
         "feed_counters": result.counters.summary() if hasattr(result.counters, "summary") else {},
         "manifest": {f: getattr(stamped, f) for f in stamped.__dataclass_fields__},
+        "database_path": str(database),
+        "database_bytes": size,
+        "database_sha256": digest,
+        "sidecar_manifest": str(sidecar),
+        "bytes_per_decision": (
+            size // worker.stats.decisions_written if worker.stats.decisions_written else 0
+        ),
+        "closing_sink_errors": closing.sink_errors,
         "telemetry_complete": stamped.telemetry_complete,
         "worker": worker.stats.summary(),
         "store": {
@@ -391,12 +411,12 @@ def settle(market: Any, slug: str) -> SettlementRecord | None:
     )
     providers, _ = attest_all(configured)
     policy = SettlementPolicy()
-    tokens = market.up_token_id, market.down_token_id
+    definition = market.definition
     target = MarketResolutionTarget(
         slug=slug,
         condition_id=condition_id,
-        up_token_id=str(tokens[0]),
-        down_token_id=str(tokens[1]),
+        up_token_id=str(definition.up_token_id),
+        down_token_id=str(definition.down_token_id),
     )
     deadline = time.time() + SETTLE_TIMEOUT_SECONDS
     while time.time() < deadline:

@@ -516,6 +516,11 @@ class Manifest:
 
     database_bytes: int | None
     database_sha256: str | None
+    """Left ``None`` inside the store, deliberately.
+
+    A file cannot contain its own hash: writing the digest in would change the file and
+    invalidate the digest in the same act. The digest lives in a sidecar manifest written once
+    the database is closed, in the same shape P6 already uses for its capture manifests."""
 
     provenance: str
     live_trading_enabled: bool

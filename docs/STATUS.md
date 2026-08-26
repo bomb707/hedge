@@ -11,6 +11,14 @@ commit is the audit trail.
 including a real authenticated write adapter, and **it cannot be armed**: `VenueAdapter.arm_live`
 raises before any credential is read or any socket is opened.
 
+P10 adds settlement and redemption **planning** only. `REDEMPTION_ENABLED` is `False` and
+`Redeemer.submit()` raises `RedemptionDisabledError` before touching a credential; there is no
+`--redeem-live` flag, no `REDEEM=true` variable and no config bypass. Twenty-one real markets
+were settled on paper against the real on-chain payout vector and **zero** transactions of any
+kind were sent. Every RPC call is read-only, enforced behaviourally rather than by name: any
+module that POSTs may issue only `eth_chainId`, `eth_getCode`, `eth_call`, `eth_getBlockByNumber`
+and `eth_getLogs`.
+
 P9 adds operational safety only, and its two real-market runs placed **zero** orders. The risk
 package cannot construct an order at all — a halt empties intent, and there is no SELL, hedge,
 flatten, merge, split, or convert anywhere in it.
@@ -64,6 +72,67 @@ implementation deadlocks rather than merely running slowly — no wall-clock tim
 
 The synchronous `run_cycle` is retained for unit tests and is documented as test support, not
 production.
+
+---
+
+## P10: settlement against real markets
+
+Full evidence in
+[`evidence/P10-SETTLEMENT-REAL-MARKET.md`](evidence/P10-SETTLEMENT-REAL-MARKET.md).
+
+Three gates, deliberately kept apart:
+
+| Gate | Status |
+|---|---|
+| Implementation | **PASSED** |
+| Real-market resolution | **PASSED** — 21 markets, 4 runs, 1 full lifecycle |
+| Authenticated redemption | **UNRUN / DEFERRED TO P14** |
+
+### The defect running it found
+
+The verifier halted **6 of the first 15 live settlements** with `FINALITY_DISAGREEMENT`, every
+time on a healthy market. Because a P9 `RESOLUTION_AMBIGUOUS` halt does not self-clear, that is
+a bot which stops placing roughly every second or third market and stays stopped.
+
+The first explanation was wrong, and is recorded rather than quietly replaced. The obvious
+reading was finality-head skew — P10A had measured providers 1–4 blocks apart — so a fix was
+written comparing block numbers. The recorded polls disproved it: the silent provider was at the
+*same* block twice and *two blocks ahead* once. A provider cannot be behind a block it is ahead
+of, and that fix would not have prevented a single halt.
+
+Two real defects were underneath:
+
+* **The reads were not atomic.** `read_condition` resolved `finalized` separately for the block
+  number and for each `eth_call`, so at a load-balanced provider the block in the audit record
+  was not the block the payout came from. Every call is now pinned to the block already
+  resolved. Measured effect on real polls: splits where the silent provider was genuinely
+  behind went from **0 of 3 to 3 of 3**.
+* **The quorum counted the wrong thing.** `minimum_agreeing_providers` was applied to providers
+  that merely *answered*, requiring unanimity by accident. It now counts providers positively
+  agreeing on one payout vector; a provider reporting nothing leaves the state `UNRESOLVED`.
+  Contradiction is checked first, so a real disagreement is never reported as "waiting".
+
+The corrected run settled 6 of 6 consecutive markets with no ambiguity, no blocker, and no risk
+signal emitted at all.
+
+### Ambiguity reaches execution permission
+
+Injected ambiguity — labelled `CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET`, ours and never a venue
+incident — produced `AMBIGUOUS`, **no** `RedeemPlan`, and an ordered `RESOLUTION_SAFETY_UPDATE`
+in the P9 trace with `allows_place=False` and `allows_cancel=True`. Removing the corruption and
+reading the real chain afresh returned `RESOLVED` while the halt stayed up, which is intended.
+
+**Recorded, not fixed:** P9 does not latch `RESOLUTION_AMBIGUOUS`, so that stickiness rests on
+`maker5m.settlement.safety` never emitting `flag=False` rather than on the risk engine's own
+contract. Left as **O16** rather than settled by editing P9's latch set.
+
+### What P10 does not show
+
+Every position ledger settled is **empty**, because this bot has never placed an order. The
+end-to-end reconciliation "matching to the last money unit" is an agreement between two zeros.
+The arithmetic, the `redeemPositions` encoding (8 of 8 accepted by the real contract via
+`eth_call`) and the authorisation gate all behave on real data; **no money moved, and none can
+in this build**.
 
 ---
 
@@ -729,7 +798,10 @@ orders, which P8 does not place. Both stay OPEN.
 
 | | |
 |---|---|
-| **Current phase** | **P9 — risk / health / recovery, corrected** |
+| **Current phase** | **P10 — settlement, resolution, and redemption planning** |
+| P10 implementation gate | **PASSED** — verifier, payout arithmetic, plan, encoder, audit record |
+| P10 real-market resolution gate | **PASSED** — 21 real markets, 4 live runs, 1 full lifecycle |
+| P10 authenticated redemption gate | **UNRUN / DEFERRED TO P14** — no key, no credential, no transaction |
 | P9 implementation gate | **PASSED** |
 | P9 real-market integration gate | **PASSED** — fresh baseline + controlled-fault markets |
 | P9 deterministic-risk-audit gate | **PASSED** — exact sequence contract, replay verified on real data |
@@ -759,11 +831,13 @@ orders, which P8 does not place. Both stay OPEN.
 | P9C commits | `63cc2b5` verifier + integrity tests · `44e05e1` evidence, docs, manifest block |
 | P1 parser correction | `226663d` — `fix: accept leading-dot exact decimals` |
 | P10A research branch | `research/p10-o11-resolution` |
-| P10 status | **NOT STARTED / NOT IMPLEMENTED** — O11 prerequisite closed only |
+| P10 branch | `feature/p10-settlement` |
+| P10 commits | `eae8b6f` verifier · `c9414c8` settlement + redemption planning · `fde4b38` risk bridge · `4f3789d` first (wrong-premise) split fix · `8b60685` provider-quorum correction · `9fe374a` real-market evidence |
+| P10 own-ledger settlement economics | **UNRUN / DEFERRED TO P14** — every ledger settled is empty |
 | GitHub default branch | `main` (verified 2026-08-26; the earlier `bootstrap/phase-0` observation no longer holds) |
 | P9 commits | `4be0032` risk engine · `6576de0` recovery + runner · `1584dee` stale recovery fix · `b2e715e` real-market evidence · `4c2ab1d` full fault market |
-| Last accepted milestone | P7 — execution state + reconciler, corrected (`0f17bd2`) |
-| Next milestone | P9 — awaiting acceptance of P8; not started |
+| Last accepted milestone | P9C — risk-audit sequence integrity (`44e05e1`) |
+| Next milestone | P11 — **not started**, and not to be started before P10 is accepted |
 | `main` | `226663d` — fast-forwarded through accepted P9C and the P1 parser correction, pushed |
 | Remote | `origin` → `https://github.com/bomb707/hedge.git` |
 

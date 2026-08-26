@@ -20,7 +20,7 @@ plus `INVARIANTS.md` and `STATUS.md`.
 
 ---
 
-## P0 — Repository baseline + architecture freeze   ← CURRENT
+## P0 — Repository baseline + architecture freeze
 
 - **Goal:** an auditable boundary before implementation. Freeze the strategy sources,
   record the architecture, invariants, and open items, and stand up a minimal skeleton.
@@ -288,12 +288,35 @@ plus `INVARIANTS.md` and `STATUS.md`.
 
 ---
 
-## P10 — Settlement / resolution / redeem
+## P10 — Settlement / resolution / redeem   ← IMPLEMENTED; redemption UNRUN
+
+**Status, kept as three separate gates:**
+
+| Gate | Status |
+|---|---|
+| Implementation | **PASSED** — verifier, exact payout arithmetic, plan, encoder, audit record |
+| Real-market resolution | **PASSED** — 21 real markets over 4 live runs, 1 full lifecycle |
+| Authenticated redemption | **UNRUN / DEFERRED TO P14** — no key, no credential, no transaction |
+
+The acceptance gate below says "realised PnL matching the ledger to the last unit". That was
+run, and it **matched — between two zeros.** Live trading is disabled, so no order was ever
+placed and every ledger settled is empty. What is demonstrated is that both paths read the same
+ledger and the same real payout vector; what is **not** demonstrated is agreement on an amount.
+Nonzero own-ledger settlement economics are **UNRUN / DEFERRED TO P14** and the word "realised"
+is deliberately absent from the code, which says `paper_settlement_pnl`.
+
+Evidence: [`evidence/P10-SETTLEMENT-REAL-MARKET.md`](evidence/P10-SETTLEMENT-REAL-MARKET.md).
+One open item added: **O16** (should `RESOLUTION_AMBIGUOUS` latch in P9?). No strategy open item
+was closed, and none was opened by assumption.
 
 - **Goal:** correct winner determination and redemption. **O11 must be closed first.**
 - **Inputs:** Canonical §18, §18.1; Detailed §32, §33; I15, I16; O11.
 - **Outputs:** `ResolutionVerifier` with explicit source precedence and an explicit
   ambiguous branch; `Redeemer`; realised-PnL reconciliation against the ledger.
+- **Delivered:** `contracts` (addresses, selectors, ABI encoding), `resolution` (pure verifier,
+  4 states, 11 typed ambiguity reasons, multi-provider quorum), `payout` (exact CTF integer
+  arithmetic), `redeem` (preconditions, plan, `REDEMPTION_ENABLED = False` transport), `reader`
+  (read-only multi-RPC), `safety` (ordered P9 halt on ambiguity), `audit` (settlement record).
 - **Modules:** `src/maker5m/settlement/`.
 - **Tests:** cancel-at-`T0+280` then hold; no sell/hedge/merge/split/convert path exists in
   the codebase; ambiguous resolution halts rather than guesses; realised redemption

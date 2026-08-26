@@ -75,6 +75,53 @@ production.
 
 ---
 
+## P11C: final audit closure
+
+Full evidence in
+[`evidence/P11C-FINAL-AUDIT-CLOSURE.md`](evidence/P11C-FINAL-AUDIT-CLOSURE.md).
+
+Four narrow items, each a place where the audit trusted something it had not checked:
+
+| | Was | Is |
+|---|---|---|
+| **A** | PLACE permission read from the decision's own copy of the verdict | joined to the persisted `RiskRow`; copies compared both ways |
+| **B** | benchmark read `pipeline.clob_health`, which a replay never updates | replays the journal's own recorded `HealthEvent`s |
+| **C** | `INSERT OR REPLACE` on audit tables | append-only; a duplicate is a sink error and the original stands |
+| **D** | any `.xz` decompressed and queried | identity proved before anything is answered from it |
+
+**A was circular.** A decision that misrepresented the verdict it ran under would have been
+checked against its own misrepresentation. **B measured a market that never quoted** — health was
+permanently UNKNOWN, so P9 halted and `risk_adjust` emptied every intent; the journal's own 2,206
+recorded `HealthEvent`s fixed it without adding a second staleness authority.
+
+`decisions`, `fills`, `risk_records`, `settlements` and `persistence_log` are **APPEND-ONLY**;
+`markets` and `market_metrics` remain FINAL/METADATA and are documented as such.
+
+### Fresh real market — `btc-updown-5m-1787780700`
+
+114,287 decisions, 114,288 risk records, 1 settlement (DOWN), zero drops/gaps/sink errors,
+`telemetry_complete=true`, **all 27 verifier checks pass**, archive 54.8× and the verified
+read-back re-verified COMPLETE. Audited through the verified archive path:
+
+```text
+decision_risk_copy_mismatches   0      places_by_risk_state (from RiskRow)  {"SAFE": 678}
+decisions_with_no_event_id      0      risk sequence 0…114,287 exact
+storage order 1…228,576 exact          0 duplicates
+```
+
+**PLACE under a persisted RiskRow that was HALTED: 0. RECOVERING: 0.**
+
+Performance, semantics identical across OFF/healthy/stalled and all four pairs: decide p50
+**+676 ns (+2.89 %)**, full cycle **+1,519 ns (+2.98 %)**. Every P8C limit met with its original
+number — and stated plainly: decide sits at 2.89 % against a 3 % limit, which is met and not
+comfortable. The replay saturates the writer at far above production's ~380 decisions/second, so
+it bounds the overhead above.
+
+P11B's controlled-stall market is **retained, not rerun** — the producer/consumer hot path did not
+change — and was re-verified under the new verifier to check that rather than assume it.
+
+---
+
 ## P11B: persistence integrity closure
 
 Full evidence in
@@ -1013,7 +1060,7 @@ orders, which P8 does not place. Both stay OPEN.
 | **Current phase** | **P11 — durable telemetry persistence** |
 | P11 implementation gate | **PASSED** — versioned schemas, non-blocking worker, exact analytics, verifier |
 | P11 real-market gate | **PASSED** — P11B healthy market + controlled stalled sink |
-| P11 durability-integrity gate | **PASSED** — risk exact from zero, global storage order, real event ids, cross-record invariants |
+| P11 durability-integrity gate | **PASSED** — risk exact from zero, global storage order, real event ids, decision→RiskRow join, append-only audit rows, verified archive reads |
 | P11 storage representation | **CLOSED** — lossless `lzma` archive, 54.7×, 2.2 GB per 200-market corpus |
 | P11 authenticated fill/economics | **UNRUN / DEFERRED TO P14** |
 | P10 implementation gate | **PASSED** — verifier, payout arithmetic, plan, encoder, audit record |
@@ -1066,6 +1113,7 @@ orders, which P8 does not place. Both stay OPEN.
 | `main` | `8c7d435` — fast-forwarded through the whole accepted P10 lineage, pushed |
 | P11 branch | `feature/p11-telemetry-persistence` |
 | P11B branch | `fix/p11-persistence-integrity` |
+| P11C branch | `fix/p11-final-audit-closure` |
 | P11 store size | 5,230 B/decision raw → **95.7 B archived**; engineered in P11B, not deferred |
 | Remote | `origin` → `https://github.com/bomb707/hedge.git` |
 

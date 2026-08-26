@@ -354,7 +354,7 @@ opened or closed by assumption.
 |---|---|
 | Implementation | **PASSED** — versioned schemas, non-blocking worker, exact analytics, verifier |
 | Real-market persistence | **PASSED** (P11B) — one healthy market, one controlled stalled sink |
-| Durability integrity | **PASSED** (P11B) — exact risk and storage order, real event ids, cross-record invariants |
+| Durability integrity | **PASSED** (P11C) — exact risk and storage order, real event ids, decision→RiskRow join, append-only audit rows, verified archive reads |
 | Real own-fill / maker fraction / nonzero own-ledger metrics | **UNRUN / DEFERRED TO P14** |
 
 The acceptance gate below asks that hot-path latency be statistically unchanged with the sink

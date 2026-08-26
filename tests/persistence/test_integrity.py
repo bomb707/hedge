@@ -18,6 +18,7 @@ from typing import Any
 
 import pytest
 
+from maker5m.market.timebase import TimestampNs
 from maker5m.persistence import (
     MANIFEST_SCHEMA_VERSION,
     STORE_SCHEMA_VERSION,
@@ -141,7 +142,7 @@ def _risk_row(market_id: str, risk_sequence: int, persistence_sequence: int) -> 
         signal_kind="RISK_EVALUATION",
         signal_reason=None,
         signal_flag=False,
-        signal_timestamp_ns=risk_sequence,
+        signal_timestamp_ns=TimestampNs(risk_sequence),
         signal_value_ns=None,
         state="SAFE",
         active=(),

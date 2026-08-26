@@ -519,3 +519,118 @@ def test_the_end_to_end_run_does_not_dress_up_a_zero() -> None:
     limitation = END_TO_END["limitation"]
     assert "UNRUN" in limitation and "P14" in limitation
     assert "nothing to settle" in limitation
+
+
+# -- the trust-boundary run -------------------------------------------------------------------
+
+TRUST = json.loads((EVIDENCE / "p10-trust-boundary-1787733300-1787735100.json").read_text("utf-8"))
+
+
+def test_the_trust_boundary_run_is_seven_consecutive_new_real_markets() -> None:
+    watches = TRUST["watches"]
+    assert len(watches) == 7
+    assert consecutive(TRUST)
+
+    newest_before = max(
+        int(watch["t0"]) for run in (LIVE_PRE, LIVE_POST) for watch in run["watches"]
+    )
+    assert min(int(watch["t0"]) for watch in watches) > newest_before
+
+
+def test_every_resolved_market_used_three_distinct_trusted_providers() -> None:
+    attested = set(TRUST["attested_providers"])
+    assert len(attested) == 3
+    for watch in TRUST["watches"]:
+        final = watch["final_decision"]
+        assert final["state"] == "RESOLVED"
+        agreeing = final["agreeing_providers"]
+        assert len(agreeing) == len(set(agreeing)) == 3, watch["slug"]
+        assert set(agreeing) <= attested
+
+
+def test_the_untrusted_provider_is_recorded_and_never_counted() -> None:
+    untrusted = {row["provider_id"] for row in TRUST["untrusted_providers"]}
+    assert untrusted == {"1rpc"}
+    assert untrusted.isdisjoint(TRUST["attested_providers"])
+    for watch in TRUST["watches"]:
+        final = watch["final_decision"]
+        assert untrusted.isdisjoint(final["agreeing_providers"])
+        assert untrusted.isdisjoint(final["answering_providers"])
+        for poll in watch["polls_retained"]:
+            assert untrusted.isdisjoint(row["provider"] for row in poll["per_provider"])
+
+
+def test_the_configured_endpoints_were_distinct_by_id_and_by_url() -> None:
+    ids = TRUST["distinct_provider_ids"]
+    urls = TRUST["distinct_endpoint_fingerprints"]
+    assert len(ids) == len(set(ids)) == 3
+    assert len(urls) == len(set(urls)) == 3
+
+
+def test_every_verdict_names_a_concrete_finalized_block() -> None:
+    assert TRUST["policy"]["block_tag"] == "finalized"
+    for watch in TRUST["watches"]:
+        final = watch["final_decision"]
+        assert final["block_tag"] == "finalized"
+        assert isinstance(final["authoritative_block"], int)
+        assert final["authoritative_block"] > 0
+
+
+def test_no_false_ambiguity_in_the_corrected_run() -> None:
+    for watch in TRUST["watches"]:
+        assert "AMBIGUOUS" not in watch["distinct_states"], watch["slug"]
+
+
+def injected_watch() -> dict[str, Any]:
+    return next(watch for watch in TRUST["watches"] if watch["injected_decision"])
+
+
+def test_the_controlled_contradiction_failed_closed() -> None:
+    watch = injected_watch()
+    injected = watch["injected_decision"]
+    assert injected["state"] == "AMBIGUOUS"
+    assert injected["reasons"] == ["PROVIDER_DISAGREEMENT"]
+    assert watch["redeem_plan"] is None
+    assert watch["redeem_blockers"] == ["RESOLUTION_AMBIGUOUS"]
+    assert watch["final_decision"]["state"] == "RESOLVED", "the real market was fine"
+
+
+def test_a_clean_reread_of_the_real_chain_did_not_lift_the_halt() -> None:
+    """O16 on real data: the latch is what makes the reread insufficient."""
+    watch = injected_watch()
+    assert watch["recovery_decision"]["state"] == "RESOLVED"
+
+    records = watch["risk_records"]
+    halt, cleared = records[0], records[1]
+    assert halt["signal"] == "RESOLUTION_SAFETY_UPDATE"
+    assert halt["state"] == "HALTED"
+    assert halt["latched"] == ["RESOLUTION_AMBIGUOUS"]
+
+    assert cleared["signal"] == "RESOLUTION_SAFETY_UPDATE"
+    assert cleared["active"] == [], "the condition went away"
+    assert cleared["latched"] == ["RESOLUTION_AMBIGUOUS"], "the halt did not"
+    assert cleared["state"] == "RECOVERING"
+    assert cleared["allows_place"] is False
+
+
+def test_only_the_explicit_reconciliation_restored_safe() -> None:
+    records = injected_watch()["risk_records"]
+    confirmed = next(row for row in records if row["signal"] == "RECONCILIATION_CONFIRMED")
+    assert confirmed["latched"] == []
+    assert confirmed["state"] == "SAFE"
+    assert confirmed["allows_place"] is True
+    assert confirmed["risk_sequence"] > records[1]["risk_sequence"]
+    assert TRUST["final_risk_state"] == "SAFE"
+
+
+def test_the_risk_sequence_is_contiguous_and_ordered() -> None:
+    records = [row for watch in TRUST["watches"] for row in watch["risk_records"]]
+    sequences = [row["risk_sequence"] for row in records]
+    assert sequences == sorted(sequences)
+    assert sequences == list(range(sequences[0], sequences[0] + len(sequences)))
+
+
+def test_the_quiet_markets_cost_the_risk_trace_nothing() -> None:
+    quiet = [watch for watch in TRUST["watches"] if not watch["injected_decision"]]
+    assert len(quiet) == 6
+    assert all(watch["risk_records"] == [] for watch in quiet)

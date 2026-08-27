@@ -199,6 +199,8 @@ class UiSnapshot:
     down: SideView
 
     decide_ns: int | None
+    """P8's ``decide_duration``: ``decide_stage - reduce_stage``. Not receive-to-decide."""
+
     prepare_ns: int | None
     reconcile_ns: int | None
     receive_to_reconcile_ns: int | None
@@ -219,6 +221,12 @@ class UiSnapshot:
     redemption_enabled: bool
 
     order_stream_status: str = "UNKNOWN"
+
+    receive_to_decide_ns: int | None = None
+    """Ingress, reduction, dispatch and decide together — P8's per-kind figure.
+
+    A different measurement from `decide_ns` and named as one. P12C published this under the
+    other name, which made the strategy look four times slower than it is."""
 
     latency_sample_ordinal: int | None = None
     """Which cycle the latency figures came from.

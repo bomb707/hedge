@@ -366,6 +366,7 @@ class SnapshotPublisher:
             up=_side(record, "up"),
             down=_side(record, "down"),
             decide_ns=latency.get("decide_ns"),
+            receive_to_decide_ns=latency.get("receive_to_decide_ns"),
             prepare_ns=latency.get("prepare_ns"),
             reconcile_ns=latency.get("reconcile_ns"),
             receive_to_reconcile_ns=latency.get("receive_to_reconcile_ns"),

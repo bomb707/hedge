@@ -21,6 +21,7 @@ from maker5m.market.timebase import TimestampNs
 from maker5m.risk import RiskConfig, RiskEngine, RiskProvenance, RiskReason, RiskState
 from maker5m.risk.trace import HealthFrame, RiskController
 from maker5m.strategy import BaseLot, default_config
+from maker5m.telemetry.observation import NOT_CAPTURED
 from maker5m.ui import (
     COMMAND_SCHEMA_VERSION,
     CommandKind,
@@ -212,16 +213,96 @@ def test_the_verdict_history_is_bounded() -> None:
 # -- §13: latency comes from the captured observation -------------------------------------------
 
 
+def _timed(**stamps: int) -> tuple[object, ...]:
+    """One captured cycle with P8's six timing stamps set exactly."""
+    captured = list(observation(0, ordinal=4242, risk=(7, "SAFE", True, True)))
+    for index, name in (
+        (4, "raw_receive"),
+        (5, "decide_done"),
+        (6, "prepare_done"),
+        (7, "reconcile_done"),
+        (8, "reduce_stage"),
+        (9, "decide_stage"),
+    ):
+        captured[index] = stamps[name]
+    return tuple(captured)
+
+
+def test_decide_ns_is_p8s_decide_duration_not_receive_to_decide() -> None:
+    """§5. P12C published `decide_done - receive` as `decide_ns`: 400 here, not 60.
+
+    Both are real measurements. They are not the same measurement, and the one that includes
+    ingress, reduction and dispatch may not wear the name of the one that does not.
+    """
+    from maker5m.persistence import build_decision_record
+    from maker5m.persistence.records import latency_sample
+
+    frozen = _timed(
+        raw_receive=1_000,
+        reduce_stage=1_100,
+        decide_stage=1_160,
+        decide_done=1_400,
+        prepare_done=1_450,
+        reconcile_done=1_520,
+    )
+    sample = latency_sample(frozen)
+    assert sample == {
+        "decide_ns": 60,
+        "prepare_ns": 50,
+        "reconcile_ns": 70,
+        "receive_to_reconcile_ns": 520,
+        "receive_to_decide_ns": 400,
+    }
+
+    unit = publisher()
+    unit.observe_risk(verdict(7, RiskState.SAFE, set()))
+    unit.observe_decision(build_decision_record(frozen, identity(), persistence_sequence=1), frozen)
+    snapshot = unit.build(now=1.0)
+    assert snapshot.decide_ns == 60
+    assert snapshot.prepare_ns == 50
+    assert snapshot.reconcile_ns == 70
+    assert snapshot.receive_to_reconcile_ns == 520
+    assert snapshot.receive_to_decide_ns == 400
+    assert snapshot.latency_sample_ordinal == 4242
+
+
+def test_the_read_model_and_p8s_analyzer_agree_on_every_definition() -> None:
+    """§5. The same observation through both paths, compared figure by figure."""
+    from maker5m.persistence.records import latency_sample
+    from maker5m.telemetry import TelemetryAnalyzer
+
+    frozen = _timed(
+        raw_receive=1_000,
+        reduce_stage=1_100,
+        decide_stage=1_160,
+        decide_done=1_400,
+        prepare_done=1_450,
+        reconcile_done=1_520,
+    )
+    sample = latency_sample(frozen)
+    assert sample is not None
+
+    analyzer = TelemetryAnalyzer().run([frozen])
+    latency = analyzer.latency
+    assert latency.decide_duration.samples == [sample["decide_ns"]]
+    assert latency.prepare_duration.samples == [sample["prepare_ns"]]
+    assert latency.reconcile_duration.samples == [sample["reconcile_ns"]]
+    assert latency.receive_to_reconcile.samples == [sample["receive_to_reconcile_ns"]]
+    assert latency.by_kind("BookUpdate").samples == [sample["receive_to_decide_ns"]]
+
+
 def test_latency_comes_from_the_observation_and_never_moves_again() -> None:
     """§13: exact values from the captured facts, immune to a later mutable read."""
     from maker5m.persistence import build_decision_record
 
-    captured = list(observation(0, ordinal=4242, risk=(7, "SAFE", True, True)))
-    captured[4] = 1_000_000  # raw receive
-    captured[5] = 1_021_555  # decide done
-    captured[6] = 1_024_675  # prepare done
-    captured[7] = 1_033_577  # reconcile done
-    frozen = tuple(captured)
+    frozen = _timed(
+        raw_receive=1_000_000,
+        reduce_stage=1_005_000,
+        decide_stage=1_010_400,
+        decide_done=1_021_555,
+        prepare_done=1_024_675,
+        reconcile_done=1_033_577,
+    )
 
     record = build_decision_record(frozen, identity(), persistence_sequence=1)
     unit = publisher()
@@ -229,7 +310,8 @@ def test_latency_comes_from_the_observation_and_never_moves_again() -> None:
     unit.observe_decision(record, frozen)
 
     snapshot = unit.build(now=1.0)
-    assert snapshot.decide_ns == 21_555
+    assert snapshot.decide_ns == 5_400
+    assert snapshot.receive_to_decide_ns == 21_555
     assert snapshot.prepare_ns == 3_120
     assert snapshot.reconcile_ns == 8_902
     assert snapshot.receive_to_reconcile_ns == 33_577
@@ -243,7 +325,7 @@ def test_latency_comes_from_the_observation_and_never_moves_again() -> None:
 
     Merger.last_decide_ns = 123_456
     again = unit.build(now=2.0)
-    assert again.decide_ns == 21_555
+    assert again.decide_ns == 5_400
     assert again.receive_to_reconcile_ns == 33_577
 
 
@@ -251,15 +333,43 @@ def test_an_unsampled_observation_yields_no_latency() -> None:
     from maker5m.persistence import build_decision_record
     from maker5m.persistence.records import latency_sample
 
-    unsampled = observation(0, ordinal=4242, risk=(7, "SAFE", True, True))
-    captured = list(unsampled)
-    captured[5] = 0  # NOT_CAPTURED
-    frozen = tuple(captured)
+    frozen = _timed(
+        raw_receive=NOT_CAPTURED,
+        reduce_stage=NOT_CAPTURED,
+        decide_stage=NOT_CAPTURED,
+        decide_done=NOT_CAPTURED,
+        prepare_done=NOT_CAPTURED,
+        reconcile_done=NOT_CAPTURED,
+    )
     assert latency_sample(frozen) is None
 
     unit = publisher()
     unit.observe_decision(build_decision_record(frozen, identity(), persistence_sequence=1), frozen)
     assert unit.build(now=1.0).decide_ns is None
+
+
+def test_a_cycle_timed_end_to_end_but_not_stage_stamped_keeps_what_it_measured() -> None:
+    """§4. Stages are sampled independently; a missing one is not a reason to discard the rest.
+
+    Zero would be a measurement, and there was not one — so `decide_ns` is absent, not zero,
+    while the figures that *were* taken survive.
+    """
+    from maker5m.persistence.records import latency_sample
+
+    frozen = _timed(
+        raw_receive=1_000,
+        reduce_stage=NOT_CAPTURED,
+        decide_stage=NOT_CAPTURED,
+        decide_done=1_400,
+        prepare_done=1_450,
+        reconcile_done=1_520,
+    )
+    sample = latency_sample(frozen)
+    assert sample is not None
+    assert "decide_ns" not in sample
+    assert sample["receive_to_reconcile_ns"] == 520
+    assert sample["prepare_ns"] == 50
+    assert sample["receive_to_decide_ns"] == 400
 
 
 def test_the_publisher_never_reaches_into_trading_objects() -> None:

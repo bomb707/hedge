@@ -217,8 +217,8 @@ def render_dashboard(
 
     latency = _rows(
         [
-            ("decide", _ns(snapshot.get("decide_ns"))),
-            ("reduce", _ns(snapshot.get("reduce_ns"))),
+            ("decide (P8 decide_duration)", _ns(snapshot.get("decide_ns"))),
+            ("receive → decide", _ns(snapshot.get("receive_to_decide_ns"))),
             ("prepare", _ns(snapshot.get("prepare_ns"))),
             ("reconcile", _ns(snapshot.get("reconcile_ns"))),
             ("receive → reconcile", _ns(snapshot.get("receive_to_reconcile_ns"))),

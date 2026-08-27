@@ -1476,3 +1476,24 @@ def test_a_v2_store_without_the_table_is_not_penalised(tmp_path: Path) -> None:
     result = verify_store(build_market(tmp_path))
     assert result.checks["control_audit_cross_links"] is True
     assert result.status is VerificationStatus.COMPLETE
+
+
+def test_the_storage_coverage_check_counts_control_rows(tmp_path: Path) -> None:
+    """The first real market with an operator command failed this check on a perfect store.
+
+    `persistence_log_covers_every_row` compared the envelope against decisions, fills, risk and
+    settlements — every event-like table except the one that had just been added. Two control
+    rows made a COMPLETE market read INCOMPLETE and said nothing about why.
+    """
+    path = _control_market(tmp_path)
+    result = verify_store(path)
+    assert result.checks["persistence_log_covers_every_row"] is True, result.failures
+
+
+def test_a_genuinely_missing_envelope_entry_is_still_caught(tmp_path: Path) -> None:
+    """The check still discriminates after being widened."""
+    path = _control_market(tmp_path)
+    _mutate(path, "DELETE FROM persistence_log WHERE record_type = 'control' LIMIT 1")
+    result = verify_store(path)
+    assert result.checks["persistence_log_covers_every_row"] is False
+    assert any("control 2" in f for f in result.failures)

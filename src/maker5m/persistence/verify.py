@@ -315,13 +315,16 @@ def verify_store(
             "the combined storage order is not 1..N; a record was lost, duplicated across "
             "tables, or written out of order"
         )
-    checks["persistence_log_covers_every_row"] = log_total == (
-        len(decisions) + int(fills) + len(risks) + int(settlements)
-    )
+    # Every event-like table, including control audit. Omitting one makes this check fail on a
+    # perfectly good store and say nothing useful about why — which is what it did the first time
+    # an operator command was persisted.
+    stored_total = len(decisions) + int(fills) + len(risks) + int(settlements) + len(control_rows)
+    checks["persistence_log_covers_every_row"] = log_total == stored_total
     if not checks["persistence_log_covers_every_row"]:
         failures.append(
-            f"{log_total} storage-order entries for "
-            f"{len(decisions) + int(fills) + len(risks) + int(settlements)} stored records"
+            f"{log_total} storage-order entries for {stored_total} stored records "
+            f"(decisions {len(decisions)}, fills {fills}, risk {len(risks)}, "
+            f"settlements {settlements}, control {len(control_rows)})"
         )
 
     capture = [int(row[1]) for row in decisions]

@@ -443,11 +443,13 @@ both earlier markets' stores remain valid.
 
 | Gate | Status |
 |---|---|
-| Implementation | **PASSED** — the full accepted stack composed from `maker5m.bot`; no live-write path; identity-isolated sessions; corpus index append-safe |
-| Pilot | **PASSED** — three consecutive real markets in one process, each COMPLETE and replay-exact, settlement overlapping the next market, prearm 74.9 s every handoff |
-| ≥200-market corpus | **IN PROGRESS** — collection running under `p13-corpus-1`; not claimed until the evidence exists |
+| Implementation | **PASSED** (P13B) — one classifier, classifying every side of every decision; discovery and feed readiness recorded separately; cold backlog bounded; completion durable and restart-safe |
+| Pilot | **PASSED** (P13B) — four consecutive real markets in one process, each COMPLETE, replay-exact and exhaustively classified, with a warm book and a real BTC price before every T0 |
+| ≥200-market corpus | **IN PROGRESS** — `p13-corpus-2`, from the corrected build. The v1 pilot and `p13-corpus-1` are retained, superseded, and excluded from the count |
 
-Evidence: [`evidence/P13-PILOT.md`](evidence/P13-PILOT.md).
+Evidence: [`evidence/P13B-CORPUS-INTEGRITY.md`](evidence/P13B-CORPUS-INTEGRITY.md), which
+supersedes the L3 and prearm evidence of [`evidence/P13-PILOT.md`](evidence/P13-PILOT.md). Both
+are retained.
 **No OPEN item closed, no strategy value changed, no order and no chain write.**
 
 - **Goal:** Canonical §34-L3. Run against the real live market with no real orders.

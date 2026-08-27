@@ -152,6 +152,118 @@ Nothing may stall the ingress owner. P12B and P12C each spent a round on that ru
 to the cleanup path exactly as it applies to a `listdir` or a `print`. `p13b-pilot-1` is retained
 as the evidence that found it, and the acceptance pilot is the run after the fix.
 
+## Two more defects the corrected pilots found
+
+Neither was on the review's list. Both were found by the instrumentation added for it, which is
+what instrumentation is for.
+
+**The launch loop held every market it had launched.** After four markets the process held four
+live sessions. `release()` had cleared each one's insides faithfully; the loop's own bookkeeping
+was keeping the objects alive in a `dict[str, MarketSession]` that only ever needed the slugs.
+"Released" was false however thoroughly the insides had been emptied.
+
+**Full garbage collections were stalling the ingress owner.** A full collection is proportional to
+the number of *tracked* objects, and this process holds a market's recorded event stream — about
+750,000 tracked objects per market, several million with closed markets still resident. Measured
+over twenty minutes of real markets:
+
+```text
+gen 0    24,000 collections   max 12 ms      total 3.8 s
+gen 1     2,200 collections   max 17.7 ms    total 2.4 s
+gen 2        37 collections   max 1,460 ms   total 17.1 s
+```
+
+That traversal runs inside whichever allocation triggers it, and on this process that includes the
+ingress owner's own cycle: single `observe` calls of 277, 541, 588, 594, 674 and 762 ms appeared
+against a 25 µs median.
+
+Full collections over that graph find almost nothing — `ReplayStep` holds an event and a decision,
+which hold tuples, integers and strings; it is acyclic and reference counting frees all of it. So
+full collections were made **forty times rarer, not disabled**: an asyncio process does produce
+cycles elsewhere and something has to collect them. That in turn exposed a session-level cycle —
+the session held its control ingress, the ingress held a lambda, the lambda captured the session —
+which is now broken so a closed market is freed by reference counting alone.
+
+After both: `observe` maxima of 15.6, 25.8 and 26.0 ms across the last three markets of the
+acceptance pilot, and 426 ms on the first, where one full collection still landed on an ingress
+cycle. Zero drops throughout, and the residual is recorded per market rather than described as
+solved.
+
+## The acceptance pilot — `p13b-pilot-5`
+
+Four consecutive real markets, one process, no restart, on a clean tree at `66da7ca`.
+
+| | 1787839200 | 1787839500 | 1787839800 | 1787840100 |
+|---|---|---|---|---|
+| verification | COMPLETE | COMPLETE | COMPLETE | COMPLETE |
+| replay | EXACT | EXACT | EXACT | EXACT |
+| decisions | 235,924 | 219,310 | 199,752 | 159,786 |
+| classified / expected | 471,848 / 471,848 | 438,620 / 438,620 | 399,504 / 399,504 | 319,572 / 319,572 |
+| side actions | 471,848 | 438,620 | 399,504 | 319,572 |
+| CLOB / BTC messages | 226,849 / 12,551 | 210,181 / 13,311 | 191,751 / 11,350 | 153,854 / 8,938 |
+| book ready before T0 | 29.83 s | 29.81 s | 29.70 s | 29.75 s |
+| spot ready before T0 | 29.13 s | 29.12 s | 28.90 s | 29.02 s |
+| **feed ready before T0** | **29.13 s** | **29.12 s** | **28.90 s** | **29.02 s** |
+| drops / gaps / sink errors | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| PLACE by risk state | SAFE 886 | SAFE 810 | SAFE 597 | SAFE 440 |
+| settlement | RESOLVED UP | RESOLVED DOWN | RESOLVED DOWN | RESOLVED UP |
+
+Discovery readiness was 74.9 s on every handoff and is reported separately, because it is a
+different fact: metadata resolved, feeds not yet open.
+
+**PLACE while HALTED: 0. PLACE while RECOVERING: 0**, across 221 HALTED and 5 RECOVERING risk
+records. Cold backlog high-water **1** against a cap of 3. Corpus append failures **0**.
+
+### The exhaustive L3 distribution
+
+Over 1,629,544 side opportunities — every side of every decision:
+
+```text
+AT_FRONT            563,602   34.59 %
+PRICE_OK_BUT_DEEP   224,192   13.76 %
+NOT_QUOTING         841,724   51.65 %
+OFF_PRICE                 0    0.00 %
+STALE                    26    0.00 %
+```
+
+**Do not compare these against the superseded fractions.** They do not share a denominator: the
+old numbers were taken over acting cycles plus a tenth of the rest, and this one is taken over the
+market.
+
+Reconciler actions over the same denominator: KEEP 784,015, BLOCKED 723,964, NOTHING 114,007,
+PLACE 3,779, REPLACE 2,007, CANCEL 1,772 — 1,629,544 in total, matching exactly.
+
+### Resources, measured after release
+
+```text
+market   start RSS   trading-end RSS   post-release RSS   live sessions   threads   fds
+1           35 MB          602 MB           1,477 MB            3            8      24
+2          533 MB        1,497 MB           1,503 MB            3            8      24
+3        1,468 MB        1,519 MB           2,091 MB            2            7      21
+4        1,503 MB        2,091 MB           2,056 MB            1            6      16
+```
+
+`live_sessions` falls to one as the run drains, which is the number that answers the question:
+sessions are being released. Three is the architectural steady state — the market being finalized,
+the one trading, and the one warming — not a leak. RSS plateaus around 1.5-2.1 GB and does not
+grow by a market's graph per market; it is the operating system's view, and glibc does not hand
+freed arenas back promptly, which is precisely why the object count is reported beside it.
+
+### Cost to the trading path
+
+The accepted process-isolated benchmark, after the pilot (`p13b-overhead.json`):
+
+| P8C limit | P13B | |
+|---|---|---|
+| decide p50 overhead ≤ 1,000 ns | −376 ns | MET |
+| decide p50 overhead ≤ 3 % | −1.48 % | MET |
+| full-cycle p50 overhead ≤ 5,000 ns | +736 ns | MET |
+| full-cycle p50 overhead ≤ 5 % | +1.32 % | MET |
+
+No limit was moved. Exhaustive classification runs on the persistence worker's thread; observation
+buffer high-water across the pilot was 247 to 11,759 of 320,000, and **no market dropped an
+observation**.
+
 ## Status of the earlier artifacts
 
 * [`P13-PILOT.md`](P13-PILOT.md) and its artifacts are **retained unedited**. The composition,

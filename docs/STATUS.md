@@ -75,7 +75,63 @@ production.
 
 ---
 
-## P13: live paper — composition root and pilot
+## P13B: corpus integrity corrections
+
+Full evidence in [`evidence/P13B-CORPUS-INTEGRITY.md`](evidence/P13B-CORPUS-INTEGRITY.md).
+**P13 pilot v1 is SUPERSEDED FOR THE FINAL GATE** and `p13-corpus-1` is stopped, preserved and
+excluded from the acceptance count.
+
+Four collection defects, each of which would have been baked into two hundred markets:
+
+**L3 was not exhaustive.** The analyzer classified only cycles that acted or were latency-sampled,
+so `btc-updown-5m-1787826000` recorded 30,734 side classifications where 143,740 decisions imply
+287,480 — and acting cycles are exactly the ones where an order was being placed or replaced, so
+the sample over-weighted the worst queue moments. Same classifier, new explicit mode:
+`EVERY_DECISION` for P13, P8's `SAMPLED_OR_ACTING` still the default. **Latency sampling is
+untouched.** On one stream at three sampler settings, classifications went 400/40/4 before and
+400/400/400 after. The denominator is exact and checked: `classified == actions == 2 × decisions`.
+
+**"Prearm ready" was discovery ready.** It recorded when `discover_market` returned; the feeds do
+not open until T0-30, so the 74.9 s lead proved metadata had resolved and nothing about a book or
+a BTC price. P6 now records first CLOB message, book ready and first valid spot, observationally.
+A market is warm when it has both, and `feed_ready_ns` is `None` when either is missing.
+
+**The cold backlog was not bounded.** The constant and the helper existed; the launch loop called
+neither. It now waits for capacity before a market exists — never during one — and skips the slot
+with a `COLD_BACKLOG_CAP` row if capacity does not appear.
+
+**A market could count before its row was durable.** Completion now requires the append to have
+succeeded, and the target counts durable qualifying rows for the epoch, config hash and source
+revision — a restart after 150 collects 50 more. A torn tail is closed off rather than welded to
+the next row, and the collector refuses to start an epoch with modified tracked source.
+
+Two more the corrected pilots found themselves. The launch loop was **holding every session it
+had launched** (four markets, four live sessions), and full garbage collections — 37 of them
+costing 17.1 s, worst case 1.46 s — were landing on the ingress owner, producing `observe` calls
+of up to 762 ms against a 25 µs median. Sessions are now released by reference counting alone and
+full collections are forty times rarer; `observe` maxima across the last three acceptance-pilot
+markets were 15.6, 25.8 and 26.0 ms, with one 426 ms outlier on the first. Zero drops throughout.
+
+### Acceptance pilot — four consecutive real markets, one process
+
+```text
+1787839200  COMPLETE  EXACT  235,924 decisions  471,848/471,848 classified  feed ready 29.13s
+1787839500  COMPLETE  EXACT  219,310 decisions  438,620/438,620 classified  feed ready 29.12s
+1787839800  COMPLETE  EXACT  199,752 decisions  399,504/399,504 classified  feed ready 28.90s
+1787840100  COMPLETE  EXACT  159,786 decisions  319,572/319,572 classified  feed ready 29.02s
+```
+
+0 drops, gaps and sink errors; PLACE only ever under SAFE; four settlements RESOLVED; cold backlog
+high-water 1 of 3; live sessions falling to 1 as the run drained. Exhaustive L3 over 1,629,544
+side opportunities: AT_FRONT 34.59 %, PRICE_OK_BUT_DEEP 13.76 %, NOT_QUOTING 51.65 %, OFF_PRICE
+0 %, STALE 0.00 % (26 cycles). **These do not share a denominator with the superseded fractions.**
+
+Overhead after the pilot: decide p50 **−376 ns (−1.48 %)**, full cycle **+736 ns (+1.32 %)**.
+Every P8C limit met, none moved.
+
+---
+
+## P13: live paper — composition root and pilot (v1, SUPERSEDED for the final gate)
 
 Full evidence in [`evidence/P13-PILOT.md`](evidence/P13-PILOT.md). This is the **implementation
 and pilot** record. The ≥200-market corpus is a separate gate and is **IN PROGRESS**.
@@ -1474,9 +1530,9 @@ orders, which P8 does not place. Both stay OPEN.
 | | |
 |---|---|
 | **Current phase** | **P13 — live shadow / paper mode** |
-| P13 implementation gate | **PASSED** — full stack composed from `maker5m.bot`, no live-write path, identity-isolated sessions |
-| P13 pilot gate | **PASSED** — three consecutive real markets, one process, COMPLETE and replay-exact, settlement overlapping the next market |
-| P13 ≥200-market corpus gate | **IN PROGRESS** — collection running; not claimed until the evidence exists |
+| P13 implementation gate | **PASSED** (P13B) — one classifier and it classifies everything; discovery and feed readiness distinct; cold backlog bounded; completion durable and restart-safe |
+| P13 pilot gate | **PASSED** (P13B) — four consecutive real markets, exhaustively classified, feeds warm before T0, one process, no restart. The v1 pilot is retained and superseded |
+| P13 ≥200-market corpus gate | **IN PROGRESS** — `p13-corpus-2`, from the corrected build. `p13-corpus-1` is preserved and excluded |
 | P12 implementation gate | **PASSED** — Plane-3 UI, immutable snapshot, ordered control, no trading reference |
 | P12 real-market gate | **PASSED** — UI killed mid-market, trading continued |
 | P12 Plane-3 isolation gate | **PASSED** (P12C) — no synchronous I/O of any kind on the ingress path, stdout included |
@@ -1550,7 +1606,8 @@ orders, which P8 does not place. Both stay OPEN.
 | P12E branch | `fix/p12-commit-boundary` |
 | P13 branch | `feature/p13-live-paper` |
 | P13 base | `feb7e2b` — merge of P12E into main, no rebase, no force |
-| P13 corpus epoch | `p13-corpus-1`, source `bb67b18`, config `02346b84…` |
+| P13 corpus epoch (superseded) | `p13-corpus-1`, source `bb67b18` — 12 COMPLETE rows preserved, excluded from the count |
+| P13B branch | `fix/p13-corpus-integrity` |
 | P12C final snapshot | retained unedited; its `decide_ns` label is corrected in `p12d-p12c-snapshot-latency-correction.json`, not in the file |
 | P12B final snapshot | **known-inaccurate read-model artifact**, retained unedited; see `p12c-p12b-revalidation-btc-updown-5m-1787807700.json` |
 | P11 store size | 5,230 B/decision raw → **95.7 B archived**; engineered in P11B, not deferred |

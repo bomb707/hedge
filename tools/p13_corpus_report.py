@@ -86,11 +86,16 @@ def report(index: CorpusIndex, *, epoch: str | None = None) -> dict[str, Any]:
     sink_errors = 0
     prearm_ready = 0
     prearm_leads: list[float] = []
+    discovery_leads: list[float] = []
+    clob_leads: list[float] = []
+    spot_leads: list[float] = []
     commands = 0
     rss_start: list[int] = []
     rss_end: list[int] = []
     threads_end: list[int] = []
     fds_end: list[int] = []
+    live_sessions: list[int] = []
+    gc_full_pause_ns: list[int] = []
 
     for entry in eligible:
         l3 = entry.get("quality_l3") or {}
@@ -132,25 +137,41 @@ def report(index: CorpusIndex, *, epoch: str | None = None) -> dict[str, Any]:
         gaps += int(entry.get("sequence_gaps") or 0)
         sink_errors += int(entry.get("sink_errors") or 0)
         prearm = entry.get("prearm") or {}
-        if prearm.get("ready_before_t0"):
+        if prearm.get("feed_ready_before_t0"):
             prearm_ready += 1
-        if isinstance(prearm.get("lead_seconds"), int | float):
-            prearm_leads.append(float(prearm["lead_seconds"]))
+        leads: tuple[tuple[str, list[float]], ...] = (
+            ("discovery_lead_seconds", discovery_leads),
+            ("clob_lead_seconds", clob_leads),
+            ("spot_lead_seconds", spot_leads),
+            ("feed_ready_lead_seconds", prearm_leads),
+        )
+        for key, target in leads:
+            if isinstance(prearm.get(key), int | float):
+                target.append(float(prearm[key]))
         settlement = entry.get("settlement")
         settlements[str(None if settlement is None else settlement.get("state"))] += 1
         if settlement is not None and settlement.get("winning_outcome"):
             winners[str(settlement["winning_outcome"])] += 1
         commands += len(entry.get("commands") or ())
         resources = entry.get("resources") or {}
-        for name, target in (("start", rss_start), ("end", rss_end)):
+        for name in ("start", "post_release"):
             sample = resources.get(name) or {}
-            if isinstance(sample.get("rss_bytes"), int):
-                target.append(int(sample["rss_bytes"]))
-        end = resources.get("end") or {}
-        if isinstance(end.get("threads"), int):
-            threads_end.append(int(end["threads"]))
-        if isinstance(end.get("open_fds"), int):
-            fds_end.append(int(end["open_fds"]))
+            rss = sample.get("rss_bytes")
+            if isinstance(rss, int):
+                (rss_start if name == "start" else rss_end).append(rss)
+        # Post-release, always: a number taken while the market's own graph is still held says
+        # nothing about whether releasing it works.
+        released = resources.get("post_release") or {}
+        if isinstance(released.get("threads"), int):
+            threads_end.append(int(released["threads"]))
+        if isinstance(released.get("open_fds"), int):
+            fds_end.append(int(released["open_fds"]))
+        if isinstance(released.get("live_sessions"), int):
+            live_sessions.append(int(released["live_sessions"]))
+        gc_summary = resources.get("gc") or {}
+        pause = (gc_summary.get("max_pause_ns") or {}).get("2")
+        if isinstance(pause, int):
+            gc_full_pause_ns.append(pause)
 
     slugs = [str(e.get("slug")) for e in eligible]
     return {
@@ -209,18 +230,33 @@ def report(index: CorpusIndex, *, epoch: str | None = None) -> dict[str, Any]:
         "risk_states": dict(sorted(risk_states.items())),
         "places_by_risk_state": dict(sorted(places.items())),
         "prearm": {
-            "ready_before_t0": prearm_ready,
+            "note": (
+                "Discovery readiness is when the market's metadata resolved; feed readiness is "
+                "when a usable book and a real BTC price both existed. Only the second one means "
+                "a market was warm, and only it gates eligibility."
+            ),
+            "feed_ready_before_t0": prearm_ready,
             "of": len(eligible),
-            "lead_seconds": _spread(prearm_leads),
+            "discovery_lead_seconds": _spread(discovery_leads),
+            "clob_book_ready_lead_seconds": _spread(clob_leads),
+            "spot_first_valid_lead_seconds": _spread(spot_leads),
+            "feed_ready_lead_seconds": _spread(prearm_leads),
         },
         "settlement_states": dict(sorted(settlements.items())),
         "winners": dict(sorted(winners.items())),
         "resources": {
+            "note": (
+                "Every figure but the first is taken **after** the market was released. RSS is "
+                "the operating system's view and glibc does not return freed arenas promptly, "
+                "so `live_sessions` is the number that says whether release works."
+            ),
             "rss_bytes_first_market_start": rss_start[0] if rss_start else None,
-            "rss_bytes_last_market_end": rss_end[-1] if rss_end else None,
-            "rss_bytes_end_spread": _spread([float(v) for v in rss_end]),
-            "threads_end_spread": _spread([float(v) for v in threads_end]),
-            "open_fds_end_spread": _spread([float(v) for v in fds_end]),
+            "rss_bytes_last_post_release": rss_end[-1] if rss_end else None,
+            "rss_bytes_post_release_spread": _spread([float(v) for v in rss_end]),
+            "threads_post_release_spread": _spread([float(v) for v in threads_end]),
+            "open_fds_post_release_spread": _spread([float(v) for v in fds_end]),
+            "live_sessions_post_release": live_sessions,
+            "gc_full_collection_max_pause_ns": _spread([float(v) for v in gc_full_pause_ns]),
         },
         "safety": {
             "orders_sent": 0,

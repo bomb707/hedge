@@ -17,7 +17,7 @@ import json
 import time
 from pathlib import Path
 
-from maker5m.bot.config import PaperConfig, config_identity
+from maker5m.bot.config import PaperConfig, config_identity, source_identity
 from maker5m.bot.supervisor import Supervisor
 from maker5m.safety import LIVE_TRADING_ENABLED
 from maker5m.settlement import REDEMPTION_ENABLED
@@ -46,6 +46,9 @@ async def _run(config: PaperConfig, markets: int | None, launches: int | None) -
                 "epoch": config.epoch,
                 "config_sha256": identity["config_sha256"],
                 "source_revision": identity["source_revision"],
+                "source_tree_sha": identity["source_tree_sha"],
+                "working_tree_clean": identity["working_tree_clean"],
+                "already_qualifying_this_epoch": supervisor.completed_existing,
                 "live_trading_enabled": LIVE_TRADING_ENABLED,
                 "redemption_enabled": REDEMPTION_ENABLED,
                 "evidence_dir": str(config.evidence_dir),
@@ -72,6 +75,11 @@ def main() -> None:
     )
     parser.add_argument("--epoch", type=str, default="p13-corpus-1")
     parser.add_argument(
+        "--allow-dirty",
+        action="store_true",
+        help="permit an exploratory run with modified tracked source; never for acceptance",
+    )
+    parser.add_argument(
         "--keep-raw-store",
         action="store_true",
         help="keep the raw SQLite file after its archive verifies (650 MB per market)",
@@ -81,6 +89,16 @@ def main() -> None:
         raise SystemExit("refusing to run: this build is not a paper build")
 
     config = build(args.root, keep_raw_store=args.keep_raw_store, epoch=args.epoch)
+    identity = source_identity()
+    if not identity["working_tree_clean"] and not args.allow_dirty:
+        # A corpus frozen against a revision whose tracked files were modified is frozen against
+        # nothing. Exploratory runs may pass --allow-dirty; an acceptance epoch may not, and the
+        # flag is recorded either way so the artifact says which kind of run it was.
+        modified = "\n  ".join(identity["modified_tracked_files"] or ())
+        raise SystemExit(
+            "refusing to start a corpus epoch with modified tracked source:\n  "
+            f"{modified}\ncommit them, or pass --allow-dirty for an exploratory run"
+        )
     started = time.time()
     supervisor = asyncio.run(_run(config, args.markets, args.launch_limit))
     stats = supervisor.corpus.stats()
@@ -90,8 +108,14 @@ def main() -> None:
                 "finished": "P13 live paper",
                 "elapsed_seconds": round(time.time() - started, 1),
                 "attempted_this_process": supervisor.attempted,
-                "completed_this_process": supervisor.completed,
+                "completed_existing": supervisor.completed_existing,
+                "completed_this_process": supervisor.completed_this_process,
+                "completed_total": supervisor.completed,
                 "skipped_already_collected": len(supervisor.skipped),
+                "skipped_slots": supervisor.skipped_slots,
+                "corpus_append_failures": supervisor.append_failures,
+                "cold_backlog_high_water": supervisor.cold_high_water,
+                "allow_dirty": args.allow_dirty,
                 "corpus": stats.summary(),
                 "orders_sent": 0,
                 "redemptions_sent": 0,

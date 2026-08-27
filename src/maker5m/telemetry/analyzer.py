@@ -27,6 +27,7 @@ happened in observation, not execution — but the measurement must say so.
 
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any, Final, NamedTuple
 
 from maker5m.domain import Outcome
@@ -145,6 +146,16 @@ class LatencyBook:
         }
 
 
+class ClassificationMode(Enum):
+    """How much of the stream gets an L3 classification."""
+
+    SAMPLED_OR_ACTING = "SAMPLED_OR_ACTING"
+    """P8's accepted behaviour: cycles that acted or were latency-sampled."""
+
+    EVERY_DECISION = "EVERY_DECISION"
+    """Both sides of every decision observation. What Canonical §34-L3 asks for."""
+
+
 class QuoteEvent(NamedTuple):
     """One side's classification, with the coordinates a corpus needs to bucket it.
 
@@ -182,6 +193,18 @@ class TelemetryAnalyzer:
     shadow: ShadowQueueTracker = field(default_factory=ShadowQueueTracker)
     counters: ActionCounters = field(default_factory=ActionCounters)
     latency: LatencyBook = field(default_factory=LatencyBook)
+
+    classification_mode: ClassificationMode = ClassificationMode.SAMPLED_OR_ACTING
+    """Which cycles get an L3 classification. Latency sampling is unaffected either way.
+
+    `SAMPLED_OR_ACTING` is P8's accepted behaviour and stays the default, so every existing
+    measurement means exactly what it meant. `EVERY_DECISION` is P13's: both sides of every
+    decision observation, so the L3 denominator is the market rather than a sample of it.
+
+    Classification happens **once** per observation in both modes. The shadow queue state
+    advances once per observation regardless, before either branch, because it is the model of
+    where our order sits and cannot be allowed to depend on who is counting.
+    """
 
     on_quote: Callable[[QuoteEvent], None] | None = field(default=None, repr=False)
     """Optional Plane-3 observer of every classification this analyzer makes.
@@ -253,11 +276,17 @@ class TelemetryAnalyzer:
         # never agreed. A full real market produced stage timings for 126 cycles instead of
         # ~15,400. There is now one source of truth and no second opinion.
         sampled = observation[OBS_DECIDE_DONE_NS] != NOT_CAPTURED
-        if not (acting or sampled):
-            return
-
-        self._record_latency(observation, event_kind, plan, acting)
-        self._classify(observation, plan, healthy)
+        if acting or sampled:
+            self._record_latency(observation, event_kind, plan, acting)
+            self._classify(observation, plan, healthy)
+        elif self.classification_mode is ClassificationMode.EVERY_DECISION:
+            # Classification is not a measurement of *this run's* clock, so it has no reason to
+            # follow the latency sampler. Canonical §34-L3 asks what fraction of quote
+            # opportunities sat at the front, and a fraction whose denominator is "every acting
+            # cycle plus one in ten of the others" answers a different question: acting cycles
+            # are exactly the ones where an order was being placed or replaced, so sampling that
+            # way over-weights the moments the queue position was worst.
+            self._classify(observation, plan, healthy)
 
     # -- queue state -----------------------------------------------------------------------
 
@@ -381,6 +410,7 @@ class TelemetryAnalyzer:
 
     def summary(self) -> dict[str, object]:
         return {
+            "classification_mode": self.classification_mode.value,
             "observations_processed": self.processed,
             "observation_gaps": self.gaps,
             "observations_lost": self.lost_observations,

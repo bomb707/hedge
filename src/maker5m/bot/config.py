@@ -31,6 +31,7 @@ __all__ = [
     "OperationalThresholds",
     "PaperConfig",
     "config_identity",
+    "source_identity",
     "source_revision",
 ]
 
@@ -98,13 +99,40 @@ class PaperConfig:
         )
 
 
-def source_revision() -> str:
+def _git(*args: str) -> str | None:
     try:
         return subprocess.run(
-            ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+            ["git", *args], capture_output=True, text=True, check=True
         ).stdout.strip()
     except (OSError, subprocess.CalledProcessError):  # pragma: no cover - defensive
-        return "unknown"
+        return None
+
+
+def source_revision() -> str:
+    return _git("rev-parse", "HEAD") or "unknown"
+
+
+def source_identity() -> dict[str, Any]:
+    """Which software this is, and whether that statement is true.
+
+    `git rev-parse HEAD` names a commit; it says nothing about whether the files that were
+    imported match it. A corpus frozen against a revision while the working tree carried
+    uncommitted edits would be frozen against nothing, so the tree hash and the cleanliness of
+    tracked files are recorded beside it.
+
+    Untracked files are ignored on purpose: evidence directories, scratch output and editor
+    droppings are not the software. What matters is whether a *tracked* source file differs from
+    the revision this run claims to be.
+    """
+    revision = source_revision()
+    tree = _git("rev-parse", "HEAD^{tree}")
+    modified = _git("status", "--porcelain", "--untracked-files=no")
+    return {
+        "source_revision": revision,
+        "source_tree_sha": tree,
+        "working_tree_clean": modified == "",
+        "modified_tracked_files": None if not modified else modified.splitlines(),
+    }
 
 
 def _plain(value: Any) -> Any:
@@ -127,13 +155,21 @@ def config_identity(config: PaperConfig) -> dict[str, Any]:
     Recorded on every market. Two markets with different hashes are not the same experiment,
     and the corpus says so rather than letting them be averaged together.
     """
+    # Everything that can change what gets collected or how it is judged. Paths are excluded —
+    # where the evidence lives is not what the experiment is — but a collection knob that alters
+    # behaviour is part of the identity, because two runs that differ in one are not the same
+    # collection whatever their strategy config says.
     snapshot = {
         "corpus_schema_version": CORPUS_SCHEMA_VERSION,
         "epoch": config.epoch,
         "strategy": _plain(config.strategy()),
         "base_lot": config.base_lot,
         "sample_every": config.sample_every,
+        "classification_mode": "EVERY_DECISION",
         "buffer_capacity": config.buffer_capacity,
+        "settle_timeout_s": config.settle_timeout_s,
+        "settle_poll_s": _plain(config.settle_poll_s),
+        "keep_raw_store": config.keep_raw_store,
         "thresholds": {"OPERATIONAL": _plain(asdict(config.thresholds))},
         "live_trading_enabled": LIVE_TRADING_ENABLED,
         "redemption_enabled": REDEMPTION_ENABLED,
@@ -141,6 +177,6 @@ def config_identity(config: PaperConfig) -> dict[str, Any]:
     encoded = json.dumps(snapshot, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return {
         **snapshot,
-        "source_revision": source_revision(),
+        **source_identity(),
         "config_sha256": hashlib.sha256(encoded).hexdigest(),
     }

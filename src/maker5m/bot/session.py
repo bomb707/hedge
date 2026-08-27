@@ -30,7 +30,7 @@ from typing import Any
 
 from maker5m.bot.config import PaperConfig
 from maker5m.bot.quality import QualityAggregate
-from maker5m.bot.resources import ResourceSample, sample_resources
+from maker5m.bot.resources import ResourceSample, sample_resources, tiers
 from maker5m.execution import Executor, RecordingTransport, VenueAdapter
 from maker5m.feeds import MarketDataPipeline
 from maker5m.feeds.capture import capture_market
@@ -58,17 +58,33 @@ from maker5m.safety import LIVE_TRADING_ENABLED
 from maker5m.settlement import REDEMPTION_ENABLED
 from maker5m.strategy import StrategyEngine
 from maker5m.telemetry import InstrumentedRun, SamplingPolicy, TelemetryAnalyzer, perf_now_ns
+from maker5m.telemetry.analyzer import ClassificationMode
 from maker5m.telemetry.observation import ObservationBuffer
 from maker5m.ui import ControlIngress, SnapshotPublisher
 
 __all__ = ["MarketSession", "PrearmRecord", "SessionResult"]
+
+
+def _lead(t0_ns: int, when_ns: int | None) -> float | None:
+    """Seconds before T0. ``None`` when it never happened — never a zero standing in for that."""
+    if when_ns is None:
+        return None
+    return round((t0_ns - when_ns) / NANOS_PER_SECOND, 3)
+
 
 DEFAULT_RISK_CAPACITY = 400_000
 
 
 @dataclass(frozen=True, slots=True)
 class PrearmRecord:
-    """When this market was discovered and made ready, against its own T0."""
+    """When this market's **metadata** was resolved. Discovery only.
+
+    Deliberately narrow. P13's first corpus called this "prearm ready" and reported a 74.9 s
+    lead, which was true of `discover_market` returning and said nothing about market data: the
+    CLOB and Binance producers do not start until T0-30, so a market could be "prearmed" by this
+    measure with no book and no BTC price. Feed readiness is a separate set of facts, recorded
+    by the session from P6's own warm milestones.
+    """
 
     slug: str
     t0_ns: int
@@ -89,11 +105,11 @@ class PrearmRecord:
         return {
             "slug": self.slug,
             "t0_ns": self.t0_ns,
-            "started_ns": self.started_ns,
-            "ready_ns": self.ready_ns,
-            "lead_seconds": round(self.lead_seconds, 3),
-            "duration_seconds": round(self.duration_seconds, 3),
-            "ready_before_t0": self.ok and self.ready_ns < self.t0_ns,
+            "discovery_started_ns": self.started_ns,
+            "discovery_ready_ns": self.ready_ns,
+            "discovery_lead_seconds": round(self.lead_seconds, 3),
+            "discovery_duration_seconds": round(self.duration_seconds, 3),
+            "discovery_ready_before_t0": self.ok and self.ready_ns < self.t0_ns,
             "ok": self.ok,
             "error": self.error,
         }
@@ -146,7 +162,16 @@ class MarketSession:
             engine=RiskEngine(config=RiskConfig()),
             provenance=RiskProvenance.REAL_PUBLIC_MARKET_DATA,
         )
-        self.analyzer = TelemetryAnalyzer(sampling=SamplingPolicy(sample_every=config.sample_every))
+        self.analyzer = TelemetryAnalyzer(
+            sampling=SamplingPolicy(sample_every=config.sample_every),
+            # Canonical §34-L3 asks about every quote opportunity, so P13 classifies every
+            # decision. Latency stays sampled exactly as P8 accepted it: reading a clock is the
+            # expensive part and one cycle in ten characterises a distribution, whereas a
+            # classification fraction over "every acting cycle plus one in ten of the rest" has
+            # a denominator nobody can interpret — and acting cycles are exactly the ones where
+            # an order was being placed or replaced, so it over-weights the worst queue moments.
+            classification_mode=ClassificationMode.EVERY_DECISION,
+        )
         self.quality = QualityAggregate(t0_ns=self.t0_ns)
         self.analyzer.on_quote = self.quality.observe
         self.metrics = MetricsAccumulator(
@@ -196,6 +221,8 @@ class MarketSession:
         self._last_evaluated = -1
         self.started_resources: ResourceSample | None = None
         self.finished_resources: ResourceSample | None = None
+        self.released_resources: ResourceSample | None = None
+        self.hot_path_tiers: dict[str, int | None] = {}
         self.capture: Any = None
         self.settlement: Any = None
         self.manifest: Manifest | None = None
@@ -205,6 +232,12 @@ class MarketSession:
         self.closing_sink_errors = 0
         self.source_revision = ""
         self.feed_counters: dict[str, Any] = {}
+        self.warm: dict[str, int | None] = {
+            "clob_first_ns": None,
+            "clob_book_ready_ns": None,
+            "spot_first_valid_ns": None,
+        }
+        self.feed_warm_started_ns: int | None = None
 
     # -- Plane 3 observers -----------------------------------------------------------------
 
@@ -341,11 +374,49 @@ class MarketSession:
             report=self.control_events.publish,
         )
 
+    def _note_warm(self, key: str, when_ns: TimestampNs) -> None:
+        """P6 saw the market data become usable. Recorded, never inferred."""
+        if self.warm.get(key) is None:
+            self.warm[key] = int(when_ns)
+
+    @property
+    def feed_ready_ns(self) -> int | None:
+        """When this market was genuinely warm: a usable book **and** a real BTC price.
+
+        Both, or nothing. A book with no spot cannot price a centre and a spot with no book has
+        nothing to quote against, so a single arriving feed is not a warm market — and `None`
+        here means exactly that, never "assume it was fine".
+        """
+        book = self.warm.get("clob_book_ready_ns")
+        spot = self.warm.get("spot_first_valid_ns")
+        if book is None or spot is None:
+            return None
+        return max(book, spot)
+
+    def prearm_summary(self) -> dict[str, Any]:
+        """Discovery and feed readiness, kept apart, against this market's own T0."""
+        ready = self.feed_ready_ns
+        book = self.warm.get("clob_book_ready_ns")
+        spot = self.warm.get("spot_first_valid_ns")
+        return {
+            **self.prearm.summary(),
+            "feed_warm_started_ns": self.feed_warm_started_ns,
+            "clob_first_ns": self.warm.get("clob_first_ns"),
+            "clob_book_ready_ns": book,
+            "spot_first_valid_ns": spot,
+            "feed_ready_ns": ready,
+            "clob_lead_seconds": _lead(self.t0_ns, book),
+            "spot_lead_seconds": _lead(self.t0_ns, spot),
+            "feed_ready_lead_seconds": _lead(self.t0_ns, ready),
+            "feed_ready_before_t0": ready is not None and ready < self.t0_ns,
+        }
+
     # -- lifecycle ---------------------------------------------------------------------------
 
     async def run(self) -> None:
         """Trade one market in shadow. Returns when the capture window closes."""
         self.started_resources = sample_resources()
+        self.feed_warm_started_ns = time.time_ns()
         self.worker.start()
         try:
             self.capture = await capture_market(
@@ -356,6 +427,7 @@ class MarketSession:
                 on_pipeline=self._attach,
                 observer=lambda kind, raw, decision: self._observe(kind, raw, decision),
                 on_tick=self._on_tick,
+                on_warm=self._note_warm,
             )
         except Exception as error:
             self.incidents.append(f"capture failed: {type(error).__name__}: {error}")
@@ -524,6 +596,18 @@ class MarketSession:
         )
         if self.ui.active_slug in (self.slug, None):
             self.publisher.publish_now(time.time())
+
+    def finish(self) -> None:
+        """Take what the entry still needs, let the market go, then measure what is left.
+
+        The order matters and is the point: the previous pilot sampled "end" resources while the
+        recorded event stream was still held, and then reported 1.25 GB as though it described a
+        released market. A post-release number is the only one that can say whether release
+        works, and it has to be taken after the references are actually gone.
+        """
+        self.hot_path_tiers = tiers(self.hot_path_ns)
+        self.release()
+        self.released_resources = sample_resources()
 
     def release(self) -> None:
         """Drop everything this market was holding. Two hundred of these must not accumulate."""

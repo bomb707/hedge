@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-__all__ = ["ResourceSample", "sample_resources"]
+__all__ = ["ResourceSample", "sample_resources", "tiers"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +37,22 @@ class ResourceSample:
             "open_fds": self.open_fds,
             "pending_tasks": self.pending_tasks,
         }
+
+
+def tiers(samples: list[int]) -> dict[str, int | None]:
+    """Quantiles of a measured series, or an explicit nothing. Never zeros standing in."""
+    from maker5m.telemetry.metrics import quantile
+
+    ordered = sorted(samples)
+    if not ordered:
+        return {"n": 0, "p50": None, "p95": None, "p99": None, "max": None}
+    return {
+        "n": len(ordered),
+        "p50": quantile(ordered, 0.50),
+        "p95": quantile(ordered, 0.95),
+        "p99": quantile(ordered, 0.99),
+        "max": ordered[-1],
+    }
 
 
 def _rss_bytes() -> int | None:

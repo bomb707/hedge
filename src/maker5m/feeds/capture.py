@@ -21,7 +21,7 @@ import asyncio
 import json
 import random
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from time import perf_counter_ns
 from typing import Any, Final
 
@@ -89,6 +89,15 @@ class CaptureResult:
     prearm_ready_ns: TimestampNs | None
     next_market_t0_ns: TimestampNs | None
     next_market_slug: str | None
+    warm_milestones: dict[str, int | None] = field(default_factory=dict)
+    """When the market data actually became usable, on the ingress clock.
+
+    ``clob_first_ns``, ``clob_book_ready_ns`` and ``spot_first_valid_ns``, each recorded the
+    first time it happens and never revised. Purely observational: nothing here changes what is
+    consumed, what is emitted, when a phase fires, or what P6 considers healthy. It exists
+    because "discovery returned" and "there is a book" are different facts, and only the second
+    one means a market is warm.
+    """
 
     @property
     def prearm_slack_ns(self) -> int | None:
@@ -207,7 +216,9 @@ async def _phase_producer(
         await queue.put(_Payload("phase", phase))
 
 
-def _warm(payload: _Payload, pipeline: MarketDataPipeline) -> None:
+def _warm(
+    payload: _Payload, pipeline: MarketDataPipeline, note: Callable[[str], None] | None = None
+) -> None:
     """Consume a pre-T0 message: update the trackers, emit nothing.
 
     Precision observers still run, so the O10/O12 evidence covers the warm-up window too.
@@ -228,6 +239,8 @@ def _warm(payload: _Payload, pipeline: MarketDataPipeline) -> None:
                 pipeline.counters.malformed += 1
                 continue
             pipeline.counters.clob_messages += 1
+            if note is not None:
+                note("clob_first_ns")
             if parsed.book is not None and parsed.book.tick_size is not None:
                 pipeline.venue_rules.observe_rules(
                     VenueMarketRules(
@@ -237,11 +250,16 @@ def _warm(payload: _Payload, pipeline: MarketDataPipeline) -> None:
                     )
                 )
             pipeline.books.apply(parsed)
+            if note is not None and pipeline.books.ready:
+                note("clob_book_ready_ns")
     elif payload.kind == "spot":
         try:
             parse_agg_trade(payload.data, pipeline.spot_precision)
         except FeedError:
             pipeline.counters.malformed += 1
+        else:
+            if note is not None:
+                note("spot_first_valid_ns")
     elif payload.kind == "clob_disconnect":
         pipeline.books.clear()
         pipeline.counters.reconnects += 1
@@ -264,6 +282,7 @@ async def capture_market(
     gate: Callable[[str, TimestampNs], bool] | None = None,
     on_tick: Callable[[TimestampNs, MarketDataPipeline], None] | None = None,
     force_clob_disconnect: asyncio.Event | None = None,
+    on_warm: Callable[[str, TimestampNs], None] | None = None,
 ) -> CaptureResult:
     """Capture one full 5-minute market, read-only, through the production core.
 
@@ -290,6 +309,21 @@ async def capture_market(
     """
     definition = market.definition
     clock = IngressClock()
+    # Observational only, and first-write-wins: when the CLOB book actually became usable and
+    # when a real BTC price actually arrived. Nothing downstream of these lines reads them.
+    milestones: dict[str, int | None] = {
+        "clob_first_ns": None,
+        "clob_book_ready_ns": None,
+        "spot_first_valid_ns": None,
+    }
+
+    def note(key: str) -> None:
+        if milestones[key] is None:
+            now = clock.now()
+            milestones[key] = int(now)
+            if on_warm is not None:
+                on_warm(key, now)
+
     merger = IngressMerger(
         engine=StrategyEngine(config),
         state=MarketState.initial(definition),
@@ -360,7 +394,7 @@ async def capture_market(
                 # still consumed and applied to the trackers - that warming is the whole
                 # point of pre-arm (Canonical section 21) - but no Plane 2 event is
                 # produced yet.
-                _warm(payload, pipeline)
+                _warm(payload, pipeline, note)
                 continue
 
             raw_receive_ns = perf_counter_ns() if observer is not None else 0
@@ -384,7 +418,10 @@ async def capture_market(
                         continue
                     if parsed.source_timestamp_ms is not None:
                         clock_health.observe(parsed.source_timestamp_ms * 1_000_000 - clock.now())
+                    note("clob_first_ns")
                     decision = pipeline.on_clob_message(parsed)
+                    if pipeline.books.ready:
+                        note("clob_book_ready_ns")
                     if observer is not None and decision is not None:
                         observer("BookUpdate", raw_receive_ns, decision)
 
@@ -396,6 +433,7 @@ async def capture_market(
                     continue
                 if spot.source_timestamp_ms is not None:
                     clock_health.observe(spot.source_timestamp_ms * 1_000_000 - clock.now())
+                note("spot_first_valid_ns")
                 spot_decision = pipeline.on_spot(spot.price)
                 if observer is not None:
                     observer("SpotTick", raw_receive_ns, spot_decision)
@@ -446,4 +484,5 @@ async def capture_market(
         prearm_ready_ns=prearm_ready_ns,
         next_market_t0_ns=None if next_market is None else next_market.definition.t0,
         next_market_slug=None if next_market is None else next_market.definition.slug,
+        warm_milestones=dict(milestones),
     )

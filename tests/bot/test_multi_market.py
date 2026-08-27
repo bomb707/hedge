@@ -22,11 +22,19 @@ T0_B = T0_A + MARKET_SECONDS
 
 
 def paper(tmp_path: Path) -> PaperConfig:
+    """A collection configuration with the broken-collector floors scaled to a unit test.
+
+    The floors are OPERATIONAL and exist to notice a dead feed; a ten-decision fixture is not a
+    market and is not pretending to be one. The *rules* under test are the same.
+    """
+    from maker5m.bot import OperationalThresholds
+
     return PaperConfig(
         evidence_dir=tmp_path / "markets",
         corpus_path=tmp_path / "corpus.jsonl",
         ui_dir=tmp_path / "ui",
         buffer_capacity=1_024,
+        thresholds=OperationalThresholds(min_decisions=5, min_clob_messages=2, min_spot_messages=2),
     )
 
 
@@ -73,6 +81,58 @@ def session(tmp_path: Path, ui: UiPlane, t0_seconds: int, suffix: str) -> Market
         ),
         ui=ui,
     )
+
+
+def collected(
+    tmp_path: Path,
+    ui: UiPlane,
+    *,
+    decisions: int = 10,
+    classifications: int | None = None,
+    actions: int | None = None,
+    clob: int = 5_000,
+    spot: int = 300,
+    warm: bool = True,
+) -> MarketSession:
+    """A session in the state a clean real market leaves behind.
+
+    Everything a corpus entry is judged on is set explicitly here, so a test can break exactly
+    one of them and watch eligibility fail for that reason and no other.
+    """
+    from maker5m.telemetry.analyzer import QuoteEvent
+    from maker5m.telemetry.classifier import ExecutionQuality, QualityReason, QuoteClassification
+
+    unit = session(tmp_path, ui, T0_A, "a")
+    unit.worker.stats.decisions_written = decisions
+    unit.risk_states["SAFE"] = decisions
+    unit.feed_counters = {"clob_messages": clob, "spot_messages": spot}
+
+    total = 2 * decisions if classifications is None else classifications
+    for index in range(total):
+        unit.quality.observe(
+            QuoteEvent(
+                index,
+                "BookUpdate",
+                unit.t0_ns + index,
+                "QUOTE",
+                "UP" if index % 2 == 0 else "DOWN",
+                QuoteClassification(
+                    quality=ExecutionQuality.AT_FRONT, reason=QualityReason.QUOTING
+                ),
+            )
+        )
+    unit.analyzer.counters.actions = {"KEEP": 2 * decisions if actions is None else actions}
+    if warm:
+        unit._note_warm("clob_book_ready_ns", TimestampNs(unit.t0_ns - 20 * NANOS_PER_SECOND))
+        unit._note_warm("spot_first_valid_ns", TimestampNs(unit.t0_ns - 10 * NANOS_PER_SECOND))
+    return unit
+
+
+def clean_cold() -> dict[str, Any]:
+    return {
+        "verification_status": "COMPLETE",
+        "replay": {"status": "EXACT", "byte_roundtrip_identical": True},
+    }
 
 
 def command(kind: CommandKind, command_id: str) -> OperatorCommand:
@@ -230,18 +290,10 @@ def test_a_replay_mismatch_makes_a_complete_market_ineligible(tmp_path: Path) ->
     """§16: a stream that does not reproduce is not evidence, whatever the store says."""
     supervisor = Supervisor(config=paper(tmp_path))
     ui = UiPlane(directory=tmp_path / "ui")
-    unit = session(tmp_path, ui, T0_A, "a")
-    unit.worker.stats.decisions_written = 120_000
-    unit.risk_states["SAFE"] = 120_000
+    unit = collected(tmp_path, ui)
 
-    good = supervisor._entry(
-        unit,
-        {
-            "verification_status": "COMPLETE",
-            "replay": {"status": "EXACT", "byte_roundtrip_identical": True},
-        },
-    )
-    assert good["evidence_eligible"] is True
+    good = supervisor._entry(unit, clean_cold())
+    assert good["evidence_eligible"] is True, good["operational_faults"]
 
     mismatched = supervisor._entry(
         unit,
@@ -258,41 +310,147 @@ def test_a_market_that_produced_almost_nothing_is_flagged_operationally(tmp_path
     """OPERATIONAL, and labelled as such: a broken collector, not a strategy judgement."""
     supervisor = Supervisor(config=paper(tmp_path))
     ui = UiPlane(directory=tmp_path / "ui")
-    unit = session(tmp_path, ui, T0_A, "a")
-    unit.worker.stats.decisions_written = 12
+    unit = collected(tmp_path, ui, decisions=2)
 
-    entry = supervisor._entry(
-        unit,
-        {
-            "verification_status": "COMPLETE",
-            "replay": {"status": "EXACT", "byte_roundtrip_identical": True},
-        },
-    )
+    entry = supervisor._entry(unit, clean_cold())
     assert entry["evidence_eligible"] is False
     assert any("OPERATIONAL" in fault for fault in entry["operational_faults"])
 
 
-def test_prearm_that_missed_t0_is_recorded_as_an_operational_fault(tmp_path: Path) -> None:
+# -- §5, §7: the exhaustive denominators -------------------------------------------------------
+
+
+def test_a_clean_market_classifies_both_sides_of_every_decision(tmp_path: Path) -> None:
     supervisor = Supervisor(config=paper(tmp_path))
     ui = UiPlane(directory=tmp_path / "ui")
-    unit = session(tmp_path, ui, T0_A, "a")
-    unit.worker.stats.decisions_written = 120_000
-    unit.prearm = PrearmRecord(
-        slug=unit.slug,
-        t0_ns=unit.t0_ns,
-        started_ns=unit.t0_ns,
-        ready_ns=unit.t0_ns + 10 * NANOS_PER_SECOND,
-        ok=True,
-    )
-    entry = supervisor._entry(
-        unit,
-        {
-            "verification_status": "COMPLETE",
-            "replay": {"status": "EXACT", "byte_roundtrip_identical": True},
-        },
-    )
-    assert entry["prearm"]["ready_before_t0"] is False
+    entry = supervisor._entry(collected(tmp_path, ui, decisions=10), clean_cold())
+    assert entry["classification"]["expected_classifications"] == 20
+    assert entry["classification"]["actual_classifications"] == 20
+    assert entry["classification"]["classification_complete"] is True
+    assert entry["action_total"] == 20
+    assert entry["evidence_eligible"] is True
+
+
+def test_a_short_classification_count_makes_the_market_ineligible(tmp_path: Path) -> None:
+    """The P13 corpus counted 30,734 classifications for 143,740 decisions and called it a rate."""
+    supervisor = Supervisor(config=paper(tmp_path))
+    ui = UiPlane(directory=tmp_path / "ui")
+    unit = collected(tmp_path, ui, decisions=10, classifications=7)
+    entry = supervisor._entry(unit, clean_cold())
+    assert entry["classification"]["classification_complete"] is False
     assert entry["evidence_eligible"] is False
+    assert any("side classifications" in fault for fault in entry["operational_faults"])
+
+
+def test_a_short_action_count_makes_the_market_ineligible(tmp_path: Path) -> None:
+    supervisor = Supervisor(config=paper(tmp_path))
+    ui = UiPlane(directory=tmp_path / "ui")
+    unit = collected(tmp_path, ui, decisions=10, actions=13)
+    entry = supervisor._entry(unit, clean_cold())
+    assert entry["evidence_eligible"] is False
+    assert any("side actions" in fault for fault in entry["operational_faults"])
+
+
+def test_the_action_counts_are_reported_by_kind(tmp_path: Path) -> None:
+    supervisor = Supervisor(config=paper(tmp_path))
+    ui = UiPlane(directory=tmp_path / "ui")
+    unit = collected(tmp_path, ui, decisions=10)
+    unit.analyzer.counters.actions = {"KEEP": 14, "PLACE": 4, "BLOCKED": 2}
+    entry = supervisor._entry(unit, clean_cold())
+    assert entry["action_counts"] == {"BLOCKED": 2, "KEEP": 14, "PLACE": 4}
+    assert entry["action_total"] == 20
+
+
+# -- §9-11: discovery readiness is not feed readiness ------------------------------------------
+
+
+def test_discovery_and_feed_readiness_are_separate_facts(tmp_path: Path) -> None:
+    """P13's first corpus reported a 74.9 s "prearm lead" that was `discover_market` returning."""
+    ui = UiPlane(directory=tmp_path / "ui")
+    unit = collected(tmp_path, ui)
+    prearm = unit.prearm_summary()
+
+    assert prearm["discovery_ready_ns"] < prearm["clob_book_ready_ns"]
+    assert prearm["discovery_lead_seconds"] == 60.0
+    assert prearm["clob_lead_seconds"] == 20.0
+    assert prearm["spot_lead_seconds"] == 10.0
+    assert prearm["feed_ready_lead_seconds"] == 10.0, "the later of the two feeds decides"
+    assert prearm["feed_ready_before_t0"] is True
+
+
+def test_a_market_with_no_book_before_t0_is_not_warm(tmp_path: Path) -> None:
+    supervisor = Supervisor(config=paper(tmp_path))
+    ui = UiPlane(directory=tmp_path / "ui")
+    unit = collected(tmp_path, ui, warm=False)
+    unit._note_warm("spot_first_valid_ns", TimestampNs(unit.t0_ns - 10 * NANOS_PER_SECOND))
+
+    prearm = unit.prearm_summary()
+    assert prearm["feed_ready_ns"] is None
+    assert prearm["feed_ready_before_t0"] is False
+    entry = supervisor._entry(unit, clean_cold())
+    assert entry["evidence_eligible"] is False
+    assert any("not warm before T0" in fault for fault in entry["operational_faults"])
+
+
+def test_a_market_with_no_spot_before_t0_is_not_warm(tmp_path: Path) -> None:
+    supervisor = Supervisor(config=paper(tmp_path))
+    ui = UiPlane(directory=tmp_path / "ui")
+    unit = collected(tmp_path, ui, warm=False)
+    unit._note_warm("clob_book_ready_ns", TimestampNs(unit.t0_ns - 20 * NANOS_PER_SECOND))
+
+    assert unit.prearm_summary()["feed_ready_ns"] is None
+    assert supervisor._entry(unit, clean_cold())["evidence_eligible"] is False
+
+
+def test_a_book_that_arrives_after_t0_is_not_prearm(tmp_path: Path) -> None:
+    """Warm means warm *before* the market's first event, not eventually."""
+    supervisor = Supervisor(config=paper(tmp_path))
+    ui = UiPlane(directory=tmp_path / "ui")
+    unit = collected(tmp_path, ui, warm=False)
+    unit._note_warm("clob_book_ready_ns", TimestampNs(unit.t0_ns + 5 * NANOS_PER_SECOND))
+    unit._note_warm("spot_first_valid_ns", TimestampNs(unit.t0_ns - 10 * NANOS_PER_SECOND))
+
+    prearm = unit.prearm_summary()
+    assert prearm["feed_ready_before_t0"] is False
+    assert prearm["feed_ready_lead_seconds"] == -5.0
+    assert supervisor._entry(unit, clean_cold())["evidence_eligible"] is False
+
+
+def test_a_warm_milestone_is_recorded_once(tmp_path: Path) -> None:
+    ui = UiPlane(directory=tmp_path / "ui")
+    unit = collected(tmp_path, ui, warm=False)
+    unit._note_warm("clob_book_ready_ns", TimestampNs(100))
+    unit._note_warm("clob_book_ready_ns", TimestampNs(999))
+    assert unit.warm["clob_book_ready_ns"] == 100
+
+
+# -- §18: the feed floors are enforced ---------------------------------------------------------
+
+
+def test_a_market_with_no_clob_messages_is_ineligible(tmp_path: Path) -> None:
+    supervisor = Supervisor(config=paper(tmp_path))
+    ui = UiPlane(directory=tmp_path / "ui")
+    unit = collected(tmp_path, ui, clob=0, spot=10_000)
+    entry = supervisor._entry(unit, clean_cold())
+    assert entry["evidence_eligible"] is False
+    assert any("CLOB messages" in fault for fault in entry["operational_faults"])
+
+
+def test_a_market_with_no_spot_messages_is_ineligible(tmp_path: Path) -> None:
+    supervisor = Supervisor(config=paper(tmp_path))
+    ui = UiPlane(directory=tmp_path / "ui")
+    unit = collected(tmp_path, ui, clob=10_000, spot=0)
+    entry = supervisor._entry(unit, clean_cold())
+    assert entry["evidence_eligible"] is False
+    assert any("BTC messages" in fault for fault in entry["operational_faults"])
+
+
+def test_both_feeds_above_their_floors_raise_no_feed_fault(tmp_path: Path) -> None:
+    supervisor = Supervisor(config=paper(tmp_path))
+    ui = UiPlane(directory=tmp_path / "ui")
+    entry = supervisor._entry(collected(tmp_path, ui, clob=10_000, spot=500), clean_cold())
+    assert not [f for f in entry["operational_faults"] if "messages" in f]
+    assert entry["evidence_eligible"] is True
 
 
 def test_the_supervisor_records_a_prearm_failure_without_stopping(tmp_path: Path) -> None:

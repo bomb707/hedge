@@ -74,6 +74,10 @@ def report(index: CorpusIndex, *, epoch: str | None = None) -> dict[str, Any]:
     stale_fractions: list[float] = []
     at_front_fractions: list[float] = []
     decisions = 0
+    exhaustive_markets = 0
+    expected_sides = 0
+    actual_sides = 0
+    action_sides = 0
     risk_records = 0
     clob_messages = 0
     spot_messages = 0
@@ -108,7 +112,17 @@ def report(index: CorpusIndex, *, epoch: str | None = None) -> dict[str, Any]:
 
         _merge(risk_states, entry.get("risk_states"))
         _merge(places, entry.get("places_by_risk_state"))
-        _merge(actions, (entry.get("worker") or {}).get("actions"))
+        # From the analyzer's own per-side counters, which P8 increments for both sides of every
+        # observation. The first version read `worker.summary()["actions"]`, which does not
+        # exist — `WorkerStats` counts rows, not reconciler decisions — so every action total in
+        # the first corpus report was silently zero.
+        _merge(actions, entry.get("action_counts"))
+        classification = entry.get("classification") or {}
+        if classification.get("classification_complete") is True:
+            exhaustive_markets += 1
+        expected_sides += int(classification.get("expected_classifications") or 0)
+        actual_sides += int(classification.get("actual_classifications") or 0)
+        action_sides += int(entry.get("action_total") or 0)
         decisions += int(entry.get("decisions") or 0)
         risk_records += int(entry.get("risk_records") or 0)
         counters = entry.get("feed_counters") or {}
@@ -164,8 +178,10 @@ def report(index: CorpusIndex, *, epoch: str | None = None) -> dict[str, Any]:
         "l3": {
             "provenance": QUEUE_PROVENANCE,
             "note": (
-                "P8's classification, aggregated. Queue figures are a shadow model, never a "
-                "venue queue position, and STALE is P6's verdict carried through P8."
+                "P8's classification, aggregated over **every** side of every decision — the "
+                "denominator is `side_opportunities.expected`. Latency remains sampled, and is "
+                "described as sampled wherever it appears. Queue figures are a shadow model, "
+                "never a venue queue position, and STALE is P6's verdict carried through P8."
             ),
             "total": {label: quality.get(label, 0) for label in QUALITY_LABELS},
             "fractions": _fractions(quality),
@@ -180,6 +196,16 @@ def report(index: CorpusIndex, *, epoch: str | None = None) -> dict[str, Any]:
             "queue_ahead_p50_shadow_estimate": _spread([float(v) for v in queue_p50]),
             "queue_ahead_p95_shadow_estimate": _spread([float(v) for v in queue_p95]),
         },
+        "side_opportunities": {
+            "rule": "two per decision observation, UP and DOWN, on every decision",
+            "expected": expected_sides,
+            "classified": actual_sides,
+            "actions": action_sides,
+            "markets_exhaustive": exhaustive_markets,
+            "of_markets": len(eligible),
+            "all_exhaustive": exhaustive_markets == len(eligible),
+        },
+        "action_counts": dict(sorted(actions.items())),
         "risk_states": dict(sorted(risk_states.items())),
         "places_by_risk_state": dict(sorted(places.items())),
         "prearm": {
@@ -201,6 +227,11 @@ def report(index: CorpusIndex, *, epoch: str | None = None) -> dict[str, Any]:
             "redemptions_sent": 0,
             "live_trading_enabled": False,
             "redemption_enabled": False,
+        },
+        "sampling": {
+            "classification": "EXHAUSTIVE — every side of every decision",
+            "latency": "SAMPLED — P8's accepted policy, unchanged",
+            "queue_estimate": "SHADOW_ESTIMATE — modelled, never a venue queue position",
         },
         "not_claimed": (
             "This is a measurement, not a strategy conclusion. No OPEN item is closed by it, no "

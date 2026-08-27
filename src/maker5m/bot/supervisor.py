@@ -84,8 +84,18 @@ PREARM_LEAD_SECONDS = 75
 """How early discovery starts. The capture opens its own feeds at T0-30; this is the metadata."""
 
 MAX_COLD_BACKLOG = 3
-"""Closed markets whose cold work may be in flight at once. Bounded so a slow chain cannot
-accumulate raw 650 MB stores without limit."""
+"""Closed markets whose cold work may be in flight at once. **OPERATIONAL, and enforced.**
+
+A settlement watch can run for four hundred seconds before verification, replay and compression
+even begin, so a slow chain or a provider fault accumulates tasks and 650 MB raw stores. P13's
+first version defined this constant, wrote a `_bound_cold` helper, and then never called it from
+the launch loop — it logged "cold backlog is N markets" and launched anyway, which is not a
+bound. It is now waited on before a market is launched and, if capacity does not appear in time,
+the slot is skipped and recorded. Integrity beats continuity: a missing five-minute window that
+says why is better than an unbounded queue nobody is watching."""
+
+LAUNCH_DEADLINE_SECONDS = 45
+"""How late a market may still be launched. The capture opens its own feeds at T0-30."""
 
 
 @dataclass(slots=True)
@@ -155,8 +165,14 @@ class Supervisor:
     sessions: set[asyncio.Task[None]] = field(default_factory=set)
     activations: set[asyncio.Task[None]] = field(default_factory=set)
     attempted: int = 0
-    completed: int = 0
+    completed_existing: int = 0
+    """Durable qualifying rows this epoch already held when the process started."""
+
+    completed_this_process: int = 0
     skipped: list[str] = field(default_factory=list)
+    skipped_slots: list[dict[str, Any]] = field(default_factory=list)
+    cold_high_water: int = 0
+    append_failures: int = 0
     log: Any = _flushed_print
     restarted: bool = False
 
@@ -197,6 +213,11 @@ class Supervisor:
         context = get_context("spawn")
         self.pool = ProcessPoolExecutor(max_workers=2, mp_context=context)
         already = self.corpus.completed_slugs()
+        self.completed_existing = self.corpus.qualifying(
+            epoch=self.config.epoch,
+            config_sha256=str(self.identity.get("config_sha256")),
+            source_revision=str(self.identity.get("source_revision")),
+        )
         try:
             await self._loop(already)
         finally:
@@ -224,6 +245,17 @@ class Supervisor:
                 continue
 
             await self._sleep_until(t0 - PREARM_LEAD_SECONDS)
+            if not await self._cold_capacity(deadline=t0 - LAUNCH_DEADLINE_SECONDS):
+                self._record_skip(
+                    slug,
+                    t0,
+                    "COLD_BACKLOG_CAP",
+                    f"{len(self.cold)} markets were still in cold work, at a cap of "
+                    f"{MAX_COLD_BACKLOG}; this slot was not collected",
+                )
+                self.log(f"[{time.strftime('%H:%M:%S')}] {slug} skipped: cold backlog at cap")
+                t0 += MARKET_SECONDS
+                continue
             market, prearm = await self.prearm(slug)
             if market is None:
                 self._record_prearm_failure(prearm)
@@ -246,9 +278,6 @@ class Supervisor:
             # The handoff instant, decided by the market's clock rather than by whichever
             # session's tick happens to run first. Operator commands follow this.
             self.activations.add(asyncio.create_task(self._activate_at(slug, t0)))
-            if len(self.cold) > MAX_COLD_BACKLOG:
-                # Recorded, never waited on. A slow chain must not cost a market.
-                self.log(f"    cold backlog is {len(self.cold)} markets")
             t0 += MARKET_SECONDS
 
         await self._drain_sessions()
@@ -258,6 +287,16 @@ class Supervisor:
             self._closed(session)
 
         return done
+
+    @property
+    def completed(self) -> int:
+        """Durable qualifying rows for this epoch: what was already there plus what we added.
+
+        The target is a property of the *corpus*, not of this process's uptime. A collector
+        restarted after 150 markets collects fifty more, not two hundred more, and a market
+        whose corpus line did not reach the disk has not been collected at all.
+        """
+        return self.completed_existing + self.completed_this_process
 
     def _keep_going(self, launched: int) -> bool:
         if self.launch_limit is not None and launched >= self.launch_limit:
@@ -306,13 +345,21 @@ class Supervisor:
         task = asyncio.create_task(self._finalize(session), name=f"cold-{session.slug}")
         self.cold.add(task)
         task.add_done_callback(self.cold.discard)
+        if len(self.cold) > self.cold_high_water:
+            self.cold_high_water = len(self.cold)
 
-    async def _bound_cold(self) -> None:
-        """Wait, between markets and never during one, if the backlog has grown."""
-        while len(self.cold) > MAX_COLD_BACKLOG:
-            done, _ = await asyncio.wait(self.cold, return_when=asyncio.FIRST_COMPLETED)
-            for task in done:
-                self.cold.discard(task)
+    async def _cold_capacity(self, *, deadline: float) -> bool:
+        """Wait for room in the cold queue, up to the last moment a market can still be launched.
+
+        Waits **before** a market exists, never during one: an already-running session is never
+        made to wait on a closed market's settlement. Returns whether there is room.
+        """
+        while len(self.cold) >= MAX_COLD_BACKLOG:
+            if time.time() >= deadline:
+                return False
+            await asyncio.wait(self.cold, timeout=1.0, return_when=asyncio.FIRST_COMPLETED)
+            self.cold = {task for task in self.cold if not task.done()}
+        return True
 
     async def _drain_cold(self) -> None:
         if self.cold:
@@ -326,16 +373,23 @@ class Supervisor:
             await asyncio.to_thread(session.close_store)
             cold = await self._cold_result(session)
             session.publish_close(cold)
+            session.finish()
             entry = self._entry(session, cold)
-            if not self.corpus.append(entry):
-                self.log(f"    corpus append failed for {session.slug}")
-            if entry.get("verification_status") == "COMPLETE" and entry.get("evidence_eligible"):
-                self.completed += 1
+            # Durability first. A market counts when its row is on the disk, not when the
+            # verifier liked it: the previous version incremented the total whether or not the
+            # append succeeded, so a full disk would have produced a "200-market corpus" with
+            # fewer than two hundred rows in it.
+            appended = self.corpus.append(entry)
+            if not appended:
+                self.append_failures += 1
+                self.log(f"    corpus append FAILED for {session.slug}; it does not count")
+            elif entry.get("verification_status") == "COMPLETE" and entry.get("evidence_eligible"):
+                self.completed_this_process += 1
             self.log(
                 f"    {session.slug}: {entry.get('verification_status')} "
                 f"replay={entry.get('replay', {}).get('status')} "
-                f"eligible={entry.get('evidence_eligible')} "
-                f"({self.completed} complete)"
+                f"eligible={entry.get('evidence_eligible')} appended={appended} "
+                f"({self.completed} durable)"
             )
         except Exception as error:  # pragma: no cover - the cold path never kills the run
             self.log(f"    {session.slug}: cold path failed: {type(error).__name__}: {error}")
@@ -367,6 +421,25 @@ class Supervisor:
 
     # -- the corpus entry ----------------------------------------------------------------
 
+    def _record_skip(self, slug: str, t0_seconds: int, reason: str, detail: str) -> None:
+        """A market this collector chose not to start. Recorded, so the gap is auditable."""
+        entry = {
+            "slug": slug,
+            "epoch": self.config.epoch,
+            "config_sha256": self.identity.get("config_sha256"),
+            "source_revision": self.identity.get("source_revision"),
+            "t0_ns": t0_seconds * NANOS_PER_SECOND,
+            "recorded_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "verification_status": "NOT_STARTED",
+            "evidence_eligible": False,
+            "skip_reason": reason,
+            "incidents": [detail],
+            "cold_backlog": len(self.cold),
+            "cold_backlog_high_water": self.cold_high_water,
+        }
+        self.skipped_slots.append({"slug": slug, "reason": reason})
+        self.corpus.append(entry)
+
     def _record_prearm_failure(self, prearm: PrearmRecord) -> None:
         self.corpus.append(
             {
@@ -394,7 +467,39 @@ class Supervisor:
         thresholds = self.config.thresholds
         stale_fraction = quality["fractions"].get("STALE")
 
+        # Every decision observation carries exactly two side opportunities, UP and DOWN, and
+        # P13 classifies both. With no own fills — and there are none, because no order is ever
+        # sent — the denominator is therefore exactly twice the committed decision rows. A market
+        # where it does not come out is one whose distribution has no interpretable base, so it
+        # is retained and not counted.
+        expected = 2 * stats.decisions_written
+        classified = int(quality["classified"])
+        actions = dict(sorted(session.analyzer.counters.actions.items()))
+        action_total = sum(actions.values())
+
         operational_faults: list[str] = []
+        if classified != expected:
+            operational_faults.append(
+                f"OPERATIONAL: {classified} side classifications for {stats.decisions_written} "
+                f"decisions; the exhaustive rule requires {expected}"
+            )
+        if action_total != expected:
+            operational_faults.append(
+                f"OPERATIONAL: {action_total} side actions for {stats.decisions_written} "
+                f"decisions; the exhaustive rule requires {expected}"
+            )
+        clob_messages = int(counters.get("clob_messages") or 0)
+        spot_messages = int(counters.get("spot_messages") or 0)
+        if clob_messages < thresholds.min_clob_messages:
+            operational_faults.append(
+                f"OPERATIONAL: {clob_messages} CLOB messages is below the broken-collector "
+                f"floor of {thresholds.min_clob_messages}"
+            )
+        if spot_messages < thresholds.min_spot_messages:
+            operational_faults.append(
+                f"OPERATIONAL: {spot_messages} BTC messages is below the broken-collector "
+                f"floor of {thresholds.min_spot_messages}"
+            )
         if stats.decisions_written < thresholds.min_decisions:
             operational_faults.append(
                 f"OPERATIONAL: {stats.decisions_written} decisions is below the "
@@ -405,8 +510,13 @@ class Supervisor:
                 f"OPERATIONAL: classified STALE for {stale_fraction:.3f} of cycles, above the "
                 f"broken-collector ceiling of {thresholds.max_stale_fraction}"
             )
-        if not session.prearm.ok or session.prearm.ready_ns >= session.prearm.t0_ns:
-            operational_faults.append("OPERATIONAL: prearm was not ready before T0")
+        prearm = session.prearm_summary()
+        if not prearm["feed_ready_before_t0"]:
+            operational_faults.append(
+                "OPERATIONAL: the market data was not warm before T0 — "
+                f"clob_ready={prearm['clob_book_ready_ns']} "
+                f"spot_ready={prearm['spot_first_valid_ns']}"
+            )
 
         eligible = (
             status == "COMPLETE"
@@ -425,6 +535,8 @@ class Supervisor:
             "recorded_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "config_sha256": self.identity.get("config_sha256"),
             "source_revision": self.identity.get("source_revision"),
+            "source_tree_sha": self.identity.get("source_tree_sha"),
+            "working_tree_clean": self.identity.get("working_tree_clean"),
             "provenance": session.identity.provenance,
             "live_trading_enabled": LIVE_TRADING_ENABLED,
             "orders_sent": 0,
@@ -454,13 +566,28 @@ class Supervisor:
             # The ingress owner's own cost, measured on the real market rather than replayed.
             # This is the whole of what the session adds to a cycle: P7's shadow reconcile plus
             # the P8 capture, timed around `InstrumentedRun.observe`.
-            "hot_path_observe_ns": _tiers(session.hot_path_ns),
+            "hot_path_observe_ns": session.hot_path_tiers or _tiers(session.hot_path_ns),
             "feed_counters": counters,
             "risk_states": dict(sorted(session.risk_states.items())),
             "places_by_risk_state": dict(sorted(session.places_by_state.items())),
             "quality_l3": quality,
+            "classification": {
+                "mode": "EVERY_DECISION",
+                "rule": "two side opportunities per decision observation, UP and DOWN",
+                "expected_classifications": expected,
+                "actual_classifications": classified,
+                "classification_complete": classified == expected,
+                "own_fill_observations": stats.fills_seen,
+                "note": (
+                    "The denominator is 2 x committed decision rows because P13 sends no order "
+                    "and therefore records no own fill. If own fills ever enter this stream the "
+                    "formula changes and must be restated, not assumed."
+                ),
+            },
+            "action_counts": actions,
+            "action_total": action_total,
             "phases": session.phase_first_seen,
-            "prearm": session.prearm.summary(),
+            "prearm": prearm,
             "settlement": None
             if decision is None
             else {
@@ -479,10 +606,20 @@ class Supervisor:
                 "start": None
                 if session.started_resources is None
                 else session.started_resources.summary(),
-                "end": None
+                "trading_end": None
                 if session.finished_resources is None
                 else session.finished_resources.summary(),
+                "post_release": None
+                if session.released_resources is None
+                else session.released_resources.summary(),
+                "note": (
+                    "`trading_end` is taken while the market's own graph is still held; "
+                    "`post_release` after it has been let go. The first pilot reported only the "
+                    "former and read 1.25 GB as though it described a released market."
+                ),
                 "cold_backlog": len(self.cold),
+                "cold_backlog_high_water": self.cold_high_water,
+                "cold_backlog_cap": MAX_COLD_BACKLOG,
             },
             "incidents": list(session.incidents),
             "operational_faults": operational_faults,

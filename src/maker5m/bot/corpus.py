@@ -59,6 +59,7 @@ class CorpusIndex:
     path: Path
     appended: int = 0
     append_errors: int = 0
+    torn_lines_closed: int = 0
     error_samples: list[str] = field(default_factory=list)
 
     def append(self, entry: dict[str, Any]) -> bool:
@@ -75,6 +76,7 @@ class CorpusIndex:
             return False
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
+            self._close_a_torn_line()
             with self.path.open("a", encoding="utf-8") as handle:
                 handle.write(line)
                 handle.flush()
@@ -85,8 +87,52 @@ class CorpusIndex:
         self.appended += 1
         return True
 
+    def qualifying(self, *, epoch: str, config_sha256: str, source_revision: str) -> int:
+        """Durable rows that count toward this epoch's target.
+
+        Three identities, all three required. A row from another epoch describes another
+        collection; a row from another config hash describes another experiment; a row from
+        another source revision describes another build. Pooling any of them would make the
+        two-hundred-market claim mean less than it says, so a change to any of the three starts
+        the count again — which is the point of freezing them before the run.
+        """
+        return sum(
+            1
+            for entry in self.entries()
+            if entry.get("verification_status") == "COMPLETE"
+            and entry.get("evidence_eligible") is True
+            and entry.get("epoch") == epoch
+            and entry.get("config_sha256") == config_sha256
+            and entry.get("source_revision") == source_revision
+        )
+
+    def _close_a_torn_line(self) -> None:
+        """Terminate a half-written final line before appending after it.
+
+        A kill mid-append leaves a fragment with no newline. Appending straight onto it would
+        weld the next entry to the wreck of the last one and lose both — one unreadable line
+        instead of one unreadable fragment and one good row. So the fragment is closed off,
+        fsynced, and left exactly where it is: it is evidence that a process died there, and
+        deleting it would be tidying away the only sign of that.
+        """
+        try:
+            if not self.path.exists() or self.path.stat().st_size == 0:
+                return
+            with self.path.open("rb") as handle:
+                handle.seek(-1, os.SEEK_END)
+                if handle.read(1) == b"\n":
+                    return
+        except OSError as error:
+            self._note(error)
+            return
+        with self.path.open("a", encoding="utf-8") as handle:
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        self.torn_lines_closed += 1
+
     def entries(self) -> list[dict[str, Any]]:
-        """Every readable entry, oldest first. A truncated tail is dropped, not guessed at."""
+        """Every readable entry, oldest first. A truncated line is dropped, not guessed at."""
         try:
             text = self.path.read_text("utf-8")
         except (OSError, UnicodeDecodeError):

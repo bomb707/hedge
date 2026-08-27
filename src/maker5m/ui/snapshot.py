@@ -13,11 +13,11 @@ interval — which also means a slow disk delays a *frame*, not a decision.
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Final
 
 from maker5m.persistence.schema import DecisionRecord
-from maker5m.ui.channel import SnapshotChannel
 from maker5m.ui.model import (
     SNAPSHOT_SCHEMA_VERSION,
     ParameterView,
@@ -108,50 +108,126 @@ def parameter_views(config: Any) -> tuple[ParameterView, ...]:
 
 @dataclass(slots=True)
 class SnapshotPublisher:
-    """Keeps the newest decision and publishes a snapshot on a timer."""
+    """Builds the operator's view. **Single owner: the persistence worker's thread.**
 
-    channel: SnapshotChannel
+    Everything that crosses into it does so as an immutable message through a bounded Plane-3
+    channel, and the earlier version did not: `on_tick` — the ingress consumer — mutated
+    `counters` and appended to `accepted_commands` while the worker thread owned `latest`. A read
+    model maintained by two threads by accident is a read model that can be read halfway through
+    being written, and it was reachable from Plane 1.
+
+    Publication hands the finished snapshot to the bridge, which writes it. Nothing here touches
+    a file.
+    """
+
     identity: Any
     config: Any
+    bridge: Any = None
     interval_seconds: float = DEFAULT_PUBLISH_INTERVAL_S
 
+    inbox: deque[tuple[str, Any]] = field(default_factory=lambda: deque(maxlen=256), repr=False)
+    """Immutable messages from other Plane-3 owners: command outcomes, settlement, verification.
+
+    Bounded and drop-oldest like every other channel here. Losing an old command outcome costs a
+    row in a table on a dashboard; blocking to keep it would cost more than it is worth."""
+
     latest: DecisionRecord | None = field(default=None, repr=False)
+    latest_verdict: Any = field(default=None, repr=False)
+    latest_latency: dict[str, int] | None = field(default=None, repr=False)
+    latency_ordinal: int | None = None
     counters: dict[str, int] = field(default_factory=dict)
     settlement: dict[str, Any] | None = None
+    verification_status: str | None = None
+    telemetry_complete: bool | None = None
     accepted_commands: list[dict[str, Any]] = field(default_factory=list)
+    audit_failures: int = 0
     t0_ns: int = 0
     duration_ns: int = 300_000_000_000
 
     _last_published: float = 0.0
     published: int = 0
 
-    def observe(self, record: DecisionRecord) -> None:
-        """Take the newest decision. Called by the persistence worker, on its own thread."""
+    def observe(self, record: DecisionRecord, verdict: Any = None) -> None:
+        """Take the newest decision and the verdict that governed it. Worker thread only."""
         self.latest = record
+        if verdict is not None:
+            self.latest_verdict = verdict
+
+    def observe_latency(self, ordinal: int, sample: dict[str, int]) -> None:
+        """Take one P8 latency sample. Measured by P8; nothing here re-times anything."""
+        self.latency_ordinal = ordinal
+        self.latest_latency = sample
+
+    def deliver(self, kind: str, payload: Any) -> None:
+        """Hand the publisher an immutable message from another Plane-3 owner. Never blocks.
+
+        Named `deliver` rather than the obvious alternative so it cannot be confused with an
+        HTTP verb: the read-only venue guard scans for that method name and was right to flag
+        the collision, since a guard that has to know which callers it can trust is not a guard.
+        """
+        self.inbox.append((kind, payload))
 
     def note_command(self, entry: dict[str, Any]) -> None:
-        """Record what happened to one operator command, for the audit strip in the view."""
-        self.accepted_commands.append(entry)
-        del self.accepted_commands[:-10]
+        """Kept for direct Plane-3 callers; goes through the same bounded inbox."""
+        self.deliver("command", entry)
+
+    def _drain_inbox(self) -> None:
+        while True:
+            try:
+                kind, payload = self.inbox.popleft()
+            except IndexError:
+                return
+            if kind == "command":
+                self.accepted_commands.append(dict(payload))
+                del self.accepted_commands[:-10]
+            elif kind == "settlement":
+                self.settlement = dict(payload)
+            elif kind == "verification":
+                self.verification_status = str(payload.get("status"))
+                self.telemetry_complete = payload.get("complete")
+            elif kind == "counters":
+                self.counters.update(payload)
+            elif kind == "audit_failure":
+                self.audit_failures += 1
 
     def maybe_publish(self, now: float) -> bool:
-        """Publish if the interval has elapsed. Cheap and safe to call on every control tick."""
+        """Publish if the interval has elapsed. Plane 3 only — this must not be called from
+        `on_tick`, which is the ingress consumer."""
         if self.latest is None or now - self._last_published < self.interval_seconds:
             return False
         self._last_published = now
-        self.channel.publish(self.build(now))
+        snapshot = self.build(now)
+        if self.bridge is not None:
+            self.bridge.offer_snapshot(snapshot)
+        self.published += 1
+        return True
+
+    def publish_now(self, now: float) -> bool:
+        """Publish unconditionally — used for the final snapshot after settlement."""
+        if self.latest is None:
+            return False
+        self._last_published = now
+        if self.bridge is not None:
+            self.bridge.offer_snapshot(self.build(now))
         self.published += 1
         return True
 
     def build(self, now: float) -> UiSnapshot:
+        # Drained here rather than only in `maybe_publish`, so a snapshot is never built from a
+        # read model with unread messages sitting behind it. Single-owner thread, so this is a
+        # `popleft` loop and nothing more.
+        self._drain_inbox()
         record = self.latest
         assert record is not None
+        verdict = self.latest_verdict
         elapsed = None
         remaining = None
         if self.t0_ns:
             elapsed = (record.event_timestamp_ns - self.t0_ns) / 1e9
             remaining = (self.t0_ns + self.duration_ns - record.event_timestamp_ns) / 1e9
         settlement = self.settlement or {}
+        latency = self.latest_latency or {}
+        health = _health_of(verdict)
         return UiSnapshot(
             schema_version=SNAPSHOT_SCHEMA_VERSION,
             published_at_ns=int(now * 1e9),
@@ -163,15 +239,19 @@ class SnapshotPublisher:
             event_timestamp_ns=int(record.event_timestamp_ns),
             elapsed_seconds=elapsed,
             remaining_seconds=remaining,
-            clob_status="HEALTHY" if record.clob_healthy else "NOT HEALTHY",
-            clob_awaiting_snapshot=not record.clob_healthy,
-            spot_status="HEALTHY" if record.spot_age_ns is not None else "UNKNOWN",
-            risk_state=record.risk_state,
-            risk_sequence=record.risk_sequence,
-            risk_active=(),
-            risk_latched=(),
-            allows_place=record.risk_allows_place,
-            allows_cancel=record.risk_allows_cancel,
+            # Health is read off the HealthFrame P6 supplied to the governing verdict. It is not
+            # inferred from whether data exists: a spot price can be present and the feed STALE,
+            # and "we have a number" is not "the feed is healthy".
+            clob_status=health[0],
+            clob_awaiting_snapshot=health[1],
+            spot_status=health[2],
+            order_stream_status=health[3],
+            risk_state=_verdict_state(verdict, record),
+            risk_sequence=_verdict_sequence(verdict, record),
+            risk_active=_reasons(verdict, "active"),
+            risk_latched=_reasons(verdict, "latched"),
+            allows_place=_verdict_flag(verdict, "allows_place", record.risk_allows_place),
+            allows_cancel=_verdict_flag(verdict, "allows_cancel", record.risk_allows_cancel),
             n_up=int(record.n_up),
             n_down=int(record.n_down),
             inventory=int(record.inventory),
@@ -185,13 +265,15 @@ class SnapshotPublisher:
             pnl_if_down_without_rebate=int(record.pnl_if_down_without_rebate),
             pnl_if_up_estimated_rebate=int(record.pnl_if_up_estimated_rebate),
             pnl_if_down_estimated_rebate=int(record.pnl_if_down_estimated_rebate),
-            raw_centre_numerator=None if record.raw_centre is None else record.raw_centre.numerator,
+            raw_centre_numerator=(
+                None if record.raw_centre is None else record.raw_centre.numerator
+            ),
             raw_centre_denominator=(
                 None if record.raw_centre is None else record.raw_centre.denominator
             ),
-            quantized_centre=None
-            if record.quantized_centre is None
-            else int(record.quantized_centre),
+            quantized_centre=(
+                None if record.quantized_centre is None else int(record.quantized_centre)
+            ),
             centre_source=record.centre_source,
             centre_status=record.centre_status,
             favourite=record.favourite,
@@ -200,24 +282,85 @@ class SnapshotPublisher:
             ),
             up=_side(record, "up"),
             down=_side(record, "down"),
-            decide_ns=None,
-            prepare_ns=None,
-            reconcile_ns=None,
-            receive_to_reconcile_ns=None,
+            decide_ns=latency.get("decide_ns"),
+            prepare_ns=latency.get("prepare_ns"),
+            reconcile_ns=latency.get("reconcile_ns"),
+            receive_to_reconcile_ns=latency.get("receive_to_reconcile_ns"),
+            latency_sample_ordinal=self.latency_ordinal,
+            observation_points={
+                "decision": record.ingress_ordinal,
+                "risk_verdict": _verdict_ordinal(verdict, record),
+                "latency_sample": self.latency_ordinal,
+                "counters": None,
+            },
             resolution_state=settlement.get("state"),
             winning_outcome=settlement.get("winning_outcome"),
             authoritative_block=settlement.get("authoritative_block"),
             payout_numerators=tuple(settlement.get("payout_numerators") or ()),
+            settlement_note=str(settlement.get("note") or ""),
             decisions_persisted=self.counters.get("decisions", 0),
             risk_records_persisted=self.counters.get("risk", 0),
             dropped_records=self.counters.get("dropped", 0),
             sink_errors=self.counters.get("sink_errors", 0),
-            telemetry_complete=None,
+            telemetry_complete=self.telemetry_complete,
+            verification_status=self.verification_status,
+            control_channel_available=_bridge_available(self.bridge),
+            control_audit_complete=self.audit_failures == 0,
             live_trading_enabled=_live_trading_enabled(),
             redemption_enabled=_redemption_enabled(),
             parameters=parameter_views(self.config),
             accepted_commands=tuple(dict(entry) for entry in self.accepted_commands),
         )
+
+
+def _bridge_available(bridge: Any) -> bool | None:
+    if bridge is None:
+        return None
+    stats = getattr(bridge, "stats", None)
+    return None if stats is None else bool(stats.alive)
+
+
+def _health_of(verdict: Any) -> tuple[str, bool, str, str]:
+    """P6's own health, as carried by the governing risk record. Never inferred."""
+    health = getattr(verdict, "health", None)
+    if health is None:
+        return ("UNKNOWN", True, "UNKNOWN", "UNKNOWN")
+    return (
+        str(getattr(health.clob_status, "value", health.clob_status)),
+        bool(health.clob_awaiting_snapshot),
+        str(getattr(health.spot_status, "value", health.spot_status)),
+        str(getattr(health.order_stream_status, "value", health.order_stream_status)),
+    )
+
+
+def _reasons(verdict: Any, field_name: str) -> tuple[str, ...]:
+    """The exact reason set P9 recorded. Never derived from the state name."""
+    reasons = getattr(verdict, field_name, None)
+    if not reasons:
+        return ()
+    return tuple(sorted(str(getattr(item, "value", item)) for item in reasons))
+
+
+def _verdict_state(verdict: Any, record: DecisionRecord) -> str | None:
+    state = getattr(verdict, "state", None)
+    return record.risk_state if state is None else str(getattr(state, "value", state))
+
+
+def _verdict_sequence(verdict: Any, record: DecisionRecord) -> int | None:
+    sequence = getattr(verdict, "risk_sequence", None)
+    return record.risk_sequence if sequence is None else int(sequence)
+
+
+def _verdict_ordinal(verdict: Any, record: DecisionRecord) -> int | None:
+    signal = getattr(verdict, "signal", None)
+    if signal is None:
+        return record.ingress_ordinal
+    return int(getattr(signal, "as_of_ingress_ordinal", record.ingress_ordinal))
+
+
+def _verdict_flag(verdict: Any, field_name: str, fallback: bool | None) -> bool | None:
+    value = getattr(verdict, field_name, None)
+    return fallback if value is None else bool(value)
 
 
 def _side(record: DecisionRecord, which: str) -> SideView:

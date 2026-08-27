@@ -93,6 +93,18 @@ def read_manifest(connection: sqlite3.Connection, market_id: str) -> Manifest | 
     return Manifest(**fields)
 
 
+def _has_control_audit(connection: sqlite3.Connection) -> bool:
+    """Whether this store has the table at all.
+
+    V2 stores — every accepted P11 archive — predate operator control, so the absence of the
+    table is a fact about when they were written rather than a missing row.
+    """
+    row = connection.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='control_audit'"
+    ).fetchone()
+    return row is not None
+
+
 def _exact_int(value: object) -> bool:
     """An honest integer, and not a bool.
 
@@ -187,6 +199,24 @@ def verify_store(
             )
         ]
         log_total = len(log_sequences)
+        control_rows = (
+            [
+                json.loads(row[0])
+                for row in connection.execute(
+                    "SELECT payload FROM control_audit WHERE market_id = ?", (found_id,)
+                )
+            ]
+            if _has_control_audit(connection)
+            else []
+        )
+        control_risk_rows = {
+            int(row[0]): json.loads(row[1])
+            for row in connection.execute(
+                "SELECT risk_sequence, payload FROM risk_records WHERE market_id = ?"
+                " AND json_extract(payload, '$.signal_kind') = 'OPERATOR_CONTROL'",
+                (found_id,),
+            )
+        }
         # The reference a decision makes to the verdict that governed it, and whether it placed.
         # Pulled out of the payload because that is where V2 keeps them; the columns carry only
         # what is indexed.
@@ -488,6 +518,62 @@ def verify_store(
         failures.append(
             f"{blank_event_ids} decision(s) carry no event id; P2 assigns one to every event, "
             "so a blank one is an identity that was lost rather than one that never existed"
+        )
+
+    # Operator control: every accepted command must name a risk row that exists and agrees with
+    # it, and every OPERATOR_CONTROL risk row must have a command that claims it. An orphan in
+    # either direction means the durable record cannot say who changed the bot's permissions.
+    control_problems: list[str] = []
+    claimed: set[int] = set()
+    seen_ids: set[str] = set()
+    for row in control_rows:
+        command_id = str(row.get("command_id"))
+        if command_id in seen_ids:
+            control_problems.append(f"command {command_id} audited more than once")
+        seen_ids.add(command_id)
+        if not row.get("accepted"):
+            continue
+        sequence = row.get("risk_sequence")
+        verdict = control_risk_rows.get(int(sequence)) if sequence is not None else None
+        if verdict is None:
+            control_problems.append(
+                f"command {command_id} names risk_sequence {sequence}, which is not a stored "
+                "OPERATOR_CONTROL record"
+            )
+            continue
+        claimed.add(int(sequence))
+        if verdict.get("as_of_ingress_ordinal") != row.get("ingress_ordinal"):
+            control_problems.append(
+                f"command {command_id}: audit says ingress {row.get('ingress_ordinal')}, risk "
+                f"row says {verdict.get('as_of_ingress_ordinal')}"
+            )
+        if verdict.get("signal_reason") != "OPERATOR_HALT":
+            control_problems.append(
+                f"command {command_id}: risk row reason is {verdict.get('signal_reason')!r}"
+            )
+        if bool(verdict.get("signal_flag")) != bool(row.get("signal_flag")):
+            control_problems.append(
+                f"command {command_id}: audit flag {row.get('signal_flag')!r} against risk row "
+                f"flag {verdict.get('signal_flag')!r}"
+            )
+        if verdict.get("state") != row.get("risk_state"):
+            control_problems.append(
+                f"command {command_id}: audit state {row.get('risk_state')!r}, risk row "
+                f"{verdict.get('state')!r}"
+            )
+        if bool(verdict.get("allows_place")) != bool(row.get("allows_place")):
+            control_problems.append(f"command {command_id}: allows_place disagrees")
+
+    for sequence in sorted(set(control_risk_rows) - claimed):
+        control_problems.append(
+            f"OPERATOR_CONTROL risk_sequence {sequence} has no operator command claiming it"
+        )
+
+    checks["control_audit_cross_links"] = not control_problems
+    if control_problems:
+        failures.append(
+            f"{len(control_problems)} operator-control audit problem(s): "
+            + "; ".join(control_problems[:5])
         )
 
     checks["decision_schema_version_supported"] = not unsupported_versions

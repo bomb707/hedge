@@ -39,6 +39,9 @@ class CommandOutcome:
     command_id: str
     kind: str
     accepted: bool
+    duplicate: bool = False
+    """Whether this command id had already been accepted. Not a failure — the same request."""
+
     ingress_ordinal: int | None = None
     risk_sequence: int | None = None
     risk_state: str | None = None
@@ -50,6 +53,7 @@ class CommandOutcome:
             "command_id": self.command_id,
             "kind": self.kind,
             "accepted": self.accepted,
+            "duplicate": self.duplicate,
             "ingress_ordinal": self.ingress_ordinal,
             "risk_sequence": self.risk_sequence,
             "risk_state": self.risk_state,
@@ -64,6 +68,10 @@ class ControlIngress:
 
     controller: RiskController
     publish: Callable[[Any], None] | None = None
+    audit: Callable[[Any, Any], None] | None = None
+    """Where the durable control-audit record goes. Plane 3; a failure here never reaches
+    trading, but it does make the control audit incomplete rather than silently fine."""
+
     """Where the resulting RiskRecord goes to be persisted.
 
     Required in production, and the first real market found out why it is not optional: without
@@ -76,12 +84,42 @@ class ControlIngress:
 
     accepted: int = 0
     refused: int = 0
+    duplicates: int = 0
+    audit_errors: int = 0
+    seen: dict[str, CommandOutcome] = field(default_factory=dict)
+    """Command ids this authority has already acted on, and what it did.
+
+    Idempotency belongs here rather than at the transport. The inbox deduplicates too, but that
+    only protects against one delivery path: a retried POST, a restarted bridge, a second
+    transport, or a direct call would each bypass it. This is the single place that decides
+    whether a command changes the risk state, so it is the place that has to decide whether it
+    has already done so."""
+
     outcomes: list[CommandOutcome] = field(default_factory=list)
 
     def apply(
         self, command: OperatorCommand, *, ingress_ordinal: int, now_ns: TimestampNs
     ) -> CommandOutcome:
         """Accept one command, or refuse it, and record which. Never raises into the caller."""
+        previous = self.seen.get(command.command_id)
+        if previous is not None:
+            # The same command, arriving again. One risk-state mutation, one RiskRecord.
+            self.duplicates += 1
+            return CommandOutcome(
+                command_id=command.command_id,
+                kind=command.kind,
+                accepted=False,
+                duplicate=True,
+                ingress_ordinal=previous.ingress_ordinal,
+                risk_sequence=previous.risk_sequence,
+                risk_state=previous.risk_state,
+                allows_place=previous.allows_place,
+                detail=(
+                    f"already accepted at ingress ordinal {previous.ingress_ordinal} as risk "
+                    f"sequence {previous.risk_sequence}; not applied a second time"
+                ),
+            )
+
         flag = command.kind == CommandKind.OPERATOR_HALT.value
         if command.kind not in {
             CommandKind.OPERATOR_HALT.value,
@@ -123,8 +161,18 @@ class ControlIngress:
             ),
         )
         self.accepted += 1
+        self.seen[command.command_id] = outcome
         self._remember(outcome)
+        self._audit(command, outcome, flag)
         return outcome
+
+    def _audit(self, command: OperatorCommand, outcome: CommandOutcome, flag: bool) -> None:
+        if self.audit is None:
+            return
+        try:
+            self.audit(command, (outcome, flag))
+        except Exception:
+            self.audit_errors += 1
 
     def _refuse(self, command: OperatorCommand, detail: str) -> CommandOutcome:
         outcome = CommandOutcome(
@@ -142,5 +190,7 @@ class ControlIngress:
         return {
             "accepted": self.accepted,
             "refused": self.refused,
+            "duplicates": self.duplicates,
+            "audit_errors": self.audit_errors,
             "outcomes": [outcome.summary() for outcome in self.outcomes],
         }

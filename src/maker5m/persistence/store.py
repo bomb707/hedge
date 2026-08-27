@@ -32,6 +32,8 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 from maker5m.persistence.schema import (
     MANIFEST_SCHEMA_VERSION,
     STORE_SCHEMA_VERSION,
+    SUPPORTED_STORE_SCHEMA_VERSIONS,
+    ControlAuditRow,
     DecisionRecord,
     FillRecord,
     Manifest,
@@ -50,7 +52,7 @@ on one crash. Five hundred is roughly a second of a busy real market (measured p
 decisions/second) and keeps the worst-case loss to about that."""
 
 SCHEMA: Final[str] = """
--- APPEND-ONLY: decisions, fills, risk_records, settlements, persistence_log.
+-- APPEND-ONLY: decisions, fills, risk_records, settlements, control_audit, persistence_log.
 --   Once a row exists at an identity it is evidence, and evidence is not rewritten. These are
 --   written with a plain INSERT so a second write at the same identity raises IntegrityError,
 --   is counted as a sink error, and leaves the original row exactly as it was.
@@ -114,6 +116,18 @@ CREATE TABLE IF NOT EXISTS persistence_log (
     record_key TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS persistence_log_market ON persistence_log(market_id);
+CREATE TABLE IF NOT EXISTS control_audit (
+    persistence_sequence INTEGER PRIMARY KEY,
+    market_id TEXT NOT NULL,
+    command_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    accepted INTEGER NOT NULL,
+    risk_sequence INTEGER,
+    schema_version INTEGER NOT NULL,
+    payload TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS control_audit_command
+    ON control_audit(market_id, command_id);
 CREATE TABLE IF NOT EXISTS market_metrics (
     market_id TEXT PRIMARY KEY,
     schema_version INTEGER NOT NULL,
@@ -209,6 +223,9 @@ class TelemetryStore:
         existing = self.path.exists() and self.path.stat().st_size > 0
         connection = sqlite3.connect(str(self.path), isolation_level=None)
         if existing:
+            # Reading accepts older versions; *writing* does not. Opening a V2 store for writing
+            # would run this build's schema script against it and add a table it never had,
+            # which is a schema change without a version change.
             version = int(connection.execute("PRAGMA user_version").fetchone()[0])
             if version != STORE_SCHEMA_VERSION:
                 connection.close()
@@ -393,6 +410,24 @@ class TelemetryStore:
             ),
         )
 
+    def write_control_audit(self, record: ControlAuditRow) -> None:
+        """Append-only, like every other event-like row, and unique on the command id."""
+        self._log(record.persistence_sequence, record.market_id, "control", record.command_id)
+        self._execute(
+            "INSERT INTO control_audit (persistence_sequence, market_id, command_id, kind,"
+            " accepted, risk_sequence, schema_version, payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                record.persistence_sequence,
+                record.market_id,
+                record.command_id,
+                record.kind,
+                int(record.accepted),
+                record.risk_sequence,
+                record.schema_version,
+                _payload(record),
+            ),
+        )
+
     def write_metrics(self, metrics: MarketMetrics) -> None:
         self._execute(
             "INSERT OR REPLACE INTO market_metrics (market_id, schema_version, payload)"
@@ -434,11 +469,12 @@ def open_for_read(path: Path) -> sqlite3.Connection:
         raise FileNotFoundError(path)
     connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
     version = int(connection.execute("PRAGMA user_version").fetchone()[0])
-    if version != STORE_SCHEMA_VERSION:
+    if version not in SUPPORTED_STORE_SCHEMA_VERSIONS:
         connection.close()
         raise SchemaVersionError(
-            f"store schema {version} is not {STORE_SCHEMA_VERSION}; refusing to guess at a "
-            "layout this build does not define"
+            f"store schema {version} is not one this build reads "
+            f"({sorted(SUPPORTED_STORE_SCHEMA_VERSIONS)}); refusing to guess at a layout it "
+            "does not define"
         )
     return connection
 

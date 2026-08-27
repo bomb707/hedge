@@ -7,6 +7,12 @@ Holds no lock reachable from Plane 1 or 2. Killing the UI must not stop trading
 (invariant I19).
 """
 
+from maker5m.ui.bridge import (
+    DEFAULT_COMMAND_CAPACITY,
+    BridgeStats,
+    CommandBridge,
+    HotCommandChannel,
+)
 from maker5m.ui.channel import (
     MAX_PENDING_COMMANDS,
     ChannelFullError,
@@ -32,14 +38,18 @@ from maker5m.ui.snapshot import (
 
 __all__ = [
     "COMMAND_SCHEMA_VERSION",
+    "DEFAULT_COMMAND_CAPACITY",
     "DEFAULT_PUBLISH_INTERVAL_S",
     "MAX_PENDING_COMMANDS",
     "SNAPSHOT_SCHEMA_VERSION",
+    "BridgeStats",
     "ChannelFullError",
+    "CommandBridge",
     "CommandInbox",
     "CommandKind",
     "CommandOutcome",
     "ControlIngress",
+    "HotCommandChannel",
     "OperatorCommand",
     "ParameterView",
     "SideView",

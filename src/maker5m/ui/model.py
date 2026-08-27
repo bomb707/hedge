@@ -218,6 +218,35 @@ class UiSnapshot:
     live_trading_enabled: bool
     redemption_enabled: bool
 
+    order_stream_status: str = "UNKNOWN"
+
+    latency_sample_ordinal: int | None = None
+    """Which cycle the latency figures came from.
+
+    P8 samples; most cycles carry no timing at all. Rather than show zeros for an unsampled
+    decision, the most recent measured sample is carried with the ordinal it was taken at, so a
+    reader can see it is not necessarily this decision's. Absent when nothing has been sampled."""
+
+    observation_points: dict[str, int | None] = field(default_factory=dict)
+    """Which ordinal each part of the view describes.
+
+    The decision, the verdict that governed it and the queue estimate are all decision-specific
+    and should agree; the telemetry counters are latest-known aggregates. Saying so explicitly is
+    cheaper than a dashboard that silently mixes observation points."""
+
+    settlement_note: str = ""
+    verification_status: str | None = None
+    """P11's verdict once the market has closed and been verified. ``None`` before that."""
+
+    control_channel_available: bool | None = None
+    """Whether the Plane-3 command bridge is alive. ``None`` if there is no bridge.
+
+    Shown because an operator whose halt button silently does nothing is worse off than one who
+    is told the channel is down."""
+
+    control_audit_complete: bool | None = None
+    """Whether every accepted command reached durable storage."""
+
     parameters: tuple[ParameterView, ...] = field(default_factory=tuple)
     accepted_commands: tuple[dict[str, object], ...] = field(default_factory=tuple)
     """Recent operator commands and what the risk stream did with each. The audit an operator

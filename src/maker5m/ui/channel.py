@@ -174,7 +174,7 @@ class CommandInbox:
 
         commands: list[OperatorCommand] = []
         for entry in entries[:limit]:
-            command = self._read_one(entry)
+            command = self.read_one(entry)
             entry.unlink(missing_ok=True)
             if command is None:
                 continue
@@ -185,7 +185,12 @@ class CommandInbox:
             commands.append(command)
         return commands
 
-    def _read_one(self, entry: Path) -> OperatorCommand | None:
+    def read_one(self, entry: Path) -> OperatorCommand | None:
+        """Decode one command file. ``None`` for anything that is not a command this build knows.
+
+        Public because the Plane-3 bridge owns file intake now; `drain` remains for supporting
+        tests and for a single-process caller that is already off the ingress path.
+        """
         try:
             if entry.stat().st_size > MAX_COMMAND_BYTES:
                 return None

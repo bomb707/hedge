@@ -1240,3 +1240,239 @@ def test_a_correctly_typed_identity_still_passes(tmp_path: Path) -> None:
     result = verify_store(build_market(tmp_path))
     assert result.status is VerificationStatus.COMPLETE, result.failures
     assert result.checks["decision_columns_match_payload"]
+
+
+# -- operator control must be durably cross-linked, both ways -----------------------------------
+#
+# A RiskRow records that an OPERATOR_CONTROL signal happened; it cannot say which command caused
+# it, and P11's accepted V1 row shape must not be reinterpreted to make room. So the link lives in
+# its own table, and the verifier checks it in both directions: no command naming a risk row that
+# is not there, and no OPERATOR_CONTROL row that no command claims.
+
+
+def _control_market(
+    tmp_path: Path,
+    *,
+    commands: list[dict[str, Any]] | None = None,
+    control_risk: list[dict[str, Any]] | None = None,
+) -> Path:
+    from maker5m.persistence import ControlAuditRow
+
+    path = tmp_path / "control.sqlite3"
+    ident = identity()
+    store = TelemetryStore(path=path, batch_size=4)
+    store.open()
+    store.register_market(
+        market_id=ident.market_id,
+        slug=ident.slug,
+        condition_id=ident.condition_id,
+        provenance=ident.provenance,
+    )
+
+    sequence = 0
+    rows = (
+        control_risk
+        if control_risk is not None
+        else [
+            {"risk_sequence": 0, "ordinal": 10, "flag": True, "state": "HALTED", "place": False},
+            {"risk_sequence": 1, "ordinal": 20, "flag": False, "state": "SAFE", "place": True},
+        ]
+    )
+    for spec in rows:
+        sequence += 1
+        store.write_risk(_control_risk_row(ident.market_id, spec, sequence))
+
+    specs = (
+        commands
+        if commands is not None
+        else [
+            {
+                "command_id": "halt-1",
+                "kind": "OPERATOR_HALT",
+                "risk_sequence": 0,
+                "ingress_ordinal": 10,
+                "flag": True,
+                "state": "HALTED",
+                "place": False,
+            },
+            {
+                "command_id": "release-1",
+                "kind": "RELEASE_OPERATOR_HALT",
+                "risk_sequence": 1,
+                "ingress_ordinal": 20,
+                "flag": False,
+                "state": "SAFE",
+                "place": True,
+            },
+        ]
+    )
+    for spec in specs:
+        sequence += 1
+        store.write_control_audit(
+            ControlAuditRow(
+                schema_version=1,
+                persistence_sequence=sequence,
+                market_id=ident.market_id,
+                command_id=str(spec["command_id"]),
+                kind=str(spec["kind"]),
+                issued_at_ns=1,
+                source="operator-ui",
+                accepted=bool(spec.get("accepted", True)),
+                ingress_ordinal=_opt_int(spec.get("ingress_ordinal")),
+                risk_sequence=_opt_int(spec.get("risk_sequence")),
+                risk_state=None if spec.get("state") is None else str(spec["state"]),
+                allows_place=_opt_bool(spec.get("place")),
+                signal_flag=_opt_bool(spec.get("flag")),
+            )
+        )
+    store.close()
+    return path
+
+
+def _opt_int(value: object) -> int | None:
+    return None if value is None else int(value)  # type: ignore[call-overload]
+
+
+def _opt_bool(value: object) -> bool | None:
+    return None if value is None else bool(value)
+
+
+def _control_risk_row(market_id: str, spec: dict[str, Any], persistence_sequence: int) -> Any:
+    from maker5m.persistence import RiskRow
+
+    return RiskRow(
+        schema_version=1,
+        persistence_sequence=persistence_sequence,
+        market_id=market_id,
+        risk_sequence=int(spec["risk_sequence"]),
+        as_of_ingress_ordinal=int(spec["ordinal"]),
+        signal_kind="OPERATOR_CONTROL",
+        signal_reason="OPERATOR_HALT",
+        signal_flag=bool(spec["flag"]),
+        signal_timestamp_ns=TimestampNs(1),
+        signal_value_ns=None,
+        state=str(spec["state"]),
+        active=(),
+        latched=(),
+        allows_place=bool(spec["place"]),
+        allows_cancel=True,
+        provenance="SYNTHETIC_SUPPORTING_TEST_ONLY",
+        risk_schema_version=1,
+    )
+
+
+def _control_checks(path: Path) -> Any:
+    return verify_store(path).checks.get("control_audit_cross_links")
+
+
+def test_a_valid_halt_release_audit_cross_links(tmp_path: Path) -> None:
+    assert _control_checks(_control_market(tmp_path)) is True
+
+
+def test_a_duplicate_command_id_cannot_be_audited_twice(tmp_path: Path) -> None:
+    """Refused by the unique index, so it cannot reach the file to be caught later."""
+    from maker5m.persistence import ControlAuditRow
+
+    path = _control_market(tmp_path)
+    store = TelemetryStore(path=path, batch_size=1)
+    store.open()
+    before = store.sink_errors
+    store.write_control_audit(
+        ControlAuditRow(
+            schema_version=1,
+            persistence_sequence=999,
+            market_id=identity().market_id,
+            command_id="halt-1",
+            kind="OPERATOR_HALT",
+            issued_at_ns=1,
+            source="operator-ui",
+            accepted=True,
+            ingress_ordinal=10,
+            risk_sequence=0,
+            risk_state="HALTED",
+            allows_place=False,
+            signal_flag=True,
+        )
+    )
+    store.flush()
+    store.close()
+    assert store.sink_errors > before
+    assert store.duplicate_writes >= 1
+
+
+def test_a_command_naming_an_absent_risk_row_is_refused(tmp_path: Path) -> None:
+    path = _control_market(
+        tmp_path,
+        commands=[
+            {
+                "command_id": "halt-1",
+                "kind": "OPERATOR_HALT",
+                "risk_sequence": 404,
+                "ingress_ordinal": 10,
+                "flag": True,
+                "state": "HALTED",
+                "place": False,
+            }
+        ],
+        control_risk=[
+            {"risk_sequence": 0, "ordinal": 10, "flag": True, "state": "HALTED", "place": False}
+        ],
+    )
+    result = verify_store(path)
+    assert result.checks["control_audit_cross_links"] is False
+    assert any("not a stored OPERATOR_CONTROL" in f for f in result.failures)
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value", "fragment"),
+    [
+        ("ingress_ordinal", 999, "ingress"),
+        ("flag", False, "flag"),
+        ("state", "SAFE", "state"),
+        ("place", True, "allows_place"),
+    ],
+)
+def test_an_audit_disagreeing_with_its_risk_row_is_refused(
+    tmp_path: Path, field_name: str, value: Any, fragment: str
+) -> None:
+    command = {
+        "command_id": "halt-1",
+        "kind": "OPERATOR_HALT",
+        "risk_sequence": 0,
+        "ingress_ordinal": 10,
+        "flag": True,
+        "state": "HALTED",
+        "place": False,
+    }
+    command[field_name] = value
+    path = _control_market(
+        tmp_path,
+        commands=[command],
+        control_risk=[
+            {"risk_sequence": 0, "ordinal": 10, "flag": True, "state": "HALTED", "place": False}
+        ],
+    )
+    result = verify_store(path)
+    assert result.checks["control_audit_cross_links"] is False
+    assert any(fragment in f for f in result.failures)
+
+
+def test_an_orphan_operator_control_risk_row_is_refused(tmp_path: Path) -> None:
+    """A permission change nobody claims responsibility for."""
+    path = _control_market(
+        tmp_path,
+        commands=[],
+        control_risk=[
+            {"risk_sequence": 0, "ordinal": 10, "flag": True, "state": "HALTED", "place": False}
+        ],
+    )
+    result = verify_store(path)
+    assert result.checks["control_audit_cross_links"] is False
+    assert any("no operator command claiming it" in f for f in result.failures)
+
+
+def test_a_v2_store_without_the_table_is_not_penalised(tmp_path: Path) -> None:
+    """Accepted P11 archives predate operator control; that absence has a reason."""
+    result = verify_store(build_market(tmp_path))
+    assert result.checks["control_audit_cross_links"] is True
+    assert result.status is VerificationStatus.COMPLETE

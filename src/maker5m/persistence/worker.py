@@ -31,7 +31,7 @@ from dataclasses import dataclass, field
 from typing import Any, Final
 
 from maker5m.domain import Outcome
-from maker5m.persistence.analytics import MetricsAccumulator, risk_row
+from maker5m.persistence.analytics import MetricsAccumulator, control_audit_row, risk_row
 from maker5m.persistence.capture import BoundedChannel
 from maker5m.persistence.records import (
     MarketIdentity,
@@ -77,6 +77,7 @@ class WorkerStats:
     stalled_ns: int = 0
     consume_errors: int = 0
     risk_written: int = 0
+    control_records_written: int = 0
     fills_written: int = 0
     error_samples: list[str] = field(default_factory=list)
     """A few distinct failure descriptions, kept so a silent count is never the only clue.
@@ -97,6 +98,7 @@ class WorkerStats:
             "last_gap_at": self.last_gap_at,
             "consume_errors": self.consume_errors,
             "risk_written": self.risk_written,
+            "control_records_written": self.control_records_written,
             "fills_written": self.fills_written,
             "error_samples": list(self.error_samples),
         }
@@ -119,6 +121,9 @@ class PersistenceWorker:
     """Canonical fills, published from Plane 1 through a bounded non-blocking channel."""
 
     risk: BoundedChannel | None = None
+    control_audit: BoundedChannel | None = None
+    """Operator commands and their outcomes, on their way to the durable control-audit table."""
+
     """P9 records, published as they are produced rather than dumped after DONE.
 
     Continuous because P11 is the durability phase: a mid-market crash should leave a useful
@@ -312,7 +317,7 @@ class PersistenceWorker:
         if not self._draining.acquire(blocking=False):
             return 0
         try:
-            return self._drain_risk() + self._drain_fills()
+            return self._drain_risk() + self._drain_fills() + self._drain_control()
         finally:
             self._draining.release()
 
@@ -337,6 +342,34 @@ class PersistenceWorker:
                     )
                 )
                 self.stats.risk_written += 1
+            except Exception as error:
+                self._record_consume_error(error)
+        channel.drained += taken
+        return taken
+
+    def _drain_control(self) -> int:
+        """Persist operator-control audit records. Same worker, same storage order."""
+        channel = self.control_audit
+        if channel is None:
+            return 0
+        taken = 0
+        while taken < self.drain_limit:
+            try:
+                command, outcome = channel.records.popleft()
+            except IndexError:
+                break
+            taken += 1
+            try:
+                self._persistence_sequence += 1
+                self.store.write_control_audit(
+                    control_audit_row(
+                        command,
+                        outcome,
+                        market_id=self.identity.market_id,
+                        persistence_sequence=self._persistence_sequence,
+                    )
+                )
+                self.stats.control_records_written += 1
             except Exception as error:
                 self._record_consume_error(error)
         channel.drained += taken

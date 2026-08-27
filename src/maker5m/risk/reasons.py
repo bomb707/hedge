@@ -59,6 +59,14 @@ class RiskReason(Enum):
     COST_LEDGER_MISMATCH = "COST_LEDGER_MISMATCH"
     API_ERROR_RATE = "API_ERROR_RATE"
     RATE_LIMIT_UNCERTAIN = "RATE_LIMIT_UNCERTAIN"
+    OPERATOR_HALT = "OPERATOR_HALT"
+    """An operator asked the bot to stop placing. OPERATIONAL, not a market condition.
+
+    Deliberately **not** in ``REQUIRES_RECONCILIATION``. It is the one condition whose evidence
+    is a person deciding, so a person deciding again is enough to clear it — and it has to clear
+    *only itself*: releasing an operator halt must never be a way to sweep away a stale feed or
+    an unreconciled position that is still true."""
+
     RESOLUTION_AMBIGUOUS = "RESOLUTION_AMBIGUOUS"
 
     TAKER_FILL = "TAKER_FILL"

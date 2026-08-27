@@ -107,6 +107,7 @@ class RiskInputs(NamedTuple):
     rate_limit_uncertain: bool = False
     resolution_ambiguous: bool = False
     taker_fill_seen: bool = False
+    operator_halt: bool = False
 
     reconciled: frozenset[RiskReason] = frozenset()
     """Reconciliation results that have been established since the halt began.
@@ -219,6 +220,8 @@ def active_reasons(inputs: RiskInputs, config: RiskConfig) -> frozenset[RiskReas
         reasons.add(RiskReason.RATE_LIMIT_UNCERTAIN)
     if inputs.resolution_ambiguous:
         reasons.add(RiskReason.RESOLUTION_AMBIGUOUS)
+    if inputs.operator_halt:
+        reasons.add(RiskReason.OPERATOR_HALT)
     if inputs.taker_fill_seen:
         reasons.add(RiskReason.TAKER_FILL)
 

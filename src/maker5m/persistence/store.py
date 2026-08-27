@@ -32,6 +32,8 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 from maker5m.persistence.schema import (
     MANIFEST_SCHEMA_VERSION,
     STORE_SCHEMA_VERSION,
+    SUPPORTED_STORE_SCHEMA_VERSIONS,
+    ControlAuditRow,
     DecisionRecord,
     FillRecord,
     Manifest,
@@ -50,7 +52,7 @@ on one crash. Five hundred is roughly a second of a busy real market (measured p
 decisions/second) and keeps the worst-case loss to about that."""
 
 SCHEMA: Final[str] = """
--- APPEND-ONLY: decisions, fills, risk_records, settlements, persistence_log.
+-- APPEND-ONLY: decisions, fills, risk_records, settlements, control_audit, persistence_log.
 --   Once a row exists at an identity it is evidence, and evidence is not rewritten. These are
 --   written with a plain INSERT so a second write at the same identity raises IntegrityError,
 --   is counted as a sink error, and leaves the original row exactly as it was.
@@ -114,6 +116,18 @@ CREATE TABLE IF NOT EXISTS persistence_log (
     record_key TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS persistence_log_market ON persistence_log(market_id);
+CREATE TABLE IF NOT EXISTS control_audit (
+    persistence_sequence INTEGER PRIMARY KEY,
+    market_id TEXT NOT NULL,
+    command_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    accepted INTEGER NOT NULL,
+    risk_sequence INTEGER,
+    schema_version INTEGER NOT NULL,
+    payload TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS control_audit_command
+    ON control_audit(market_id, command_id);
 CREATE TABLE IF NOT EXISTS market_metrics (
     market_id TEXT PRIMARY KEY,
     schema_version INTEGER NOT NULL,
@@ -209,6 +223,9 @@ class TelemetryStore:
         existing = self.path.exists() and self.path.stat().st_size > 0
         connection = sqlite3.connect(str(self.path), isolation_level=None)
         if existing:
+            # Reading accepts older versions; *writing* does not. Opening a V2 store for writing
+            # would run this build's schema script against it and add a table it never had,
+            # which is a schema change without a version change.
             version = int(connection.execute("PRAGMA user_version").fetchone()[0])
             if version != STORE_SCHEMA_VERSION:
                 connection.close()
@@ -238,11 +255,19 @@ class TelemetryStore:
 
     # -- writing ---------------------------------------------------------------------------
 
-    def _execute(self, statement: str, parameters: tuple[Any, ...]) -> None:
+    def _execute(self, statement: str, parameters: tuple[Any, ...]) -> bool:
+        """Run one statement. Returns whether the write path actually took the row.
+
+        Errors still stop here — a failing disk must not reach Plane 1 — but "absorbed" is not
+        "accepted", and a caller that increments a written counter or tells the operator a row
+        is persisted needs to know which of the two happened. Before this returned the answer,
+        `write_control_audit` could count a rejected duplicate as written and publish it to the
+        dashboard, with only `sink_errors` quietly disagreeing.
+        """
         connection = self._connection
         if connection is None:
             self._record_closed()
-            return
+            return False
         try:
             connection.execute(statement, parameters)
         except sqlite3.IntegrityError as error:
@@ -251,14 +276,15 @@ class TelemetryStore:
             # replace what actually happened. Counted, so the market cannot verify complete.
             self._record_error(error)
             self.duplicate_writes += 1
-            return
+            return False
         except sqlite3.Error as error:
             self._record_error(error)
-            return
+            return False
         self.rows_written += 1
         self._pending += 1
         if self._pending >= self.batch_size:
             self._flush()
+        return True
 
     def _record_closed(self) -> None:
         """A write that arrived when there was no connection to take it.
@@ -308,7 +334,7 @@ class TelemetryStore:
             (market_id, slug, condition_id, provenance, market_id),
         )
 
-    def _log(self, sequence: int, market_id: str, record_type: str, key: str) -> None:
+    def _log(self, sequence: int, market_id: str, record_type: str, key: str) -> bool:
         """One row per stored event-like record, in a single total storage order.
 
         The typed tables each have their own primary key, so nothing in them can show that the
@@ -318,17 +344,17 @@ class TelemetryStore:
         Storage order, not causality. `ingress_ordinal`, `risk_sequence` and the settlement
         block remain the orders that mean something.
         """
-        self._execute(
+        return self._execute(
             "INSERT INTO persistence_log"
             " (persistence_sequence, market_id, record_type, record_key) VALUES (?, ?, ?, ?)",
             (sequence, market_id, record_type, key),
         )
 
-    def write_decision(self, record: DecisionRecord) -> None:
-        self._log(
+    def write_decision(self, record: DecisionRecord) -> bool:
+        logged = self._log(
             record.persistence_sequence, record.market_id, "decision", str(record.ingress_ordinal)
         )
-        self._execute(
+        stored = self._execute(
             "INSERT INTO decisions (persistence_sequence, market_id,"
             " ingress_ordinal, capture_sequence, event_id, event_kind, schema_version, payload)"
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -343,10 +369,11 @@ class TelemetryStore:
                 _payload(record),
             ),
         )
+        return logged and stored
 
-    def write_fill(self, record: FillRecord) -> None:
-        self._log(record.persistence_sequence, record.market_id, "fill", record.event_id)
-        self._execute(
+    def write_fill(self, record: FillRecord) -> bool:
+        logged = self._log(record.persistence_sequence, record.market_id, "fill", record.event_id)
+        stored = self._execute(
             "INSERT INTO fills (persistence_sequence, market_id, ingress_ordinal,"
             " event_id, provenance, liquidity, schema_version, payload)"
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -361,10 +388,13 @@ class TelemetryStore:
                 _payload(record),
             ),
         )
+        return logged and stored
 
-    def write_risk(self, record: RiskRow) -> None:
-        self._log(record.persistence_sequence, record.market_id, "risk", str(record.risk_sequence))
-        self._execute(
+    def write_risk(self, record: RiskRow) -> bool:
+        logged = self._log(
+            record.persistence_sequence, record.market_id, "risk", str(record.risk_sequence)
+        )
+        stored = self._execute(
             "INSERT INTO risk_records (persistence_sequence, market_id,"
             " risk_sequence, as_of_ingress_ordinal, schema_version, payload)"
             " VALUES (?, ?, ?, ?, ?, ?)",
@@ -377,10 +407,13 @@ class TelemetryStore:
                 _payload(record),
             ),
         )
+        return logged and stored
 
-    def write_settlement(self, record: SettlementRow) -> None:
-        self._log(record.persistence_sequence, record.market_id, "settlement", record.condition_id)
-        self._execute(
+    def write_settlement(self, record: SettlementRow) -> bool:
+        logged = self._log(
+            record.persistence_sequence, record.market_id, "settlement", record.condition_id
+        )
+        stored = self._execute(
             "INSERT INTO settlements (persistence_sequence, market_id, condition_id,"
             " resolution_state, schema_version, payload) VALUES (?, ?, ?, ?, ?, ?)",
             (
@@ -392,6 +425,28 @@ class TelemetryStore:
                 _payload(record),
             ),
         )
+        return logged and stored
+
+    def write_control_audit(self, record: ControlAuditRow) -> bool:
+        """Append-only, like every other event-like row, and unique on the command id."""
+        logged = self._log(
+            record.persistence_sequence, record.market_id, "control", record.command_id
+        )
+        stored = self._execute(
+            "INSERT INTO control_audit (persistence_sequence, market_id, command_id, kind,"
+            " accepted, risk_sequence, schema_version, payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                record.persistence_sequence,
+                record.market_id,
+                record.command_id,
+                record.kind,
+                int(record.accepted),
+                record.risk_sequence,
+                record.schema_version,
+                _payload(record),
+            ),
+        )
+        return logged and stored
 
     def write_metrics(self, metrics: MarketMetrics) -> None:
         self._execute(
@@ -434,11 +489,12 @@ def open_for_read(path: Path) -> sqlite3.Connection:
         raise FileNotFoundError(path)
     connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
     version = int(connection.execute("PRAGMA user_version").fetchone()[0])
-    if version != STORE_SCHEMA_VERSION:
+    if version not in SUPPORTED_STORE_SCHEMA_VERSIONS:
         connection.close()
         raise SchemaVersionError(
-            f"store schema {version} is not {STORE_SCHEMA_VERSION}; refusing to guess at a "
-            "layout this build does not define"
+            f"store schema {version} is not one this build reads "
+            f"({sorted(SUPPORTED_STORE_SCHEMA_VERSIONS)}); refusing to guess at a layout it "
+            "does not define"
         )
     return connection
 

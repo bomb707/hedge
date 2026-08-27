@@ -11,7 +11,12 @@ decision cycle. What they do cost is the right to call the market's telemetry co
 recorded in the manifest and enforced by the verifier.
 """
 
-from maker5m.persistence.analytics import MetricsAccumulator, risk_row, settlement_row
+from maker5m.persistence.analytics import (
+    MetricsAccumulator,
+    control_audit_row,
+    risk_row,
+    settlement_row,
+)
 from maker5m.persistence.archive import (
     ARCHIVE_SUFFIX,
     ArchiveIdentity,
@@ -35,6 +40,7 @@ from maker5m.persistence.records import (
     build_fill_record,
 )
 from maker5m.persistence.schema import (
+    CONTROL_AUDIT_SCHEMA_VERSION,
     DECISION_SCHEMA_VERSION,
     FILL_SCHEMA_VERSION,
     MANIFEST_SCHEMA_VERSION,
@@ -42,6 +48,8 @@ from maker5m.persistence.schema import (
     RISK_ROW_SCHEMA_VERSION,
     SETTLEMENT_ROW_SCHEMA_VERSION,
     STORE_SCHEMA_VERSION,
+    SUPPORTED_STORE_SCHEMA_VERSIONS,
+    ControlAuditRow,
     DecisionRecord,
     ExactRatio,
     FillProvenance,
@@ -74,6 +82,7 @@ from maker5m.persistence.worker import (
 
 __all__ = [
     "ARCHIVE_SUFFIX",
+    "CONTROL_AUDIT_SCHEMA_VERSION",
     "DECISION_SCHEMA_VERSION",
     "DEFAULT_BATCH_SIZE",
     "DEFAULT_FILL_CAPACITY",
@@ -85,10 +94,12 @@ __all__ = [
     "RISK_ROW_SCHEMA_VERSION",
     "SETTLEMENT_ROW_SCHEMA_VERSION",
     "STORE_SCHEMA_VERSION",
+    "SUPPORTED_STORE_SCHEMA_VERSIONS",
     "ArchiveIdentity",
     "ArchiveResult",
     "ArchiveVerificationError",
     "BoundedChannel",
+    "ControlAuditRow",
     "DecisionRecord",
     "ExactRatio",
     "FillCapture",
@@ -112,6 +123,7 @@ __all__ = [
     "archive_store",
     "build_decision_record",
     "build_fill_record",
+    "control_audit_row",
     "database_digest",
     "open_for_read",
     "open_verified_archive",

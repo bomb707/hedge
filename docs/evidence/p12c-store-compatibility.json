@@ -1,0 +1,140 @@
+{
+  "all_complete": false,
+  "all_complete_note": "`all_complete` is false and should be: four of these eight stores are expected not to verify COMPLETE, each for a reason recorded in `expected_non_complete`. A verifier that passed all eight would be the defect.",
+  "every_healthy_store_complete": true,
+  "every_store_reads_as_it_did_before": true,
+  "expected_non_complete": {
+    "btc-updown-5m-1787748900": "store schema V1, pre-P11B layout; refused by the supported-domain rule P11F closed",
+    "btc-updown-5m-1787749500": "same",
+    "btc-updown-5m-1787771100": "the controlled stalled-sink market; real bounded-buffer loss, INCOMPLETE by design",
+    "btc-updown-5m-1787803500": "the first P12 market, whose two operator RiskRecords were never published \u2014 the defect P11 caught"
+  },
+  "kind": "P12C_STORE_COMPATIBILITY",
+  "note": "Every store this project has accepted, re-opened and re-verified by the P12C verifier. Decision schema V1 and V2 and store versions 2 and 3 all still read.",
+  "prior_verifier_check": {
+    "identical_verdicts": true,
+    "note": "Every accepted store gets the same verdict and the same failure text from the pre-P12C verifier, so the typed control-audit comparisons changed nothing about how existing stores read.",
+    "verifier": "5855d299743bcf939d07aeef320daa69b2659fef (pre-P12C)"
+  },
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "stores": [
+    {
+      "control_audit_rows": 0,
+      "decision_rows": 0,
+      "decision_schema_version": 1,
+      "failures": [
+        "store schema 1 is not one this build reads ([2, 3]); refusing to guess at a layout it does not define"
+      ],
+      "has_control_audit_table": false,
+      "opened_via": "raw store, in place",
+      "phase": "P11",
+      "risk_rows": 0,
+      "slug": "btc-updown-5m-1787748900",
+      "status": "UNSUPPORTED",
+      "store_user_version": 1
+    },
+    {
+      "control_audit_rows": 0,
+      "decision_rows": 0,
+      "decision_schema_version": 1,
+      "failures": [
+        "store schema 1 is not one this build reads ([2, 3]); refusing to guess at a layout it does not define"
+      ],
+      "has_control_audit_table": false,
+      "opened_via": "raw store, in place",
+      "phase": "P11",
+      "risk_rows": 0,
+      "slug": "btc-updown-5m-1787749500",
+      "status": "UNSUPPORTED",
+      "store_user_version": 1
+    },
+    {
+      "control_audit_rows": 0,
+      "decision_rows": 114823,
+      "decision_schema_version": 2,
+      "failures": [],
+      "has_control_audit_table": false,
+      "opened_via": "verified archive",
+      "phase": "P11B",
+      "risk_rows": 114823,
+      "slug": "btc-updown-5m-1787770200",
+      "status": "COMPLETE",
+      "store_user_version": 2
+    },
+    {
+      "control_audit_rows": 0,
+      "decision_rows": 65438,
+      "decision_schema_version": 2,
+      "failures": [
+        "risk sequence spans 0..112155 but holds only 64922 of 112156; the P9 audit trail is not verifiable from this file",
+        "516 decision(s) name a risk_sequence that is not stored",
+        "PLACE recorded against a persisted verdict that forbade it: ingress 71771 placed under risk_sequence 69918, which is not stored; ingress 71912 placed under risk_sequence 70057, which is not stored; ingress 71913 placed under risk_sequence 70058, which is not stored; ingress 71928 placed under risk_sequence 70073, which is not stored; ingress 71930 placed under risk_sequence 70074, which is not stored",
+        "47234 risk record(s) were dropped",
+        "112156 risk records accepted, 64922 persisted",
+        "46718 records were dropped by the bounded buffer",
+        "4 gap(s), 46718 observations lost"
+      ],
+      "has_control_audit_table": false,
+      "opened_via": "verified archive",
+      "phase": "P11B",
+      "risk_rows": 64922,
+      "slug": "btc-updown-5m-1787771100",
+      "status": "INCOMPLETE",
+      "store_user_version": 2
+    },
+    {
+      "control_audit_rows": 0,
+      "decision_rows": 114287,
+      "decision_schema_version": 2,
+      "failures": [],
+      "has_control_audit_table": false,
+      "opened_via": "verified archive",
+      "phase": "P11C",
+      "risk_rows": 114288,
+      "slug": "btc-updown-5m-1787780700",
+      "status": "COMPLETE",
+      "store_user_version": 2
+    },
+    {
+      "control_audit_rows": 0,
+      "decision_rows": 66174,
+      "decision_schema_version": 2,
+      "failures": [
+        "2 operator-control audit problem(s): OPERATOR_CONTROL risk_sequence 1771 has no operator command claiming it; OPERATOR_CONTROL risk_sequence 7924 has no operator command claiming it"
+      ],
+      "has_control_audit_table": false,
+      "opened_via": "verified archive",
+      "phase": "P12",
+      "risk_rows": 66176,
+      "slug": "btc-updown-5m-1787803500",
+      "status": "INCOMPLETE",
+      "store_user_version": 2
+    },
+    {
+      "control_audit_rows": 2,
+      "decision_rows": 82336,
+      "decision_schema_version": 2,
+      "failures": [],
+      "has_control_audit_table": true,
+      "opened_via": "verified archive",
+      "phase": "P12B",
+      "risk_rows": 82338,
+      "slug": "btc-updown-5m-1787807700",
+      "status": "COMPLETE",
+      "store_user_version": 3
+    },
+    {
+      "control_audit_rows": 2,
+      "decision_rows": 124272,
+      "decision_schema_version": 2,
+      "failures": [],
+      "has_control_audit_table": true,
+      "opened_via": "verified archive",
+      "phase": "P12C",
+      "risk_rows": 124274,
+      "slug": "btc-updown-5m-1787811600",
+      "status": "COMPLETE",
+      "store_user_version": 3
+    }
+  ]
+}

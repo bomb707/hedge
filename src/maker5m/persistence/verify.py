@@ -17,9 +17,10 @@ import sqlite3
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
 from maker5m.persistence.schema import (
+    CONTROL_AUDIT_SCHEMA_VERSION,
     DECISION_SCHEMA_VERSION,
     MANIFEST_SCHEMA_VERSION,
     SUPPORTED_DECISION_SCHEMA_VERSIONS,
@@ -91,6 +92,29 @@ def read_manifest(connection: sqlite3.Connection, market_id: str) -> Manifest | 
     }
     fields["notes"] = tuple(fields.get("notes") or ())
     return Manifest(**fields)
+
+
+REQUIRED_CONTROL_FLAG: Final[dict[str, bool]] = {
+    "OPERATOR_HALT": True,
+    "RELEASE_OPERATOR_HALT": False,
+}
+"""What each command kind must have sent to the risk engine.
+
+Without this the cross-link only proves the two records agree with *each other*, so a halt
+recorded as `flag=False` in both places would pass while having done the opposite of what it
+says. The kind is the thing an operator chose; the flag is what the engine was told."""
+
+
+def _has_control_audit(connection: sqlite3.Connection) -> bool:
+    """Whether this store has the table at all.
+
+    V2 stores — every accepted P11 archive — predate operator control, so the absence of the
+    table is a fact about when they were written rather than a missing row.
+    """
+    row = connection.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='control_audit'"
+    ).fetchone()
+    return row is not None
 
 
 def _exact_int(value: object) -> bool:
@@ -187,6 +211,40 @@ def verify_store(
             )
         ]
         log_total = len(log_sequences)
+        # Columns *and* payload. They are two representations of one record, and a verifier
+        # that reads only one cannot notice a file that contradicts itself — the audit table is
+        # queried by its columns, so a payload saying HALT under a column saying RELEASE would
+        # answer differently depending on who asked.
+        control_rows = (
+            [
+                (
+                    {
+                        "market_id": row[0],
+                        "command_id": row[1],
+                        "kind": row[2],
+                        "accepted": row[3],
+                        "risk_sequence": row[4],
+                        "schema_version": row[5],
+                    },
+                    json.loads(row[6]),
+                )
+                for row in connection.execute(
+                    "SELECT market_id, command_id, kind, accepted, risk_sequence,"
+                    " schema_version, payload FROM control_audit WHERE market_id = ?",
+                    (found_id,),
+                )
+            ]
+            if _has_control_audit(connection)
+            else []
+        )
+        control_risk_rows = {
+            int(row[0]): json.loads(row[1])
+            for row in connection.execute(
+                "SELECT risk_sequence, payload FROM risk_records WHERE market_id = ?"
+                " AND json_extract(payload, '$.signal_kind') = 'OPERATOR_CONTROL'",
+                (found_id,),
+            )
+        }
         # The reference a decision makes to the verdict that governed it, and whether it placed.
         # Pulled out of the payload because that is where V2 keeps them; the columns carry only
         # what is indexed.
@@ -285,13 +343,16 @@ def verify_store(
             "the combined storage order is not 1..N; a record was lost, duplicated across "
             "tables, or written out of order"
         )
-    checks["persistence_log_covers_every_row"] = log_total == (
-        len(decisions) + int(fills) + len(risks) + int(settlements)
-    )
+    # Every event-like table, including control audit. Omitting one makes this check fail on a
+    # perfectly good store and say nothing useful about why — which is what it did the first time
+    # an operator command was persisted.
+    stored_total = len(decisions) + int(fills) + len(risks) + int(settlements) + len(control_rows)
+    checks["persistence_log_covers_every_row"] = log_total == stored_total
     if not checks["persistence_log_covers_every_row"]:
         failures.append(
-            f"{log_total} storage-order entries for "
-            f"{len(decisions) + int(fills) + len(risks) + int(settlements)} stored records"
+            f"{log_total} storage-order entries for {stored_total} stored records "
+            f"(decisions {len(decisions)}, fills {fills}, risk {len(risks)}, "
+            f"settlements {settlements}, control {len(control_rows)})"
         )
 
     capture = [int(row[1]) for row in decisions]
@@ -488,6 +549,199 @@ def verify_store(
         failures.append(
             f"{blank_event_ids} decision(s) carry no event id; P2 assigns one to every event, "
             "so a blank one is an identity that was lost rather than one that never existed"
+        )
+
+    # Operator control: every accepted command must name a risk row that exists and agrees with
+    # it, and every OPERATOR_CONTROL risk row must have a command that claims it. An orphan in
+    # either direction means the durable record cannot say who changed the bot's permissions.
+    control_problems: list[str] = []
+    claimed: set[int] = set()
+    seen_ids: set[str] = set()
+    for columns, row in control_rows:
+        command_id = row.get("command_id")
+        if type(command_id) is not str or not command_id:
+            control_problems.append(f"a control audit row has command_id {command_id!r}")
+            continue
+        if command_id in seen_ids:
+            control_problems.append(f"command {command_id} audited more than once")
+        seen_ids.add(command_id)
+
+        # The indexed columns against the payload, before anything is believed. SQLite stores a
+        # boolean as an integer, so `accepted` is compared as the integer the column holds
+        # against the bool the payload holds — deliberately, and only after the payload value
+        # has been type-checked as a bool.
+        version = row.get("schema_version")
+        if type(version) is not int:
+            control_problems.append(
+                f"command {command_id}: payload schema_version is {version!r}, not an int"
+            )
+            continue
+        if version != CONTROL_AUDIT_SCHEMA_VERSION:
+            control_problems.append(
+                f"command {command_id}: control audit schema {version} is not one this build "
+                f"defines (known: {CONTROL_AUDIT_SCHEMA_VERSION}); refusing to guess at a "
+                "layout it does not define"
+            )
+            continue
+        if columns["schema_version"] != version:
+            control_problems.append(
+                f"command {command_id}: column schema_version {columns['schema_version']!r} "
+                f"against payload {version!r}"
+            )
+            continue
+
+        market_id = row.get("market_id")
+        if type(market_id) is not str:
+            control_problems.append(
+                f"command {command_id}: payload market_id is {market_id!r}, not a str"
+            )
+            continue
+        if market_id != found_id or columns["market_id"] != market_id:
+            control_problems.append(
+                f"command {command_id}: column market_id {columns['market_id']!r}, payload "
+                f"{market_id!r}, market {found_id!r}"
+            )
+            continue
+        if columns["command_id"] != command_id:
+            control_problems.append(
+                f"command {command_id}: column command_id {columns['command_id']!r} against "
+                f"payload {command_id!r}"
+            )
+            continue
+
+        issued_at_ns = row.get("issued_at_ns")
+        if type(issued_at_ns) is not int:
+            control_problems.append(
+                f"command {command_id}: issued_at_ns is {issued_at_ns!r}, not an int"
+            )
+            continue
+        source = row.get("source")
+        if type(source) is not str:
+            control_problems.append(f"command {command_id}: source is {source!r}, not a str")
+            continue
+
+        kind = row.get("kind")
+        required_flag = REQUIRED_CONTROL_FLAG.get(kind) if type(kind) is str else None
+        if required_flag is None:
+            # An unknown command kind is not a command this build can judge, and a cross-link
+            # that only compares the two records to each other would pass a pair that had both
+            # been changed to the wrong flag.
+            control_problems.append(f"command {command_id}: unknown kind {kind!r}")
+            continue
+        if columns["kind"] != kind:
+            control_problems.append(
+                f"command {command_id}: column kind {columns['kind']!r} against payload {kind!r}"
+            )
+            continue
+
+        accepted = row.get("accepted")
+        if type(accepted) is not bool:
+            control_problems.append(f"command {command_id}: accepted is {accepted!r}, not a bool")
+            continue
+        if columns["accepted"] != int(accepted):
+            control_problems.append(
+                f"command {command_id}: column accepted {columns['accepted']!r} against payload "
+                f"{accepted!r}"
+            )
+            continue
+        if not accepted:
+            continue
+
+        # Typed, not coerced. `bool(None)` and `bool(False)` are the same value and different
+        # audit facts — the class of defect P11 closed and this had reintroduced.
+        flag = row.get("signal_flag")
+        if type(flag) is not bool:
+            control_problems.append(f"command {command_id}: signal_flag is {flag!r}, not a bool")
+            continue
+        if flag is not required_flag:
+            control_problems.append(
+                f"command {command_id}: {kind} requires signal_flag {required_flag}, "
+                f"audit says {flag}"
+            )
+
+        allows_place = row.get("allows_place")
+        if type(allows_place) is not bool:
+            control_problems.append(
+                f"command {command_id}: allows_place is {allows_place!r}, not a bool"
+            )
+            continue
+
+        risk_state = row.get("risk_state")
+        if type(risk_state) is not str:
+            control_problems.append(
+                f"command {command_id}: risk_state is {risk_state!r}, not a str"
+            )
+            continue
+
+        ordinal = row.get("ingress_ordinal")
+        if type(ordinal) is not int:
+            control_problems.append(
+                f"command {command_id}: ingress_ordinal is {ordinal!r}, not an int"
+            )
+            continue
+
+        sequence = row.get("risk_sequence")
+        if type(sequence) is not int:
+            control_problems.append(
+                f"command {command_id}: risk_sequence is {sequence!r}, not an int"
+            )
+            continue
+        if columns["risk_sequence"] != sequence:
+            control_problems.append(
+                f"command {command_id}: column risk_sequence {columns['risk_sequence']!r} "
+                f"against payload {sequence!r}"
+            )
+            continue
+
+        verdict = control_risk_rows.get(sequence)
+        if verdict is None:
+            control_problems.append(
+                f"command {command_id} names risk_sequence {sequence}, which is not a stored "
+                "OPERATOR_CONTROL record"
+            )
+            continue
+        if sequence in claimed:
+            control_problems.append(
+                f"risk_sequence {sequence} is claimed by more than one operator command"
+            )
+            continue
+        claimed.add(sequence)
+
+        if verdict.get("as_of_ingress_ordinal") != ordinal:
+            control_problems.append(
+                f"command {command_id}: audit says ingress {ordinal}, risk "
+                f"row says {verdict.get('as_of_ingress_ordinal')}"
+            )
+        if verdict.get("signal_reason") != "OPERATOR_HALT":
+            control_problems.append(
+                f"command {command_id}: risk row reason is {verdict.get('signal_reason')!r}"
+            )
+        if verdict.get("signal_flag") is not flag:
+            control_problems.append(
+                f"command {command_id}: audit flag {flag!r} against risk row flag "
+                f"{verdict.get('signal_flag')!r}"
+            )
+        if verdict.get("state") != risk_state:
+            control_problems.append(
+                f"command {command_id}: audit state {risk_state!r}, risk row "
+                f"{verdict.get('state')!r}"
+            )
+        if verdict.get("allows_place") is not allows_place:
+            control_problems.append(
+                f"command {command_id}: allows_place {allows_place!r} against risk row "
+                f"{verdict.get('allows_place')!r}"
+            )
+
+    for sequence in sorted(set(control_risk_rows) - claimed):
+        control_problems.append(
+            f"OPERATOR_CONTROL risk_sequence {sequence} has no operator command claiming it"
+        )
+
+    checks["control_audit_cross_links"] = not control_problems
+    if control_problems:
+        failures.append(
+            f"{len(control_problems)} operator-control audit problem(s): "
+            + "; ".join(control_problems[:5])
         )
 
     checks["decision_schema_version_supported"] = not unsupported_versions

@@ -1,0 +1,618 @@
+{
+  "analyzer": {
+    "counters": {
+      "actions": {
+        "BLOCKED": 46517,
+        "CANCEL": 78,
+        "KEEP": 48779,
+        "NOTHING": 36686,
+        "PLACE": 183,
+        "REPLACE": 105
+      },
+      "cycles_with_live_order": 48962,
+      "execution_queue_loss_actions": 183,
+      "execution_queue_loss_reasons": {
+        "DESIRED_WITHDRAWN": 2,
+        "PRICE_CHANGED": 105,
+        "UNSAFE_REPLACEMENT": 76
+      },
+      "keep_ratio": 0.9962624075813896,
+      "keeps_with_live_order": 48779,
+      "quality": {
+        "AT_FRONT": 3880,
+        "NOT_QUOTING": 8556,
+        "PRICE_OK_BUT_DEEP": 1272
+      },
+      "reasons": {
+        "CENTRE_UNAVAILABLE": 1638,
+        "NO_LIVE_ORDER": 105,
+        "PHASE_NOT_QUOTING": 2044,
+        "POST_ONLY_BLOCK": 4769,
+        "QUOTING": 5152
+      }
+    },
+    "cycles_with_stage_timing": 6621,
+    "latency_ns": {
+      "acting_cycle": {
+        "count": 30,
+        "label": "acting_cycle",
+        "max": 1998123,
+        "p50": 130870,
+        "p90": 490144,
+        "p95": 783677,
+        "p99": 1998123
+      },
+      "clob_receive_to_decide": {
+        "count": 6415,
+        "label": "clob_receive_to_decide",
+        "max": 95709658,
+        "p50": 111005,
+        "p90": 290488,
+        "p95": 553042,
+        "p99": 783292
+      },
+      "decide_duration": {
+        "count": 6621,
+        "label": "decide_duration",
+        "max": 37200531,
+        "p50": 28857,
+        "p90": 68371,
+        "p95": 119821,
+        "p99": 205749
+      },
+      "fill_receive_to_decide": {
+        "count": 0,
+        "label": "fill_receive_to_decide"
+      },
+      "keep_cycle": {
+        "count": 109,
+        "label": "keep_cycle",
+        "max": 2540319,
+        "p50": 127554,
+        "p90": 500454,
+        "p95": 696409,
+        "p99": 967202
+      },
+      "phase_receive_to_decide": {
+        "count": 4,
+        "label": "phase_receive_to_decide",
+        "max": 101300,
+        "p50": 52980,
+        "p90": 101300,
+        "p95": 101300,
+        "p99": 101300
+      },
+      "prepare_duration": {
+        "count": 6621,
+        "label": "prepare_duration",
+        "max": 810782,
+        "p50": 9872,
+        "p90": 21549,
+        "p95": 38759,
+        "p99": 69549
+      },
+      "queue_ahead": {
+        "count": 5152,
+        "label": "queue_ahead",
+        "max": 851540000,
+        "p50": 0,
+        "p90": 185680000,
+        "p95": 327740000,
+        "p99": 759350000
+      },
+      "receive_to_reconcile": {
+        "count": 6621,
+        "label": "receive_to_reconcile",
+        "max": 95750601,
+        "p50": 126869,
+        "p90": 325014,
+        "p95": 585043,
+        "p99": 888908
+      },
+      "reconcile_duration": {
+        "count": 6621,
+        "label": "reconcile_duration",
+        "max": 629561,
+        "p50": 6431,
+        "p90": 14619,
+        "p95": 26324,
+        "p99": 42388
+      },
+      "spot_receive_to_decide": {
+        "count": 202,
+        "label": "spot_receive_to_decide",
+        "max": 905233,
+        "p50": 73354,
+        "p90": 142075,
+        "p95": 179762,
+        "p99": 493986
+      }
+    },
+    "observation_gaps": 0,
+    "observations_lost": 0,
+    "observations_processed": 66174,
+    "shadow": {
+      "label": "SHADOW_ESTIMATE",
+      "shadow_slot_cycles_kept": 48779,
+      "shadow_slot_loss_reasons": {
+        "DESIRED_WITHDRAWN": 2,
+        "PRICE_CHANGE": 105,
+        "UNSAFE_REPLACEMENT": 76
+      },
+      "shadow_slot_losses": 183,
+      "shadow_slots_acquired": 183,
+      "shadow_slots_open": 0
+    }
+  },
+  "archive": {
+    "archive_bytes": 6573788,
+    "archive_path": "/tmp/claude-1000/-home-hr-hedge/e431766c-1daa-41db-8cd7-50b88edd1dbb/scratchpad/p12/run2/market/btc-updown-5m-1787803500.p11.sqlite3.xz",
+    "archive_sha256": "8d8fc939de63a206a9419fe7b7e04450491f94abe5eb1f34937febef69899e5a",
+    "compress_seconds": 24.03,
+    "ratio": 52.64,
+    "raw_bytes": 346050560,
+    "raw_sha256": "4a34d8f2c52141cdbce57776eba1e86f8335ce0d080a618a1f1493f7daaf9ea4",
+    "restored_sha256": "4a34d8f2c52141cdbce57776eba1e86f8335ce0d080a618a1f1493f7daaf9ea4",
+    "verified": true,
+    "verify_seconds": 1.03
+  },
+  "bytes_per_decision": 5229,
+  "captured_utc": "2026-08-27T04:12:08Z",
+  "closing_sink_errors": 0,
+  "cycles": 66174,
+  "database_bytes": 346050560,
+  "database_path": "/tmp/claude-1000/-home-hr-hedge/e431766c-1daa-41db-8cd7-50b88edd1dbb/scratchpad/p12/run2/market/btc-updown-5m-1787803500.p11.sqlite3",
+  "database_sha256": "4a34d8f2c52141cdbce57776eba1e86f8335ce0d080a618a1f1493f7daaf9ea4",
+  "feed_counters": {
+    "clob_best_bid_ask": 0,
+    "clob_books": 1548,
+    "clob_last_trade_price": 749,
+    "clob_messages": 65667,
+    "clob_price_changes": 62583,
+    "clob_tick_size_changes": 4,
+    "clob_unhandled": 0,
+    "malformed": 0,
+    "pongs": 33,
+    "reconnects": 0,
+    "spot_messages": 2039,
+    "telemetry_dropped": 0,
+    "unhandled_kinds": {}
+  },
+  "hot_path_observe_ns": {
+    "max": 56762340,
+    "n": 66174,
+    "p50": 23769,
+    "p95": 96066,
+    "p99": 162402
+  },
+  "kind": "P11_TELEMETRY_PERSISTENCE",
+  "label": "baseline",
+  "limitation": "REAL MARKET PERSISTENCE VALIDATED. REAL NONZERO OWN-LEDGER METRICS UNRUN / P14: live trading is disabled, so no order was placed and the ledger is empty. Real own-fill records, real maker fraction and real taker-fill persistence are all UNRUN / P14.",
+  "live_trading_enabled": false,
+  "manifest": {
+    "accepted_records": 66174,
+    "buffer_capacity": 320000,
+    "buffer_high_water": 316,
+    "capture_end_ns": 1787803800000000000,
+    "capture_start_ns": 1787803500000000000,
+    "closed": true,
+    "condition_id": "0x41125b2b30559c6a5d08269c5e13c52482950d3d39f2a847a7cf7a853c8767cb",
+    "database_bytes": null,
+    "database_sha256": null,
+    "decision_count": 66174,
+    "dropped_records": 0,
+    "fill_captures_accepted": 0,
+    "fill_captures_dropped": 0,
+    "fill_captures_persisted": 0,
+    "fill_count": 0,
+    "first_gap_at": null,
+    "first_ingress_ordinal": 2,
+    "first_persistence_sequence": 1,
+    "last_gap_at": null,
+    "last_ingress_ordinal": 67724,
+    "last_persistence_sequence": 132351,
+    "live_trading_enabled": false,
+    "lost_observations": 0,
+    "market_id": "0x41125b2b30559c6a5d08269c5e13c52482950d3d39f2a847a7cf7a853c8767cb",
+    "notes": [],
+    "persisted_records": 66174,
+    "provenance": "REAL_PUBLIC_MARKET_DATA",
+    "redemption_enabled": false,
+    "risk_count": 66176,
+    "risk_records_accepted": 66176,
+    "risk_records_dropped": 0,
+    "risk_records_persisted": 66176,
+    "schema_version": 1,
+    "sequence_gaps": 0,
+    "settlement_count": 1,
+    "sink_errors": 0,
+    "slug": "btc-updown-5m-1787803500",
+    "source_revision": "a63397b9fef983da841149d29de274b943028dda"
+  },
+  "metrics": {
+    "average_price_loser": {
+      "denominator": 1,
+      "numerator": 0
+    },
+    "average_price_winner": {
+      "denominator": 1,
+      "numerator": 0
+    },
+    "blocked_count": 46517,
+    "cancel_count": 78,
+    "decision_count": 66174,
+    "estimated_rebates": 0,
+    "fees": 0,
+    "fill_count": 0,
+    "gross_payout": 0,
+    "keep_count": 48779,
+    "maker_fill_count": 0,
+    "market_id": "0x41125b2b30559c6a5d08269c5e13c52482950d3d39f2a847a7cf7a853c8767cb",
+    "matched_shares": 0,
+    "n_down": 0,
+    "n_up": 0,
+    "net_pnl": 0,
+    "nothing_count": 36686,
+    "place_count": 183,
+    "pnl_if_down_before_settlement": 0,
+    "pnl_if_up_before_settlement": 0,
+    "provenance": "REAL_PUBLIC_MARKET_DATA",
+    "queue_ahead_samples": 48962,
+    "queue_ahead_sum": 2586630770000,
+    "queue_stale_samples": 0,
+    "quote_intent_count": 49067,
+    "realised_rebates": 0,
+    "rebate_mode": "WITHOUT_REBATE",
+    "replace_count": 105,
+    "schema_version": 1,
+    "settled": true,
+    "slug": "btc-updown-5m-1787803500",
+    "stale_quote_count": 0,
+    "taker_fill_count": 0,
+    "term1": {
+      "denominator": 1,
+      "numerator": 0
+    },
+    "term2": {
+      "denominator": 1,
+      "numerator": 0
+    },
+    "terminal_inventory": 0,
+    "terminal_residual_magnitude": 0,
+    "terminal_residual_side": null,
+    "total_cost": 0,
+    "unknown_liquidity_fill_count": 0,
+    "wait_count": 0,
+    "winner": "DOWN"
+  },
+  "orders_sent": 0,
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "redemption_enabled": false,
+  "redemptions_sent": 0,
+  "settlement": {
+    "captured_utc": "",
+    "market": {
+      "condition_id": "0x41125b2b30559c6a5d08269c5e13c52482950d3d39f2a847a7cf7a853c8767cb",
+      "down_slot": 1,
+      "down_token_id": "30805497018926525469242467858698472460695229951005094805253956653244071126510",
+      "neg_risk": false,
+      "outcome_slot_count": 2,
+      "slug": "btc-updown-5m-1787803500",
+      "up_slot": 0,
+      "up_token_id": "56051620028658006208712520403254486917779468300976185241554315239744452217376"
+    },
+    "note": "Paper settlement is what the authoritative payout vector entitles these balances to. It is not proof that collateral has moved: no redemption transaction has been sent and none can be in this build.",
+    "paper_settlement": null,
+    "policy": {
+      "block_tag": "finalized",
+      "minimum_agreeing_providers": 3,
+      "require_binary_singleton": true,
+      "require_unanimous_resolution": false,
+      "status": "OPERATIONAL"
+    },
+    "provenance": "REAL_PUBLIC_MARKET_DATA",
+    "provider_readings": [
+      {
+        "attestation": {
+          "attested_at_block": 92732523,
+          "chain_id": 137,
+          "collateral_code_bytes": 61,
+          "collateral_decimals": 6,
+          "ctf_code_bytes": 15007,
+          "endpoint_fingerprint": "https://polygon-bor-rpc.publicnode.com",
+          "error": null,
+          "provider_id": "publicnode",
+          "valid": true
+        },
+        "attested": true,
+        "binding_valid": true,
+        "block_number": 92732574,
+        "block_tag": "finalized",
+        "chain_id": 137,
+        "condition_id": "0x41125b2b30559c6a5d08269c5e13c52482950d3d39f2a847a7cf7a853c8767cb",
+        "error": null,
+        "payout": {
+          "denominator": 1,
+          "numerators": [
+            0,
+            1
+          ],
+          "outcome_slot_count": 2
+        },
+        "provider_id": "publicnode",
+        "source_endpoint_fingerprint": "https://polygon-bor-rpc.publicnode.com"
+      },
+      {
+        "attestation": {
+          "attested_at_block": 92732523,
+          "chain_id": 137,
+          "collateral_code_bytes": 61,
+          "collateral_decimals": 6,
+          "ctf_code_bytes": 15007,
+          "endpoint_fingerprint": "https://polygon.drpc.org",
+          "error": null,
+          "provider_id": "drpc",
+          "valid": true
+        },
+        "attested": true,
+        "binding_valid": true,
+        "block_number": 92732574,
+        "block_tag": "finalized",
+        "chain_id": 137,
+        "condition_id": "0x41125b2b30559c6a5d08269c5e13c52482950d3d39f2a847a7cf7a853c8767cb",
+        "error": null,
+        "payout": {
+          "denominator": 1,
+          "numerators": [
+            0,
+            1
+          ],
+          "outcome_slot_count": 2
+        },
+        "provider_id": "drpc",
+        "source_endpoint_fingerprint": "https://polygon.drpc.org"
+      },
+      {
+        "attestation": {
+          "attested_at_block": 92732524,
+          "chain_id": 137,
+          "collateral_code_bytes": 61,
+          "collateral_decimals": 6,
+          "ctf_code_bytes": 15007,
+          "endpoint_fingerprint": "https://rpc-mainnet.matic.quiknode.pro",
+          "error": null,
+          "provider_id": "quiknode-public",
+          "valid": true
+        },
+        "attested": true,
+        "binding_valid": true,
+        "block_number": 92732574,
+        "block_tag": "finalized",
+        "chain_id": 137,
+        "condition_id": "0x41125b2b30559c6a5d08269c5e13c52482950d3d39f2a847a7cf7a853c8767cb",
+        "error": null,
+        "payout": {
+          "denominator": 1,
+          "numerators": [
+            0,
+            1
+          ],
+          "outcome_slot_count": 2
+        },
+        "provider_id": "quiknode-public",
+        "source_endpoint_fingerprint": "https://rpc-mainnet.matic.quiknode.pro"
+      },
+      {
+        "attestation": {
+          "attested_at_block": 92730949,
+          "chain_id": 137,
+          "collateral_code_bytes": 61,
+          "collateral_decimals": 6,
+          "ctf_code_bytes": 15007,
+          "endpoint_fingerprint": "https://1rpc.io/matic",
+          "error": null,
+          "provider_id": "1rpc",
+          "valid": true
+        },
+        "attested": true,
+        "binding_valid": true,
+        "block_number": null,
+        "block_tag": "finalized",
+        "chain_id": null,
+        "condition_id": "0x41125b2b30559c6a5d08269c5e13c52482950d3d39f2a847a7cf7a853c8767cb",
+        "error": "RpcError: {'code': -32000, 'message': 'historical state cc39b42c88448e0101db50950756b010eb8d3f20f8f01657ddb9f9c1b3df3257 is not available'}",
+        "payout": null,
+        "provider_id": "1rpc",
+        "source_endpoint_fingerprint": "https://1rpc.io/matic"
+      }
+    ],
+    "redeem_blockers": [],
+    "redeem_plan": null,
+    "resolution": {
+      "advisory": [],
+      "agreeing_providers": [
+        "drpc",
+        "publicnode",
+        "quiknode-public"
+      ],
+      "answering_providers": [
+        "publicnode",
+        "drpc",
+        "quiknode-public"
+      ],
+      "authoritative_block": 92732574,
+      "block_tag": "finalized",
+      "detail": "3 providers agree on slot 1 (DOWN)",
+      "payout": {
+        "denominator": 1,
+        "numerators": [
+          0,
+          1
+        ],
+        "outcome_slot_count": 2
+      },
+      "reasons": [],
+      "state": "RESOLVED",
+      "untrusted_providers": [],
+      "winning_outcome": "DOWN"
+    },
+    "schema_version": 1
+  },
+  "sidecar_manifest": "/tmp/claude-1000/-home-hr-hedge/e431766c-1daa-41db-8cd7-50b88edd1dbb/scratchpad/p12/run2/market/btc-updown-5m-1787803500.p11.manifest.json",
+  "slug": "btc-updown-5m-1787803500",
+  "stall": {
+    "ended_at_s": null,
+    "market_events_during_stall": 0,
+    "note": null,
+    "requested_window_s": null,
+    "started_at_s": null
+  },
+  "store": {
+    "batches": 530,
+    "error_samples": [],
+    "rows_written": 264701,
+    "sink_errors": 0,
+    "transaction_ns": 4872784341
+  },
+  "telemetry_complete": true,
+  "ui": {
+    "commands": {
+      "accepted": 2,
+      "outcomes": [
+        {
+          "accepted": true,
+          "allows_place": false,
+          "command_id": "4b2a5f04ed7642c4",
+          "detail": "operator halt raised",
+          "ingress_ordinal": 1835,
+          "kind": "OPERATOR_HALT",
+          "risk_sequence": 1771,
+          "risk_state": "HALTED"
+        },
+        {
+          "accepted": true,
+          "allows_place": false,
+          "command_id": "651f8ae4bbf644b9",
+          "detail": "operator halt released; every other risk condition still applies",
+          "ingress_ordinal": 8131,
+          "kind": "RELEASE_OPERATOR_HALT",
+          "risk_sequence": 7924,
+          "risk_state": "RECOVERING"
+        }
+      ],
+      "refused": 0
+    },
+    "inbox_path": "/tmp/claude-1000/-home-hr-hedge/e431766c-1daa-41db-8cd7-50b88edd1dbb/scratchpad/p12/run2/ui/inbox",
+    "snapshot_path": "/tmp/claude-1000/-home-hr-hedge/e431766c-1daa-41db-8cd7-50b88edd1dbb/scratchpad/p12/run2/ui/snapshot.json",
+    "snapshot_write_errors": 0,
+    "snapshots_published": 1166
+  },
+  "verification": {
+    "checks": {
+      "capture_sequence_ordered": true,
+      "database_hash_matches": true,
+      "decision_columns_match_payload": true,
+      "decision_count_matches_manifest": true,
+      "decision_risk_copies_agree": true,
+      "decision_risk_copy_complete": true,
+      "decision_risk_reference_present": true,
+      "decision_risk_references_resolve": true,
+      "decision_schema_version_self_consistent": true,
+      "decision_schema_version_supported": true,
+      "decisions_carry_a_real_event_id": true,
+      "fill_count_matches_manifest": true,
+      "fill_drop_accounting_clean": true,
+      "global_persistence_order_exact": true,
+      "manifest_first_ingress_matches": true,
+      "manifest_first_sequence_matches": true,
+      "manifest_last_ingress_matches": true,
+      "manifest_last_sequence_matches": true,
+      "manifest_present": true,
+      "manifest_reports_complete": true,
+      "market_closed": true,
+      "no_drops": true,
+      "no_place_without_permission": true,
+      "no_sequence_gaps": true,
+      "no_sink_errors": true,
+      "one_market_identity": true,
+      "persistence_log_covers_every_row": true,
+      "risk_accepted_equals_persisted": true,
+      "risk_count_matches_manifest": true,
+      "risk_drop_accounting_clean": true,
+      "risk_sequence_exact_from_zero": true,
+      "risk_verdict_not_from_the_future": true,
+      "settlement_count_matches_manifest": true
+    },
+    "decision_rows": 66174,
+    "failures": [],
+    "fill_rows": 0,
+    "market_id": "0x41125b2b30559c6a5d08269c5e13c52482950d3d39f2a847a7cf7a853c8767cb",
+    "risk_rows": 66176,
+    "settlement_rows": 1,
+    "slug": "btc-updown-5m-1787803500",
+    "status": "COMPLETE"
+  },
+  "verified_readback": {
+    "opened": true,
+    "verification": {
+      "checks": {
+        "capture_sequence_ordered": true,
+        "database_hash_checked": false,
+        "decision_columns_match_payload": true,
+        "decision_count_matches_manifest": true,
+        "decision_risk_copies_agree": true,
+        "decision_risk_copy_complete": true,
+        "decision_risk_reference_present": true,
+        "decision_risk_references_resolve": true,
+        "decision_schema_version_self_consistent": true,
+        "decision_schema_version_supported": true,
+        "decisions_carry_a_real_event_id": true,
+        "fill_count_matches_manifest": true,
+        "fill_drop_accounting_clean": true,
+        "global_persistence_order_exact": true,
+        "manifest_first_ingress_matches": true,
+        "manifest_first_sequence_matches": true,
+        "manifest_last_ingress_matches": true,
+        "manifest_last_sequence_matches": true,
+        "manifest_present": true,
+        "manifest_reports_complete": true,
+        "market_closed": true,
+        "no_drops": true,
+        "no_place_without_permission": true,
+        "no_sequence_gaps": true,
+        "no_sink_errors": true,
+        "one_market_identity": true,
+        "persistence_log_covers_every_row": true,
+        "risk_accepted_equals_persisted": true,
+        "risk_count_matches_manifest": true,
+        "risk_drop_accounting_clean": true,
+        "risk_sequence_exact_from_zero": true,
+        "risk_verdict_not_from_the_future": true,
+        "settlement_count_matches_manifest": true
+      },
+      "decision_rows": 66174,
+      "failures": [],
+      "fill_rows": 0,
+      "market_id": "0x41125b2b30559c6a5d08269c5e13c52482950d3d39f2a847a7cf7a853c8767cb",
+      "risk_rows": 66176,
+      "settlement_rows": 1,
+      "slug": "btc-updown-5m-1787803500",
+      "status": "COMPLETE"
+    }
+  },
+  "worker": {
+    "buffer_high_water": 316,
+    "consume_errors": 0,
+    "decisions_written": 66174,
+    "error_samples": [],
+    "fills_seen": 0,
+    "fills_written": 0,
+    "first_gap_at": null,
+    "last_gap_at": null,
+    "lost_observations": 0,
+    "observations_consumed": 66174,
+    "passes": 13006,
+    "risk_written": 66176,
+    "sequence_gaps": 0
+  }
+}

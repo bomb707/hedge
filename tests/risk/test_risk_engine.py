@@ -139,6 +139,7 @@ CONDITIONS: list[tuple[str, dict[str, object], RiskReason]] = [
         RiskReason.RESOLUTION_AMBIGUOUS,
     ),
     ("taker fill", {"taker_fill_seen": True}, RiskReason.TAKER_FILL),
+    ("operator halt", {"operator_halt": True}, RiskReason.OPERATOR_HALT),
 ]
 
 

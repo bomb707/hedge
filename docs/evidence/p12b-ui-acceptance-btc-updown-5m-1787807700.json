@@ -1,0 +1,317 @@
+{
+  "after_kill_decisions": 18321,
+  "after_kill_ordinal": 18736,
+  "final_snapshot": {
+    "accepted_commands": [
+      {
+        "accepted": true,
+        "allows_place": false,
+        "command_id": "20976c37536b498c",
+        "detail": "operator halt raised",
+        "duplicate": false,
+        "ingress_ordinal": 988,
+        "kind": "OPERATOR_HALT",
+        "risk_sequence": 964,
+        "risk_state": "HALTED"
+      },
+      {
+        "accepted": true,
+        "allows_place": false,
+        "command_id": "d8fa82dbcedd4a0f",
+        "detail": "operator halt released; every other risk condition still applies",
+        "duplicate": false,
+        "ingress_ordinal": 5001,
+        "kind": "RELEASE_OPERATOR_HALT",
+        "risk_sequence": 4878,
+        "risk_state": "RECOVERING"
+      }
+    ],
+    "allows_cancel": true,
+    "allows_place": true,
+    "authoritative_block": null,
+    "centre_source": "CLOB_MID",
+    "centre_status": "OPEN",
+    "clob_awaiting_snapshot": false,
+    "clob_status": "HEALTHY",
+    "condition_id": "0xb3a6781a7b09217ce00444560a2ac4d70f60743bf8ab24c1fc3543072e7d7a03",
+    "control_audit_complete": true,
+    "control_channel_available": true,
+    "cost_down": 0,
+    "cost_up": 0,
+    "decide_ns": 727357,
+    "decisions_persisted": 19703,
+    "down": {
+      "action": "KEEP",
+      "executable_price": 640000,
+      "executable_size": 15000000,
+      "live_client_order_id": "shadow-00000028",
+      "live_price": 640000,
+      "live_remaining_size": 15000000,
+      "live_status": "LIVE",
+      "outcome": "DOWN",
+      "preparation_outcome": "SAFE",
+      "queue_ahead": 0,
+      "queue_confidence": "ESTIMATED",
+      "reason": "UNCHANGED",
+      "strategy_price": 640000,
+      "strategy_size": 15000000
+    },
+    "dropped_records": 1,
+    "elapsed_seconds": 71.289217809,
+    "estimated_rebates": 0,
+    "event_timestamp_ns": 1787807771289217809,
+    "favourite": null,
+    "fees": 0,
+    "ingress_ordinal": 20154,
+    "inventory": 0,
+    "latency_sample_ordinal": 20144,
+    "live_trading_enabled": false,
+    "market_id": "0xb3a6781a7b09217ce00444560a2ac4d70f60743bf8ab24c1fc3543072e7d7a03",
+    "n_down": 0,
+    "n_up": 0,
+    "observation_points": {
+      "counters": null,
+      "decision": 20154,
+      "latency_sample": 20144,
+      "risk_verdict": 20156
+    },
+    "order_stream_status": "UNKNOWN",
+    "parameters": [
+      {
+        "name": "quote centre",
+        "note": "which price the grid is centred on",
+        "open_item": "O01",
+        "status": "OPEN",
+        "value": "CentreSource.CLOB_MID"
+      },
+      {
+        "name": "base lot L",
+        "note": "order size before endgame tilt",
+        "open_item": "O03",
+        "status": "OPEN",
+        "value": "15000000"
+      },
+      {
+        "name": "grid policy",
+        "note": "the two frozen sources disagree; the reference policy is in use",
+        "open_item": "O04",
+        "status": "OPEN",
+        "value": "CANONICAL_OFFSET"
+      },
+      {
+        "name": "grid rounding",
+        "note": "tie-breaking only",
+        "open_item": null,
+        "status": "OPERATIONAL",
+        "value": "HALF_EVEN"
+      },
+      {
+        "name": "tick rounding",
+        "note": "quote-centre tick tie-breaking",
+        "open_item": "O13",
+        "status": "OPEN",
+        "value": "HALF_EVEN"
+      },
+      {
+        "name": "endgame tilt",
+        "note": "magnitude fitted, not stated by the sources",
+        "open_item": "O05",
+        "status": "FITTED",
+        "value": "30000000"
+      },
+      {
+        "name": "endgame band",
+        "note": "magnitude fitted, not stated by the sources",
+        "open_item": "O06",
+        "status": "FITTED",
+        "value": "5000000"
+      },
+      {
+        "name": "band_hard",
+        "note": "one-sided inventory wall",
+        "open_item": null,
+        "status": "OPEN",
+        "value": "100000000"
+      },
+      {
+        "name": "rebate",
+        "note": "no realised rebate has ever been observed; PnL is reported both ways",
+        "open_item": "O07",
+        "status": "OPEN",
+        "value": "estimated only"
+      }
+    ],
+    "payout_numerators": [],
+    "phase": "QUOTE",
+    "pnl_if_down_estimated_rebate": 0,
+    "pnl_if_down_without_rebate": 0,
+    "pnl_if_up_estimated_rebate": 0,
+    "pnl_if_up_without_rebate": 0,
+    "prepare_ns": null,
+    "published_at_ns": 1787807771310130944,
+    "quantized_centre": 360000,
+    "raw_centre_denominator": 1,
+    "raw_centre_numerator": 355000,
+    "realised_rebates": 0,
+    "receive_to_reconcile_ns": null,
+    "reconcile_ns": null,
+    "redemption_enabled": false,
+    "remaining_seconds": 228.710782191,
+    "resolution_state": null,
+    "risk_active": [],
+    "risk_latched": [],
+    "risk_records_persisted": 19705,
+    "risk_sequence": 19707,
+    "risk_state": "SAFE",
+    "schema_version": 1,
+    "settlement_note": "",
+    "sink_errors": 0,
+    "slug": "btc-updown-5m-1787807700",
+    "spot_status": "HEALTHY",
+    "target_inventory": null,
+    "telemetry_complete": null,
+    "total_cost": 0,
+    "up": {
+      "action": "BLOCKED",
+      "executable_price": 360000,
+      "executable_size": 15000000,
+      "live_client_order_id": null,
+      "live_price": null,
+      "live_remaining_size": null,
+      "live_status": null,
+      "outcome": "UP",
+      "preparation_outcome": "WOULD_CROSS",
+      "queue_ahead": null,
+      "queue_confidence": null,
+      "reason": "NOT_SUBMITTABLE",
+      "strategy_price": 360000,
+      "strategy_size": 15000000
+    },
+    "verification_status": null,
+    "winning_outcome": null
+  },
+  "halt": {
+    "accepted": true,
+    "allows_place": false,
+    "command_id": "20976c37536b498c",
+    "detail": "operator halt raised",
+    "duplicate": false,
+    "ingress_ordinal": 988,
+    "kind": "OPERATOR_HALT",
+    "risk_sequence": 964,
+    "risk_state": "HALTED"
+  },
+  "kill_decisions": 4881,
+  "kill_ordinal": 5008,
+  "kind": "P12_UI_ACCEPTANCE",
+  "release": {
+    "accepted": true,
+    "allows_place": false,
+    "command_id": "d8fa82dbcedd4a0f",
+    "detail": "operator halt released; every other risk condition still applies",
+    "duplicate": false,
+    "ingress_ordinal": 5001,
+    "kind": "RELEASE_OPERATOR_HALT",
+    "risk_sequence": 4878,
+    "risk_state": "RECOVERING"
+  },
+  "slug": "btc-updown-5m-1787807700",
+  "steps": [
+    {
+      "at": 1787807700.161,
+      "name": "snapshot_seen",
+      "ordinal": 2,
+      "slug": "btc-updown-5m-1787807700"
+    },
+    {
+      "at": 1787807701.692,
+      "http": 200,
+      "name": "ui_started",
+      "pid": 2571371,
+      "renders_market": true
+    },
+    {
+      "at": 1787807701.693,
+      "http": 405,
+      "name": "get_control_refused",
+      "post_only": true
+    },
+    {
+      "at": 1787807703.497,
+      "name": "market_safe",
+      "ordinal": 924,
+      "phase": "QUOTE",
+      "risk_state": "SAFE"
+    },
+    {
+      "at": 1787807703.5,
+      "http": 200,
+      "name": "halt_posted"
+    },
+    {
+      "allows_cancel": true,
+      "allows_place": false,
+      "at": 1787807703.8,
+      "command": "{\"command_id\": \"20976c37536b498c\", \"kind\": \"OPERATOR_HALT\", \"accepted\": true, \"duplicate\": false, \"ingress_ordinal\": 988, \"risk_sequence\": 964, \"risk_state\": \"HALTED\", \"allows_place\": false, \"detail\": \"operator halt raised\"}",
+      "name": "halted",
+      "risk_state": "HALTED"
+    },
+    {
+      "at": 1787807718.801,
+      "name": "still_halted_after_15s",
+      "ordinal": 4827,
+      "risk_state": "HALTED"
+    },
+    {
+      "at": 1787807718.808,
+      "http": 200,
+      "name": "release_posted"
+    },
+    {
+      "allows_place": true,
+      "at": 1787807719.41,
+      "command": "{\"command_id\": \"d8fa82dbcedd4a0f\", \"kind\": \"RELEASE_OPERATOR_HALT\", \"accepted\": true, \"duplicate\": false, \"ingress_ordinal\": 5001, \"risk_sequence\": 4878, \"risk_state\": \"RECOVERING\", \"allows_place\": false, \"detail\": \"operator halt released; every other risk condition still applies\"}",
+      "name": "released",
+      "risk_state": "SAFE"
+    },
+    {
+      "at": 1787807719.41,
+      "decisions": 4881,
+      "name": "ui_killed",
+      "ordinal": 5008,
+      "pid": 2571371,
+      "signal": "SIGKILL"
+    },
+    {
+      "at": 1787807721.411,
+      "name": "ui_unreachable",
+      "reachable": false
+    },
+    {
+      "at": 1787807766.412,
+      "decisions": 18321,
+      "decisions_since_kill": 13440,
+      "events_since_kill": 13728,
+      "name": "bot_alive_after_kill",
+      "ordinal": 18736,
+      "risk_state": "SAFE",
+      "seconds_since_kill": 47.0
+    },
+    {
+      "at": 1787807768.418,
+      "commands_after_restart": 2,
+      "http": 200,
+      "name": "ui_restarted",
+      "pid": 2572202,
+      "renders_market": true
+    },
+    {
+      "at": 1787807771.419,
+      "name": "final",
+      "ordinal": 20154,
+      "risk_state": "SAFE"
+    }
+  ],
+  "ui_pid": 2571371,
+  "ui_restart_pid": 2572202
+}

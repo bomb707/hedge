@@ -106,6 +106,12 @@ class RiskSignalKind(Enum):
     ORDER_RECONCILIATION_RESULT = "ORDER_RECONCILIATION_RESULT"
     POSITION_RECONCILIATION_RESULT = "POSITION_RECONCILIATION_RESULT"
     COST_RECONCILIATION_RESULT = "COST_RECONCILIATION_RESULT"
+    OPERATOR_CONTROL = "OPERATOR_CONTROL"
+    """A command from a person, entering the ordered stream like any other signal.
+
+    The UI never mutates anything; it produces an immutable command, and this is where that
+    command becomes a fact with a sequence number attached to it."""
+
     RESOLUTION_SAFETY_UPDATE = "RESOLUTION_SAFETY_UPDATE"
     MAKER_ONLY_STATE_UPDATE = "MAKER_ONLY_STATE_UPDATE"
     TAKER_FILL_OBSERVED = "TAKER_FILL_OBSERVED"
@@ -196,6 +202,7 @@ class OperationalState:
     api_errors_exceeded: bool = False
     rate_limit_uncertain: bool = False
     resolution_ambiguous: bool = False
+    operator_halt: bool = False
     taker_fill_seen: bool = False
 
     def snapshot(self) -> tuple[object, ...]:
@@ -208,6 +215,7 @@ class OperationalState:
             self.api_errors_exceeded,
             self.rate_limit_uncertain,
             self.resolution_ambiguous,
+            self.operator_halt,
             self.taker_fill_seen,
         )
 
@@ -219,6 +227,7 @@ _FLAG_FOR_KIND: Final[dict[RiskSignalKind, str]] = {
     RiskSignalKind.API_ERROR_STATE_UPDATE: "api_errors_exceeded",
     RiskSignalKind.RATE_LIMIT_STATE_UPDATE: "rate_limit_uncertain",
     RiskSignalKind.RESOLUTION_SAFETY_UPDATE: "resolution_ambiguous",
+    RiskSignalKind.OPERATOR_CONTROL: "operator_halt",
     RiskSignalKind.MAKER_ONLY_STATE_UPDATE: "maker_only_uncertain",
     RiskSignalKind.TAKER_FILL_OBSERVED: "taker_fill_seen",
 }
@@ -378,6 +387,7 @@ class RiskController:
             api_errors_exceeded=operational.api_errors_exceeded,
             rate_limit_uncertain=operational.rate_limit_uncertain,
             resolution_ambiguous=operational.resolution_ambiguous,
+            operator_halt=operational.operator_halt,
             taker_fill_seen=operational.taker_fill_seen,
         )
 

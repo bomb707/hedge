@@ -26,7 +26,10 @@ from maker5m.persistence.schema import (
     SideRecord,
 )
 from maker5m.telemetry.observation import (
+    NOT_CAPTURED,
     OBS_BOOK,
+    OBS_DECIDE_DONE_NS,
+    OBS_DECIDE_STAGE_NS,
     OBS_DOWN_DEPTH,
     OBS_ELIGIBILITY,
     OBS_EVENT_ID,
@@ -36,7 +39,10 @@ from maker5m.telemetry.observation import (
     OBS_HEALTHY,
     OBS_INGRESS_ORDINAL,
     OBS_PLAN,
+    OBS_PREPARE_DONE_NS,
     OBS_RAW_RECEIVE_NS,
+    OBS_RECONCILE_DONE_NS,
+    OBS_REDUCE_STAGE_NS,
     OBS_RISK,
     OBS_SEQ,
     OBS_SOURCE_TS,
@@ -54,6 +60,7 @@ __all__ = [
     "build_decision_record",
     "build_fill_record",
     "is_fill_observation",
+    "latency_sample",
 ]
 
 
@@ -103,6 +110,61 @@ def _age(now: object, then: object) -> int | None:
 
 def _enum_value(value: object) -> str | None:
     return None if value is None else str(getattr(value, "value", value))
+
+
+def _stamp(observation: Observation, index: int) -> int | None:
+    """One stage stamp, or ``None`` when P8 did not capture it.
+
+    ``NOT_CAPTURED`` is an absence, never a zero. Nothing downstream may subtract it.
+    """
+    value = observation[index]
+    if type(value) is not int or value == NOT_CAPTURED:
+        return None
+    return value
+
+
+def latency_sample(observation: Observation) -> dict[str, int] | None:
+    """P8's own stage durations for this cycle, taken from the captured observation.
+
+    Each figure carries **P8's definition of it**, not a similar-looking subtraction:
+
+    ==========================  ====================================================
+    ``decide_ns``               ``OBS_DECIDE_STAGE_NS - OBS_REDUCE_STAGE_NS``
+    ``prepare_ns``              ``OBS_PREPARE_DONE_NS - OBS_DECIDE_DONE_NS``
+    ``reconcile_ns``            ``OBS_RECONCILE_DONE_NS - OBS_PREPARE_DONE_NS``
+    ``receive_to_reconcile_ns`` ``OBS_RECONCILE_DONE_NS - OBS_RAW_RECEIVE_NS``
+    ``receive_to_decide_ns``    ``OBS_DECIDE_DONE_NS - OBS_RAW_RECEIVE_NS``
+    ==========================  ====================================================
+
+    P12C published ``decide_done - receive`` under the name ``decide_ns``. That is a real
+    measurement — P8 keeps it per event kind — but it is *receive to decide*, which includes
+    ingress, reduction and dispatch. One metric, one meaning: it keeps its own name here.
+
+    Stages are sampled independently, so this returns whichever durations P8 actually captured.
+    A cycle timed end to end but not stage-stamped yields ``receive_to_reconcile_ns`` and no
+    ``decide_ns``; discarding the whole sample for that would throw away a real measurement, and
+    supplying zero for the missing one would invent a measurement nobody took. Returns ``None``
+    only when the cycle carries no usable timing at all.
+    """
+    receive = _stamp(observation, OBS_RAW_RECEIVE_NS)
+    decide_done = _stamp(observation, OBS_DECIDE_DONE_NS)
+    prepare_done = _stamp(observation, OBS_PREPARE_DONE_NS)
+    reconcile_done = _stamp(observation, OBS_RECONCILE_DONE_NS)
+    reduce_stage = _stamp(observation, OBS_REDUCE_STAGE_NS)
+    decide_stage = _stamp(observation, OBS_DECIDE_STAGE_NS)
+
+    sample: dict[str, int] = {}
+    if reduce_stage is not None and decide_stage is not None:
+        sample["decide_ns"] = decide_stage - reduce_stage
+    if decide_done is not None and prepare_done is not None:
+        sample["prepare_ns"] = prepare_done - decide_done
+    if prepare_done is not None and reconcile_done is not None:
+        sample["reconcile_ns"] = reconcile_done - prepare_done
+    if receive is not None and reconcile_done is not None:
+        sample["receive_to_reconcile_ns"] = reconcile_done - receive
+    if receive is not None and decide_done is not None:
+        sample["receive_to_decide_ns"] = decide_done - receive
+    return sample or None
 
 
 def _event_id(observation: Observation) -> str:

@@ -1,0 +1,45 @@
+{
+  "as_published": {
+    "meaning": "OBS_DECIDE_DONE_NS - OBS_RAW_RECEIVE_NS",
+    "value_ns": 268302,
+    "what_that_is": "receive to decide: ingress, reduction, dispatch and the strategy call together. A real P8 measurement, kept per event kind as `clob_receive_to_decide` \u2014 but not the decide duration."
+  },
+  "corrected": {
+    "decide_ns": "OBS_DECIDE_STAGE_NS - OBS_REDUCE_STAGE_NS (P8 decide_duration)",
+    "prepare_ns": "OBS_PREPARE_DONE_NS - OBS_DECIDE_DONE_NS (unchanged)",
+    "receive_to_decide_ns": "OBS_DECIDE_DONE_NS - OBS_RAW_RECEIVE_NS \u2014 the figure P12C published, now under its own name",
+    "receive_to_reconcile_ns": "OBS_RECONCILE_DONE_NS - OBS_RAW_RECEIVE_NS (unchanged)",
+    "reconcile_ns": "OBS_RECONCILE_DONE_NS - OBS_PREPARE_DONE_NS (unchanged)"
+  },
+  "field": "decide_ns",
+  "kind": "P12C_SNAPSHOT_LATENCY_CORRECTION",
+  "not_recoverable": "The corrected `decide_ns` for that exact cycle cannot be recomputed. P8's observation buffer is a live structure and is not persisted, so the stage stamps for ingress ordinal 127,451 no longer exist. The market's own analyzer distribution above is what that market can still say, and the per-cycle equality is proved on a replayed real capture in p12d-latency-replay.json.",
+  "note": "docs/evidence/p12c-final-snapshot.json is retained exactly as published. It records what the P12C dashboard actually displayed, including the field whose label was wrong, and editing it would destroy the evidence of that.",
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "slug": "btc-updown-5m-1787811600",
+  "the_same_market_says": {
+    "clob_receive_to_decide_ns": {
+      "count": 12109,
+      "p50": 200416,
+      "p90": 657796,
+      "p95": 754331,
+      "p99": 1457002
+    },
+    "cycles_with_stage_timing": 12433,
+    "decide_duration_ns": {
+      "count": 12433,
+      "p50": 50956,
+      "p90": 166195,
+      "p95": 189975,
+      "p99": 250049
+    },
+    "reading": "The published 268,302 ns belongs to the receive-to-decide distribution (p50 200,416 ns), not the decide one (p50 50,956 ns). The dashboard was attributing roughly four times the strategy's own cost to the strategy.",
+    "source": "P8 TelemetryAnalyzer, in p12c-market-btc-updown-5m-1787811600.json"
+  },
+  "unchanged_in_that_snapshot": {
+    "latency_sample_ordinal": 127451,
+    "prepare_ns": 3676,
+    "receive_to_reconcile_ns": 286529,
+    "reconcile_ns": 14551
+  }
+}

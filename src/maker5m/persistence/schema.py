@@ -33,6 +33,7 @@ from maker5m.market.timebase import TimestampNs
 from maker5m.numeric.units import MoneyUnits, PriceUnits, ShareUnits
 
 __all__ = [
+    "CONTROL_AUDIT_SCHEMA_VERSION",
     "DECISION_SCHEMA_VERSION",
     "FILL_SCHEMA_VERSION",
     "MANIFEST_SCHEMA_VERSION",
@@ -41,6 +42,8 @@ __all__ = [
     "SETTLEMENT_ROW_SCHEMA_VERSION",
     "STORE_SCHEMA_VERSION",
     "SUPPORTED_DECISION_SCHEMA_VERSIONS",
+    "SUPPORTED_STORE_SCHEMA_VERSIONS",
+    "ControlAuditRow",
     "DecisionRecord",
     "ExactRatio",
     "FillProvenance",
@@ -53,7 +56,19 @@ __all__ = [
     "TelemetryProvenance",
 ]
 
-STORE_SCHEMA_VERSION: Final[int] = 2
+STORE_SCHEMA_VERSION: Final[int] = 3
+"""V3 adds the `control_audit` table. The record shapes V2 defined are unchanged.
+
+Bumped rather than reused: adding a table to a store while leaving its version alone would make
+V2 mean two different things depending on which build last opened it, which is the defect P11
+closed for decision records and would be no better here."""
+
+SUPPORTED_STORE_SCHEMA_VERSIONS: Final[frozenset[int]] = frozenset({2, STORE_SCHEMA_VERSION})
+"""Store versions this build can read. Writing is current-version only.
+
+V2 stores — every accepted P11 archive — remain readable exactly as they were. They carry no
+control-audit table because operator control did not exist when they were written, and that is
+an absence with a reason rather than a missing row."""
 """The database's own version, checked on open. A newer one fails the read closed."""
 
 DECISION_SCHEMA_VERSION: Final[int] = 2
@@ -76,6 +91,7 @@ RISK_ROW_SCHEMA_VERSION: Final[int] = 1
 SETTLEMENT_ROW_SCHEMA_VERSION: Final[int] = 1
 METRICS_SCHEMA_VERSION: Final[int] = 1
 MANIFEST_SCHEMA_VERSION: Final[int] = 1
+CONTROL_AUDIT_SCHEMA_VERSION: Final[int] = 1
 
 
 class TelemetryProvenance(Enum):
@@ -424,6 +440,42 @@ class SettlementRow:
     redeem_plan_index_sets: tuple[int, ...]
     redeem_blockers: tuple[str, ...]
     redemption_enabled: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ControlAuditRow:
+    """One operator command, and the risk verdict it produced. Structured, never free text.
+
+    A `RiskRow` records that an `OPERATOR_CONTROL` signal happened; it does not record *which*
+    command caused it, and P11's V1 row shape is accepted and must not be reinterpreted to make
+    room. So the link lives here, in its own table, keyed by the thing both sides can be checked
+    against: the risk sequence.
+
+    The identifier is a column, not a substring of a detail message. Parsing `command_id=` out of
+    prose would make a load-bearing cross-reference depend on a log line's formatting.
+    """
+
+    schema_version: int
+    persistence_sequence: int
+    market_id: str
+
+    command_id: str
+    kind: str
+    issued_at_ns: int
+    source: str
+
+    accepted: bool
+    ingress_ordinal: int | None
+    risk_sequence: int | None
+    """The `RiskRow` this command produced. ``None`` only when the command was refused, in which
+    case no risk record exists to point at — which is itself the thing being asserted."""
+
+    risk_state: str | None
+    allows_place: bool | None
+    signal_flag: bool | None
+    """``True`` for a halt, ``False`` for a release. Checked against the RiskRow's own flag."""
+
+    detail: str = ""
 
 
 @dataclass(frozen=True, slots=True)

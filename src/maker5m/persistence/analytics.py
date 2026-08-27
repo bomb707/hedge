@@ -21,16 +21,18 @@ from maker5m.accounting.ledger import LedgerState
 from maker5m.domain import Outcome
 from maker5m.numeric.units import MoneyUnits, ShareUnits
 from maker5m.persistence.schema import (
+    CONTROL_AUDIT_SCHEMA_VERSION,
     METRICS_SCHEMA_VERSION,
     RISK_ROW_SCHEMA_VERSION,
     SETTLEMENT_ROW_SCHEMA_VERSION,
+    ControlAuditRow,
     ExactRatio,
     MarketMetrics,
     RiskRow,
     SettlementRow,
 )
 
-__all__ = ["MetricsAccumulator", "risk_row", "settlement_row"]
+__all__ = ["MetricsAccumulator", "control_audit_row", "risk_row", "settlement_row"]
 
 ZERO_MONEY: Final[MoneyUnits] = MoneyUnits(0)
 
@@ -213,6 +215,34 @@ def risk_row(record: Any, *, market_id: str, persistence_sequence: int) -> RiskR
         allows_cancel=record.allows_cancel,
         provenance=signal.provenance.value,
         risk_schema_version=record.schema_version,
+    )
+
+
+def control_audit_row(
+    command: Any, outcome: Any, *, market_id: str, persistence_sequence: int
+) -> ControlAuditRow:
+    """Flatten one operator command and its verdict into the durable cross-link.
+
+    ``outcome`` is the ``(CommandOutcome, flag)`` pair the control authority produced. The flag
+    is carried explicitly rather than re-derived from the command kind, so the audit records what
+    was actually sent to the risk engine rather than what the kind implies it should have been.
+    """
+    result, flag = outcome
+    return ControlAuditRow(
+        schema_version=CONTROL_AUDIT_SCHEMA_VERSION,
+        persistence_sequence=persistence_sequence,
+        market_id=market_id,
+        command_id=command.command_id,
+        kind=command.kind,
+        issued_at_ns=int(command.issued_at_ns),
+        source=command.source,
+        accepted=bool(result.accepted),
+        ingress_ordinal=result.ingress_ordinal,
+        risk_sequence=result.risk_sequence,
+        risk_state=result.risk_state,
+        allows_place=result.allows_place,
+        signal_flag=bool(flag),
+        detail=result.detail,
     )
 
 

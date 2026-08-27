@@ -75,6 +75,225 @@ production.
 
 ---
 
+## P12D: final contract closure
+
+Full evidence in
+[`evidence/P12D-FINAL-CONTRACT-CLOSURE.md`](evidence/P12D-FINAL-CONTRACT-CLOSURE.md). Four narrow
+contracts the independent review of P12C left open. No new live market: nothing here touches the
+trading path, and `hotpath.py`, `tools/p12_market.py`, `feeds/`, `strategy/`, `market/`,
+`execution/` and `telemetry/` are byte-identical to the reviewed boundary.
+
+**`decide_ns` meant receive-to-decide.** P8's `decide_duration` is `decide_stage - reduce_stage`;
+the UI published `decide_done - raw_receive`, which is ingress, reduction, dispatch and the
+strategy call together. That market's own analyzer puts decide at p50 50,956 ns and
+receive-to-decide at p50 200,416 ns, and the snapshot published 268,302 ns. One metric, one
+meaning: `decide_ns` is now P8's, and receive-to-decide is published under its own name rather
+than dropped. 4,883 stage-sampled cycles from a real capture agree with `TelemetryAnalyzer` figure
+by figure. A cycle timed end to end without stage stamps keeps what it measured and has no
+`decide_ns` — absent, never zero.
+
+**A callback did not prove persistence.** `TelemetryStore` absorbs SQLite errors by design, so
+`write_control_audit(row); written += 1; on_control_record(row)` counted a refused row as written
+and published it to the operator. The append-only writers now report whether the write path took
+the row — envelope and row both — and counters and Plane-3 callbacks are gated on that. This
+immediately found a test that opened the store on one thread and drained from another: every
+write raised, and 20,480 of 40,000 "written" decisions were counted while never reaching the file.
+
+**The audit columns were not checked against the payload.** A row whose column said RELEASE while
+its payload said HALT cross-linked perfectly and answered differently depending on who asked.
+Both representations are now compared, the V1 control-schema domain is explicit, and every type
+is exact — `bool` is an `int` in Python and is not a schema version.
+
+**The browser's clock ordered commands.** Pending files were named `{issued_at_ns}-{command_id}`
+and read sorted, so a UI wall clock decided which command reached ingress first. The inbox now
+allocates its own transport sequence, and a restarted UI continues above what is already pending.
+Transport order is not causality: `ingress_ordinal` and `risk_sequence` still decide that, and
+the transport sequence enters neither the command nor the audit row.
+
+`btc-updown-5m-1787811600` re-read through the verified archive by the corrected code: COMPLETE,
+124,272 decisions, 124,274 risk records, 2 control rows, 0 drops/gaps/sink errors, PLACE SAFE 646
+/ HALTED 0 / RECOVERING 0, RESOLVED UP at block 92,737,974 with payouts [1,0] — identical to the
+P12C read in every field. All eight accepted stores give the same verdicts and the same failure
+text as before.
+
+---
+
+## P12C: snapshot coherence closure (superseded for the metric and transport contracts)
+
+Full evidence in [`evidence/P12C-SNAPSHOT-COHERENCE.md`](evidence/P12C-SNAPSHOT-COHERENCE.md).
+P12B's market is **retained and valid**; P12B's *architecture* and *final snapshot* are
+superseded.
+
+**Stdout is I/O.** P12B took the filesystem out of `on_tick` and left five `print(..., flush=True)`
+calls on it. The rule is no synchronous I/O on the single ingress consumer — a write to a pipe
+nobody is draining blocks as thoroughly as a stalled `stat`. The hot side now appends an
+immutable fact to a bounded channel and the run log is rendered on the main thread after close.
+Not a different logger: `logging` would be the same synchronous write behind a lock.
+
+The P12B test that claimed to prove this reproduced the tick body *in the test file* while the
+shipped one printed. Now one extracted production function is tested with `print`, `logging` and
+thirteen filesystem entry points replaced by raisers, and a second test walks the AST of the
+shipped `tools/p12_market.py`. It fails against the P12B file.
+
+**The snapshot is joined to its own decision.** `controller.trace.records[-1]` was the newest
+verdict, not the one the decision names, and `_latency_sample(run)` read the merger while Plane 1
+was mutating it. The worker now hands over `(record, observation)`, latency comes from that
+observation's P8 stamps, and the verdict is looked up by `risk_sequence` — an unarrived verdict
+reads unavailable rather than borrowing a neighbour's.
+
+**The final snapshot comes from the manifest.** P12B's last frame said 82,335 decisions / 82,337
+risk / 1 drop / INCOMPLETE beside a manifest saying 82,336 / 82,338 / 0 / COMPLETE. A `closed`
+message now carries the manifest's own figures and a straggling counter cannot walk them back.
+Audit completeness compares acceptance against persistence instead of counting exceptions that
+`BoundedChannel.publish` never raises, and command history comes from persisted audit rows.
+
+**`None` and `False` are different audit facts.** The control cross-link compared truthiness and
+proved only that two rows agreed — a halt written `flag=False` in both would have passed. Typed
+comparisons now, and the command kind must imply the flag.
+
+### Real market — `btc-updown-5m-1787811600`
+
+124,272 decisions · 124,274 risk records · 2 control-audit rows · 248,549 storage entries exact
+from 1 · 0 drops, gaps, sink errors · verification **COMPLETE** · archive 650.0 MB → 11.9 MB
+(54.5×), restored and verified.
+
+```text
+halt     a52f1f38fada4dd0  ordinal 1358  risk_seq 1300  HALTED   place=False cancel=True
+release  a3e7df18eaaf4cd1  ordinal 8241  risk_seq 8016  RECOVERING -> SAFE
+kill     SIGKILL at ordinal 8430 -> +24,384 events, +23,820 decisions in 47s, risk SAFE
+restart  same market, both commands shown from the durable audit rows
+final    RESOLVED UP, block 92,737,974, payout [1,0], REDEMPTION DISABLED
+snapshot 124,272 / 124,274 / 0 / 0 / complete / COMPLETE — six for six against the manifest
+```
+
+**PLACE while HALTED: 0. PLACE while RECOVERING: 0** — with 7,077 decisions under the halt.
+Latency published: decide 268,302 ns · prepare 3,676 ns · reconcile 14,551 ns · receive-to-
+reconcile 286,529 ns, sampled at ordinal 127,451.
+
+Overhead against the accepted P11 stack: decide p50 **−11 ns (−0.05 %)**, full cycle **+1,477 ns
+(+2.81 %)**; stalled bridge **−177 ns** and **+839 ns**. Within-mode spread is about 1.5 µs, so
+these sit inside each other's noise. Every P8C limit met; no limit moved.
+
+**A market this round cost.** The first P12C attempt, `btc-updown-5m-1787810700`, traded for the
+full five minutes and then died formatting its own run log, after `worker.stop` and before the
+manifest — a complete capture left with a database and no closure. Not presented as acceptance
+evidence; its UI acceptance log is retained as superseded. The renderer is now tested and its
+call site guarded.
+
+---
+
+## P12B: Plane-3 isolation closure (SUPERSEDED for architecture)
+
+Full evidence in [`evidence/P12B-PLANE3-ISOLATION.md`](evidence/P12B-PLANE3-ISOLATION.md). The
+first P12 market is **retained and superseded for architectural acceptance**. P12B itself is now
+superseded by [P12C](evidence/P12C-SNAPSHOT-COHERENCE.md) for architecture and for its final
+snapshot; **its store and its market remain valid** — `btc-updown-5m-1787807700` verifies
+COMPLETE, and the P12C revalidation rebuilds its final frame from those same bytes.
+
+**"Does not wait for the UI process" is not "cannot block the trading loop."** P12's first
+version polled the command inbox and wrote the snapshot from inside `on_tick` — the single
+ingress consumer. Nothing there waited on the UI and nothing needed to: a `listdir`, a `stat`, a
+`read_text` or a `rename` can stall on the *filesystem* with no UI involved. I19 is about
+latency, so wrapping the calls would have changed nothing.
+
+```
+BEFORE   on_tick -> glob, stat, read_text, unlink, mkstemp, write, rename
+AFTER    on_tick -> deque.popleft()
+```
+
+`CommandBridge` owns a thread and is the only thing in P12 that touches a file. Overflow does not
+drop — telemetry may lose a record, a safety command may not — so a full hot channel refuses the
+push and the bridge leaves the file on disk. `SnapshotPublisher` is single-owner again;
+everything crosses into it as an immutable message through one bounded inbox.
+
+Three more, each a place the dashboard was telling an operator something nobody measured:
+
+* **risk** — `risk_active` and `risk_latched` were hardcoded empty; health was inferred from
+  whether data existed, so a STALE spot feed with a recent price read HEALTHY. All of it now
+  comes from the `RiskRecord` the decision *names*, found by sequence rather than by being
+  newest, with an `observation_points` map where the parts genuinely differ.
+* **latency** — four fields defined and always `None`. Now P8's own timings with the ordinal they
+  were sampled at; an unsampled cycle reads "not sampled", never `0 ns`.
+* **settlement** — fields existed, runner never filled them. Now published after P10 resolves.
+
+**Command identity is durably linked.** A `RiskRow` says an `OPERATOR_CONTROL` signal happened,
+not which command caused it, so the link lives in a `control_audit` table with `command_id` as a
+column — not parsed out of a detail string. Store V3; reading accepts {2, 3} so every accepted
+P11 archive stays readable. The verifier cross-links both directions and refuses an orphan either
+way. Idempotency moved from the transport to `ControlIngress`, which is the only thing that
+decides whether a command changes the risk state.
+
+### Real market — `btc-updown-5m-1787807700`
+
+82,336 decisions · 82,338 risk records · 2 control-audit rows · bridge 4,728 polls / 1,012
+snapshots / 0 errors · hot channel high-water **1** of 32 · bridge deliberately stalled +200→+240 s
+· 0 drops, gaps, sink errors · verification **COMPLETE**.
+
+```text
+halt     20976c37536b498c  ordinal 988   risk_seq 964   HALTED   place=False cancel=True
+release  d8fa82dbcedd4a0f  ordinal 5001  risk_seq 4878  RECOVERING -> SAFE
+kill     SIGKILL at ordinal 5008 -> +13,728 events, +13,440 decisions in 47s, risk SAFE
+restart  same market, both commands shown, no new command
+final    RESOLVED DOWN, block 92,735,374, payout [0,1], REDEMPTION DISABLED
+```
+
+**PLACE while HALTED: 0. PLACE while RECOVERING: 0** — with 4,109 decisions under the halt.
+
+Overhead against the accepted P11 stack: decide p50 **+300 ns (+1.28 %)**, full cycle **+768 ns
+(+1.46 %)**; semantics identical across modes. A **stalled** bridge measures **−21 ns** against
+P11-only — indistinguishable from having no UI at all, which is the claim.
+
+---
+
+## P12: operator UI and control plane (SUPERSEDED for architecture)
+
+Full evidence in [`evidence/P12-UI-CONTROL-PLANE.md`](evidence/P12-UI-CONTROL-PLANE.md).
+
+Two processes and a directory between them. The bot writes a snapshot by atomic rename; the UI
+writes commands into a bounded inbox; the bot lists that directory on its control tick and never
+waits for anyone. Files rather than a socket, a queue or a broker, because the acceptance gate is
+killing the UI mid-market — which rules out any transport where the bot holds something the UI can
+be holding when it dies, and rules out a broker, which would be a third process to keep alive in
+order to prove that a process dying is survivable.
+
+`UiSnapshot` is immutable and holds no reference to any trading object. It is built on the
+persistence worker's thread from the `DecisionRecord` P11 already made, four frames a second, so
+**Plane 1 pays nothing**. Nothing in the UI recomputes an economic quantity — the licence is
+scale, and a second PnL implementation in a dashboard would be a second thing to be wrong in the
+place people look for the truth. Absence renders `—`, a missing snapshot renders NO SNAPSHOT, a
+stale one says so.
+
+Control is two commands — `OPERATOR_HALT` and `RELEASE_OPERATOR_HALT` — and nothing else exists.
+A command is inert until the bot accepts it into the ordered risk stream, ordering comes from the
+ingress ordinal rather than the browser's clock, and the release clears **only** the operator's
+own condition. Loopback only (no authentication exists; recorded as OPERATIONAL), GET has no
+write path, POST answers 303 so a refresh cannot repeat a command, and **no endpoint can change
+`LIVE_TRADING_ENABLED` or `REDEMPTION_ENABLED`**.
+
+### Real market — `btc-updown-5m-1787803500`
+
+66,174 decisions, 66,176 risk records (the two extra are the operator's commands), 0 drops, 0
+gaps, 0 sink errors, verification **COMPLETE**.
+
+```text
+halt     command 4b2a5f04ed7642c4  ordinal 1835  risk_seq 1771  HALTED   place=False cancel=True
+release  command 651f8ae4bbf644b9  ordinal 8131  risk_seq 7924  RECOVERING -> SAFE
+kill     SIGKILL at ordinal 8229 -> +18,113 events, +17,631 decisions in 47s, risk SAFE
+restart  same market, rendered from the snapshot, both commands still shown, no new command
+```
+
+**PLACE while HALTED: 0. PLACE while RECOVERING: 0** — with 6,209 decisions taken under the halt.
+
+### The defect the first real market found
+
+The first attempt verified **INCOMPLETE**, and the two records missing from the durable risk
+stream were the operator's own two commands: `ControlIngress` applied each to the controller and
+never published the result for persistence. The drop accounting was self-consistent throughout, so
+only P11's sequence-exactness check noticed. A control action with no durable record is the worst
+thing to lose, and it was the only thing lost. Fixed; the market above is the re-run.
+
+---
+
 ## P11F: supported schema domain closure
 
 Full evidence in
@@ -1159,7 +1378,13 @@ orders, which P8 does not place. Both stay OPEN.
 
 | | |
 |---|---|
-| **Current phase** | **P11 — durable telemetry persistence** |
+| **Current phase** | **P12 — operator UI and control plane** |
+| P12 implementation gate | **PASSED** — Plane-3 UI, immutable snapshot, ordered control, no trading reference |
+| P12 real-market gate | **PASSED** — UI killed mid-market, trading continued |
+| P12 Plane-3 isolation gate | **PASSED** (P12C) — no synchronous I/O of any kind on the ingress path, stdout included |
+| P12 snapshot coherence gate | **PASSED** (P12C) — every published figure joined to the observation it describes; final frame equals the manifest |
+| P12 ordering/metric-contract gate | **PASSED** (P12D) — `decide_ns` is P8's decide_duration; "written" means durably written; audit columns equal their payload; delivery order is the transport's, not a wall clock's |
+| P12 control-audit gate | **PASSED** — command id durably cross-linked to its RiskRow |
 | P11 implementation gate | **PASSED** — versioned schemas, non-blocking worker, exact analytics, verifier |
 | P11 real-market gate | **PASSED** — P11B healthy market + controlled stalled sink |
 | P11 durability-integrity gate | **PASSED** — every V2 decision names and matches its governing RiskRow; exact risk and storage order; real, self-consistent event ids; self-consistent schema version drawn from a defined domain; append-only audit rows; verified archive reads |
@@ -1210,15 +1435,21 @@ orders, which P8 does not place. Both stay OPEN.
 | Attestation binding | identity → endpoint → reading → attestation, checked at each layer; **software trust boundary, not cryptographic** |
 | GitHub default branch | `main` (verified 2026-08-26; the earlier `bootstrap/phase-0` observation no longer holds) |
 | P9 commits | `4be0032` risk engine · `6576de0` recovery + runner · `1584dee` stale recovery fix · `b2e715e` real-market evidence · `4c2ab1d` full fault market |
-| Last accepted milestone | P10C — settlement attestation binding (`8c7d435`, now `main`) |
-| Next milestone | P12 — **not started**, and not to be started before P11 is accepted |
-| `main` | `8c7d435` — fast-forwarded through the whole accepted P10 lineage, pushed |
+| Last accepted milestone | P11F — supported schema domain (`ea892c4`, now `main`) |
+| Next milestone | P13 — **not started**, and not to be started before P12 is accepted |
+| `main` | `ea892c4` — fast-forwarded through the whole accepted P11 lineage, pushed |
 | P11 branch | `feature/p11-telemetry-persistence` |
 | P11B branch | `fix/p11-persistence-integrity` |
 | P11C branch | `fix/p11-final-audit-closure` |
 | P11D branch | `fix/p11-reference-completeness` |
 | P11E branch | `fix/p11-schema-contract-integrity` |
 | P11F branch | `fix/p11-supported-schema-domain` |
+| P12 branch | `feature/p12-ui-control-plane` |
+| P12B branch | `fix/p12-plane3-isolation` |
+| P12C branch | `fix/p12-snapshot-coherence` |
+| P12D branch | `fix/p12-final-contract-closure` |
+| P12C final snapshot | retained unedited; its `decide_ns` label is corrected in `p12d-p12c-snapshot-latency-correction.json`, not in the file |
+| P12B final snapshot | **known-inaccurate read-model artifact**, retained unedited; see `p12c-p12b-revalidation-btc-updown-5m-1787807700.json` |
 | P11 store size | 5,230 B/decision raw → **95.7 B archived**; engineered in P11B, not deferred |
 | Remote | `origin` → `https://github.com/bomb707/hedge.git` |
 

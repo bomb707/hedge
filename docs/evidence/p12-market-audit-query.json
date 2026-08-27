@@ -1,0 +1,42 @@
+{
+  "actions": {
+    "BLOCKED": 46517,
+    "CANCEL": 78,
+    "KEEP": 48779,
+    "NOTHING": 36686,
+    "PLACE": 183,
+    "REPLACE": 105
+  },
+  "decision_risk_copy_mismatches": 0,
+  "decisions": 66174,
+  "decisions_missing_risk_reference": 0,
+  "decisions_naming_an_absent_risk_row": 0,
+  "decisions_with_incomplete_risk_copy": 0,
+  "decisions_with_no_event_id": 0,
+  "evidence_eligible": true,
+  "evidence_note": "Eligible as empirical evidence.",
+  "fills": 0,
+  "places_by_risk_state": {
+    "SAFE": 183
+  },
+  "risk_exact_from_zero": true,
+  "risk_first": 0,
+  "risk_last": 66175,
+  "risk_records": 66176,
+  "risk_states": {
+    "HALTED": 6209,
+    "RECOVERING": 1,
+    "SAFE": 59964
+  },
+  "risk_withdrew_intent": 6152,
+  "settlements": 1,
+  "source": "/tmp/claude-1000/-home-hr-hedge/e431766c-1daa-41db-8cd7-50b88edd1dbb/scratchpad/p12/run2/market/btc-updown-5m-1787803500.p11.sqlite3.xz",
+  "storage_count": 132351,
+  "storage_duplicates": 0,
+  "storage_exact_from_one": true,
+  "storage_first": 1,
+  "storage_last": 132351,
+  "telemetry_complete": true,
+  "verification_failures": [],
+  "verification_status": "COMPLETE"
+}

@@ -1,0 +1,106 @@
+{
+  "all_equal": true,
+  "compared": {
+    "decisions_persisted": {
+      "equal": true,
+      "manifest": 124272,
+      "manifest_field": "decision_count",
+      "snapshot": 124272
+    },
+    "dropped_records": {
+      "equal": true,
+      "manifest": 0,
+      "manifest_field": "dropped_records",
+      "snapshot": 0
+    },
+    "risk_records_persisted": {
+      "equal": true,
+      "manifest": 124274,
+      "manifest_field": "risk_count",
+      "snapshot": 124274
+    },
+    "sink_errors": {
+      "equal": true,
+      "manifest": 0,
+      "manifest_field": "sink_errors",
+      "snapshot": 0
+    },
+    "telemetry_complete": {
+      "equal": true,
+      "manifest": true,
+      "manifest_field": "telemetry_complete",
+      "snapshot": true
+    },
+    "verification_status": {
+      "equal": true,
+      "manifest": "COMPLETE",
+      "manifest_field": "verification.status",
+      "snapshot": "COMPLETE"
+    }
+  },
+  "control": {
+    "accepted_commands": [
+      {
+        "accepted": true,
+        "allows_place": false,
+        "command_id": "a52f1f38fada4dd0",
+        "detail": "operator halt raised",
+        "ingress_ordinal": 1358,
+        "kind": "OPERATOR_HALT",
+        "risk_sequence": 1300,
+        "risk_state": "HALTED"
+      },
+      {
+        "accepted": true,
+        "allows_place": false,
+        "command_id": "a3e7df18eaaf4cd1",
+        "detail": "operator halt released; every other risk condition still applies",
+        "ingress_ordinal": 8241,
+        "kind": "RELEASE_OPERATOR_HALT",
+        "risk_sequence": 8016,
+        "risk_state": "RECOVERING"
+      }
+    ],
+    "audit_accepted": 2,
+    "audit_dropped": 0,
+    "control_audit_complete": true,
+    "control_records_written": 2,
+    "hot_event_channel": {
+      "accepted": 2,
+      "capacity": 512,
+      "dropped": 0
+    }
+  },
+  "kind": "P12C_SNAPSHOT_MANIFEST_COHERENCE",
+  "latency": {
+    "decide_ns": 268302,
+    "latency_sample_ordinal": 127451,
+    "prepare_ns": 3676,
+    "receive_to_reconcile_ns": 286529,
+    "reconcile_ns": 14551
+  },
+  "live_trading_enabled": false,
+  "note": "Every counter the final operator snapshot published, beside the closed market's own manifest. P12B's disagreed on three of these six.",
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "redemption_enabled": false,
+  "risk_join": {
+    "decision_ingress_ordinal": 127456,
+    "observation_points": {
+      "counters": null,
+      "decision": 127456,
+      "latency_sample": 127451,
+      "risk_verdict": 127456
+    },
+    "risk_sequence": 124273
+  },
+  "settlement": {
+    "authoritative_block": 92737974,
+    "payout_numerators": [
+      1,
+      0
+    ],
+    "resolution_state": "RESOLVED",
+    "winning_outcome": "UP"
+  },
+  "slug": "btc-updown-5m-1787811600"
+}

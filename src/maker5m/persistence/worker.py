@@ -31,7 +31,7 @@ from dataclasses import dataclass, field
 from typing import Any, Final
 
 from maker5m.domain import Outcome
-from maker5m.persistence.analytics import MetricsAccumulator, risk_row
+from maker5m.persistence.analytics import MetricsAccumulator, control_audit_row, risk_row
 from maker5m.persistence.capture import BoundedChannel
 from maker5m.persistence.records import (
     MarketIdentity,
@@ -77,6 +77,13 @@ class WorkerStats:
     stalled_ns: int = 0
     consume_errors: int = 0
     risk_written: int = 0
+    control_records_written: int = 0
+    write_failures: int = 0
+    """Rows the SQLite write path refused. Each one also counted a `sink_errors`.
+
+    Separate from `consume_errors`: this is the store declining a row, not the worker throwing
+    on the way to it. Every written counter beside it means *durably accepted*."""
+
     fills_written: int = 0
     error_samples: list[str] = field(default_factory=list)
     """A few distinct failure descriptions, kept so a silent count is never the only clue.
@@ -97,6 +104,8 @@ class WorkerStats:
             "last_gap_at": self.last_gap_at,
             "consume_errors": self.consume_errors,
             "risk_written": self.risk_written,
+            "control_records_written": self.control_records_written,
+            "write_failures": self.write_failures,
             "fills_written": self.fills_written,
             "error_samples": list(self.error_samples),
         }
@@ -119,6 +128,9 @@ class PersistenceWorker:
     """Canonical fills, published from Plane 1 through a bounded non-blocking channel."""
 
     risk: BoundedChannel | None = None
+    control_audit: BoundedChannel | None = None
+    """Operator commands and their outcomes, on their way to the durable control-audit table."""
+
     """P9 records, published as they are produced rather than dumped after DONE.
 
     Continuous because P11 is the durability phase: a mid-market crash should leave a useful
@@ -127,6 +139,26 @@ class PersistenceWorker:
 
     analyzer: TelemetryAnalyzer | None = None
     metrics: MetricsAccumulator | None = None
+    on_record: Callable[[Any], None] | None = None
+    on_decision_record: Callable[[Any, Any], None] | None = None
+    """Optional richer observer: the record **and** the observation it was built from.
+
+    Added rather than replacing `on_record`, which accepted P11 callers still use. Both run on
+    this thread; the second exists so a consumer can derive P8 latency from the same immutable
+    observation instead of reading a mutable merger afterwards."""
+
+    on_risk_record: Callable[[Any], None] | None = None
+    """Each persisted RiskRecord, so a read model can join by sequence rather than by recency."""
+
+    on_control_record: Callable[[Any], None] | None = None
+    """Each *successfully persisted* control-audit row. A dashboard's command history should
+    describe durable evidence, not an in-memory list the ingress thread appended to."""
+
+    """An optional Plane-3 observer of each built record — the UI snapshot publisher uses it.
+
+    Called on this thread, after the row is written. It cannot reach Plane 1, and a failure in it
+    is counted like any other consume error rather than costing a decision."""
+
     """Folded here rather than by a second pass over stored rows, so a market that crashes has
     whatever was true when it stopped rather than nothing at all."""
 
@@ -306,7 +338,7 @@ class PersistenceWorker:
         if not self._draining.acquire(blocking=False):
             return 0
         try:
-            return self._drain_risk() + self._drain_fills()
+            return self._drain_risk() + self._drain_fills() + self._drain_control()
         finally:
             self._draining.release()
 
@@ -323,14 +355,54 @@ class PersistenceWorker:
             taken += 1
             try:
                 self._persistence_sequence += 1
-                self.store.write_risk(
+                stored = self.store.write_risk(
                     risk_row(
                         record,
                         market_id=self.identity.market_id,
                         persistence_sequence=self._persistence_sequence,
                     )
                 )
+                if not stored:
+                    # The write path refused the row and counted a sink error. Calling it
+                    # written here would put a record in the manifest that is not in the file,
+                    # and telling the read model it persisted would show an operator a row the
+                    # store does not have.
+                    self.stats.write_failures += 1
+                    continue
                 self.stats.risk_written += 1
+                if self.on_risk_record is not None:
+                    self.on_risk_record(record)
+            except Exception as error:
+                self._record_consume_error(error)
+        channel.drained += taken
+        return taken
+
+    def _drain_control(self) -> int:
+        """Persist operator-control audit records. Same worker, same storage order."""
+        channel = self.control_audit
+        if channel is None:
+            return 0
+        taken = 0
+        while taken < self.drain_limit:
+            try:
+                command, outcome = channel.records.popleft()
+            except IndexError:
+                break
+            taken += 1
+            try:
+                self._persistence_sequence += 1
+                row = control_audit_row(
+                    command,
+                    outcome,
+                    market_id=self.identity.market_id,
+                    persistence_sequence=self._persistence_sequence,
+                )
+                if not self.store.write_control_audit(row):
+                    self.stats.write_failures += 1
+                    continue
+                self.stats.control_records_written += 1
+                if self.on_control_record is not None:
+                    self.on_control_record(row)
             except Exception as error:
                 self._record_consume_error(error)
         channel.drained += taken
@@ -352,7 +424,9 @@ class PersistenceWorker:
                 record = build_fill_record(
                     capture, self.identity, persistence_sequence=self._persistence_sequence
                 )
-                self.store.write_fill(record)
+                if not self.store.write_fill(record):
+                    self.stats.write_failures += 1
+                    continue
                 if self.metrics is not None:
                     self.metrics.observe_fill(record)
                 self.stats.fills_written += 1
@@ -393,9 +467,15 @@ class PersistenceWorker:
         if self.first_ingress_ordinal is None:
             self.first_ingress_ordinal = record.ingress_ordinal
         self.last_ingress_ordinal = record.ingress_ordinal
-        self.store.write_decision(record)
+        if not self.store.write_decision(record):
+            self.stats.write_failures += 1
+            return
         if self.metrics is not None:
             self.metrics.observe_decision(record)
+        if self.on_record is not None:
+            self.on_record(record)
+        if self.on_decision_record is not None:
+            self.on_decision_record(record, observation)
         self.stats.decisions_written += 1
 
     def _estimate(self, side: str) -> Any:

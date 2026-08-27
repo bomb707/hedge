@@ -788,6 +788,43 @@ Three P11 facts belong in the record:
 
 ---
 
+## P12 opened no item and closed none
+
+The UI displays strategy parameters and their I18 labels. It cannot edit one, and there is no
+command in the vocabulary that could: `OPERATOR_HALT` and `RELEASE_OPERATOR_HALT` are the whole
+of it. P15 owns strategy research and change.
+
+Two P12 facts belong in the record:
+
+* **Loopback binding is an OPERATIONAL choice, not solved access control.** No authentication
+  system exists in this build, so the only defensible posture is that the control surface is not
+  reachable from the network. P12 is not a production service and no IAM was invented here.
+* **`OPERATOR_HALT` is deliberately not a latched reason.** It is the one condition whose evidence
+  is a person deciding, so a person deciding again clears it — and it clears only itself. A stale
+  feed, an unreconciled position or an ambiguous settlement all still forbid placement after a
+  release, which is why the command is named for what it does rather than "resume".
+
+P12C adds a third, found by rebuilding a closed market's snapshot from its store:
+
+* **P11's risk rows do not persist P6's `HealthFrame`.** A snapshot rebuilt from durable rows
+  therefore reads `UNKNOWN` for the feed statuses, which is the read model behaving correctly —
+  it will not infer health from the presence of data, since a spot price can be present and the
+  feed STALE. Live snapshots carry the real statuses because the frame is still in memory. This
+  is recorded rather than fixed: changing what a `RiskRow` contains is a P11 schema decision with
+  a version consequence, and no P12 read model may compensate for it by guessing. Whether the
+  durable risk row should carry the health it was evaluated against is left OPEN for the phase
+  that owns the schema.
+
+P12D adds a fourth, from the metric contract:
+
+* **A UI metric may not rename a measurement.** `decide_ns` published receive-to-decide for two
+  rounds and nobody could see it, because both numbers are real, both are P8's, and only the name
+  was wrong — a mislabel is invisible in a way a missing value is not. Every latency the read
+  model publishes now names the P8 definition it carries, and a replay compares all four against
+  `TelemetryAnalyzer` on real cycles rather than asserting they match.
+
+---
+
 ## Summary table
 
 | ID | Item | Status | Blocking |

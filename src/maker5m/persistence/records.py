@@ -26,7 +26,9 @@ from maker5m.persistence.schema import (
     SideRecord,
 )
 from maker5m.telemetry.observation import (
+    NOT_CAPTURED,
     OBS_BOOK,
+    OBS_DECIDE_DONE_NS,
     OBS_DOWN_DEPTH,
     OBS_ELIGIBILITY,
     OBS_EVENT_ID,
@@ -36,7 +38,9 @@ from maker5m.telemetry.observation import (
     OBS_HEALTHY,
     OBS_INGRESS_ORDINAL,
     OBS_PLAN,
+    OBS_PREPARE_DONE_NS,
     OBS_RAW_RECEIVE_NS,
+    OBS_RECONCILE_DONE_NS,
     OBS_RISK,
     OBS_SEQ,
     OBS_SOURCE_TS,
@@ -54,6 +58,7 @@ __all__ = [
     "build_decision_record",
     "build_fill_record",
     "is_fill_observation",
+    "latency_sample",
 ]
 
 
@@ -103,6 +108,35 @@ def _age(now: object, then: object) -> int | None:
 
 def _enum_value(value: object) -> str | None:
     return None if value is None else str(getattr(value, "value", value))
+
+
+def latency_sample(observation: Observation) -> dict[str, int] | None:
+    """P8's own stage timings for this cycle, taken from the captured observation.
+
+    The facts are already in the observation — P8 put them there — so nothing is re-timed and
+    nothing later reads a mutable merger. An unsampled cycle has `NOT_CAPTURED` stage stamps and
+    yields ``None`` rather than zeros: a latency of zero is a measurement, and there was not one.
+    """
+    receive = observation[OBS_RAW_RECEIVE_NS]
+    decide_done = observation[OBS_DECIDE_DONE_NS]
+    prepare_done = observation[OBS_PREPARE_DONE_NS]
+    reconcile_done = observation[OBS_RECONCILE_DONE_NS]
+    if not all(isinstance(v, int) for v in (receive, decide_done, prepare_done, reconcile_done)):
+        return None
+    if decide_done == NOT_CAPTURED or prepare_done == NOT_CAPTURED:
+        return None
+    assert isinstance(receive, int)
+    assert isinstance(decide_done, int)
+    assert isinstance(prepare_done, int)
+    assert isinstance(reconcile_done, int)
+    if reconcile_done == NOT_CAPTURED:
+        return None
+    return {
+        "decide_ns": decide_done - receive,
+        "prepare_ns": prepare_done - decide_done,
+        "reconcile_ns": reconcile_done - prepare_done,
+        "receive_to_reconcile_ns": reconcile_done - receive,
+    }
 
 
 def _event_id(observation: Observation) -> str:

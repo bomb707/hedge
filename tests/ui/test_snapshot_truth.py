@@ -90,7 +90,7 @@ def test_health_comes_from_the_frame_not_from_the_presence_of_data() -> None:
         ),
     )
     unit = publisher()
-    built = record()
+    built = record(risk=(77, "HALTED", False, True))
     assert built.spot_age_ns is not None, "there *is* a spot timestamp"
 
     unit.observe(built, verdict)
@@ -112,7 +112,7 @@ def test_awaiting_snapshot_is_read_not_derived_from_health() -> None:
         ),
     )
     unit = publisher()
-    unit.observe(record(), verdict)
+    unit.observe(record(risk=(77, "HALTED", False, True)), verdict)
     snapshot = unit.build(now=1.0)
     assert snapshot.clob_status == "HEALTHY"
     assert snapshot.clob_awaiting_snapshot is True, "healthy and awaiting a snapshot at once"
@@ -167,7 +167,7 @@ def test_the_snapshot_says_which_ordinal_each_part_describes() -> None:
         ordinal=4242,
     )
     unit = publisher()
-    unit.observe(record(), verdict)
+    unit.observe(record(risk=(77, "SAFE", True, True)), verdict)
     unit.observe_latency(4100, {"decide_ns": 1})
     points = unit.build(now=1.0).observation_points
     assert points["decision"] == 4242

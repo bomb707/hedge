@@ -17,6 +17,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Final
 
+from maker5m.persistence.records import latency_sample
 from maker5m.persistence.schema import DecisionRecord
 from maker5m.ui.model import (
     SNAPSHOT_SCHEMA_VERSION,
@@ -26,6 +27,13 @@ from maker5m.ui.model import (
 )
 
 __all__ = ["DEFAULT_PUBLISH_INTERVAL_S", "SnapshotPublisher", "parameter_views"]
+
+VERDICT_HISTORY: Final[int] = 512
+"""How many recent RiskRecords to keep for the join.
+
+Bounded because this is a read model, not an archive; P11 holds the durable stream. A few hundred
+covers any lag between the risk drain and the decision drain by a wide margin — the measured
+worst case is a handful."""
 
 DEFAULT_PUBLISH_INTERVAL_S: Final[float] = 0.25
 """Four frames a second. Fast enough to watch, slow enough that publication is never the work."""
@@ -132,7 +140,15 @@ class SnapshotPublisher:
     row in a table on a dashboard; blocking to keep it would cost more than it is worth."""
 
     latest: DecisionRecord | None = field(default=None, repr=False)
-    latest_verdict: Any = field(default=None, repr=False)
+    verdicts: dict[int, Any] = field(default_factory=dict, repr=False)
+    """Recent persisted RiskRecords, keyed by `risk_sequence`. Bounded.
+
+    A decision names the verdict that governed it, and this is how that verdict is found. The
+    previous version read `controller.trace.records[-1]` from the persistence thread — a
+    cross-thread read of the trading side's mutable controller, which also answered the wrong
+    question: the newest record is frequently several sequences ahead of the decision being
+    persisted, so the dashboard showed one moment's decision beside another moment's verdict."""
+
     latest_latency: dict[str, int] | None = field(default=None, repr=False)
     latency_ordinal: int | None = None
     counters: dict[str, int] = field(default_factory=dict)
@@ -141,6 +157,10 @@ class SnapshotPublisher:
     telemetry_complete: bool | None = None
     accepted_commands: list[dict[str, Any]] = field(default_factory=list)
     audit_failures: int = 0
+    audit_accepted: int = 0
+    audit_persisted: int = 0
+    audit_dropped: int = 0
+    closed: bool = False
     t0_ns: int = 0
     duration_ns: int = 300_000_000_000
 
@@ -148,10 +168,35 @@ class SnapshotPublisher:
     published: int = 0
 
     def observe(self, record: DecisionRecord, verdict: Any = None) -> None:
-        """Take the newest decision and the verdict that governed it. Worker thread only."""
+        """Take the newest decision. Worker thread only.
+
+        ``verdict`` is accepted for supporting tests that hand one directly; production supplies
+        risk records through :meth:`observe_risk` and the join happens by sequence.
+        """
         self.latest = record
-        if verdict is not None:
-            self.latest_verdict = verdict
+        if verdict is not None and getattr(verdict, "risk_sequence", None) is not None:
+            self.observe_risk(verdict)
+
+    def observe_risk(self, verdict: Any) -> None:
+        """Take one persisted RiskRecord, keyed by its sequence. Worker thread only."""
+        sequence = getattr(verdict, "risk_sequence", None)
+        if sequence is None:
+            return
+        self.verdicts[int(sequence)] = verdict
+        if len(self.verdicts) > VERDICT_HISTORY:
+            for stale in sorted(self.verdicts)[: len(self.verdicts) - VERDICT_HISTORY]:
+                del self.verdicts[stale]
+
+    def observe_decision(self, record: DecisionRecord, observation: Any) -> None:
+        """The production path: one decision and the observation it was built from.
+
+        Latency comes out of that observation, so the figures always belong to this cycle and
+        nothing reads a merger afterwards.
+        """
+        sample = latency_sample(observation)
+        if sample is not None:
+            self.observe_latency(record.ingress_ordinal, sample)
+        self.observe(record)
 
     def observe_latency(self, ordinal: int, sample: dict[str, int]) -> None:
         """Take one P8 latency sample. Measured by P8; nothing here re-times anything."""
@@ -185,10 +230,41 @@ class SnapshotPublisher:
             elif kind == "verification":
                 self.verification_status = str(payload.get("status"))
                 self.telemetry_complete = payload.get("complete")
+            elif kind == "closed":
+                # The closed market's own truth. A live counter is a running estimate; the
+                # manifest is what was actually written, and it is the one that wins. The first
+                # P12B final snapshot disagreed with its own manifest by one decision, one risk
+                # record and one drop, because the read model kept the last figures it happened
+                # to have rather than the ones the close established.
+                self.counters.update(
+                    {
+                        "decisions": int(payload["decision_count"]),
+                        "risk": int(payload["risk_count"]),
+                        "dropped": int(payload["dropped_records"]),
+                        "sink_errors": int(payload["sink_errors"]),
+                    }
+                )
+                self.telemetry_complete = bool(payload["telemetry_complete"])
+                self.verification_status = str(payload["verification_status"])
+                self.closed = True
             elif kind == "counters":
                 self.counters.update(payload)
             elif kind == "audit_failure":
                 self.audit_failures += 1
+            elif kind == "audit_counts":
+                self.audit_accepted = int(payload.get("accepted", 0))
+                self.audit_persisted = int(payload.get("persisted", 0))
+                self.audit_dropped = int(payload.get("dropped", 0))
+            elif kind == "control_persisted":
+                # Durable evidence, not an in-memory note from the ingress thread. A command
+                # appears in the operator's history once it has actually been written down.
+                self.accepted_commands.append(dict(payload))
+                del self.accepted_commands[:-10]
+
+    def _audit_complete(self) -> bool:
+        return _audit_complete_from(
+            self.audit_failures, self.audit_accepted, self.audit_persisted, self.audit_dropped
+        )
 
     def maybe_publish(self, now: float) -> bool:
         """Publish if the interval has elapsed. Plane 3 only — this must not be called from
@@ -219,7 +295,11 @@ class SnapshotPublisher:
         self._drain_inbox()
         record = self.latest
         assert record is not None
-        verdict = self.latest_verdict
+        # The verdict this decision *names*, not the newest one. If it has not been drained yet
+        # the risk fields read unavailable rather than borrowing a neighbouring moment's answer.
+        verdict = (
+            None if record.risk_sequence is None else self.verdicts.get(int(record.risk_sequence))
+        )
         elapsed = None
         remaining = None
         if self.t0_ns:
@@ -305,7 +385,7 @@ class SnapshotPublisher:
             telemetry_complete=self.telemetry_complete,
             verification_status=self.verification_status,
             control_channel_available=_bridge_available(self.bridge),
-            control_audit_complete=self.audit_failures == 0,
+            control_audit_complete=self._audit_complete(),
             live_trading_enabled=_live_trading_enabled(),
             redemption_enabled=_redemption_enabled(),
             parameters=parameter_views(self.config),
@@ -313,11 +393,25 @@ class SnapshotPublisher:
         )
 
 
+def _audit_complete_from(failures: int, accepted: int, persisted: int, dropped: int) -> bool:
+    """Whether every accepted command actually reached durable storage.
+
+    Not `audit_errors == 0`. `BoundedChannel.publish` does not raise when it drops, so a clean
+    error count proves only that nothing threw — it says nothing about whether the record was
+    written. Acceptance is compared against persistence, which is the question.
+    """
+    return failures == 0 and dropped == 0 and accepted == persisted
+
+
 def _bridge_available(bridge: Any) -> bool | None:
     if bridge is None:
         return None
     stats = getattr(bridge, "stats", None)
-    return None if stats is None else bool(stats.alive)
+    if stats is None:
+        return None
+    # The bridge's own verdict, which accounts for recorded filesystem failures. A thread that is
+    # still running but cannot read the inbox is not a healthy control channel.
+    return bool(stats.summary()["available"])
 
 
 def _health_of(verdict: Any) -> tuple[str, bool, str, str]:

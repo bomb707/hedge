@@ -133,6 +133,20 @@ class PersistenceWorker:
     analyzer: TelemetryAnalyzer | None = None
     metrics: MetricsAccumulator | None = None
     on_record: Callable[[Any], None] | None = None
+    on_decision_record: Callable[[Any, Any], None] | None = None
+    """Optional richer observer: the record **and** the observation it was built from.
+
+    Added rather than replacing `on_record`, which accepted P11 callers still use. Both run on
+    this thread; the second exists so a consumer can derive P8 latency from the same immutable
+    observation instead of reading a mutable merger afterwards."""
+
+    on_risk_record: Callable[[Any], None] | None = None
+    """Each persisted RiskRecord, so a read model can join by sequence rather than by recency."""
+
+    on_control_record: Callable[[Any], None] | None = None
+    """Each *successfully persisted* control-audit row. A dashboard's command history should
+    describe durable evidence, not an in-memory list the ingress thread appended to."""
+
     """An optional Plane-3 observer of each built record — the UI snapshot publisher uses it.
 
     Called on this thread, after the row is written. It cannot reach Plane 1, and a failure in it
@@ -342,6 +356,8 @@ class PersistenceWorker:
                     )
                 )
                 self.stats.risk_written += 1
+                if self.on_risk_record is not None:
+                    self.on_risk_record(record)
             except Exception as error:
                 self._record_consume_error(error)
         channel.drained += taken
@@ -361,15 +377,16 @@ class PersistenceWorker:
             taken += 1
             try:
                 self._persistence_sequence += 1
-                self.store.write_control_audit(
-                    control_audit_row(
-                        command,
-                        outcome,
-                        market_id=self.identity.market_id,
-                        persistence_sequence=self._persistence_sequence,
-                    )
+                row = control_audit_row(
+                    command,
+                    outcome,
+                    market_id=self.identity.market_id,
+                    persistence_sequence=self._persistence_sequence,
                 )
+                self.store.write_control_audit(row)
                 self.stats.control_records_written += 1
+                if self.on_control_record is not None:
+                    self.on_control_record(row)
             except Exception as error:
                 self._record_consume_error(error)
         channel.drained += taken
@@ -437,6 +454,8 @@ class PersistenceWorker:
             self.metrics.observe_decision(record)
         if self.on_record is not None:
             self.on_record(record)
+        if self.on_decision_record is not None:
+            self.on_decision_record(record, observation)
         self.stats.decisions_written += 1
 
     def _estimate(self, side: str) -> Any:

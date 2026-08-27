@@ -1497,3 +1497,80 @@ def test_a_genuinely_missing_envelope_entry_is_still_caught(tmp_path: Path) -> N
     result = verify_store(path)
     assert result.checks["persistence_log_covers_every_row"] is False
     assert any("control 2" in f for f in result.failures)
+
+
+# -- the command kind must agree with what was sent to the risk engine --------------------------
+#
+# Comparing the audit row against the risk row only proves the two agree with each other. Both
+# could have been written with the wrong flag and the cross-link would pass — so the *kind*, which
+# is what an operator chose, has to imply the flag.
+
+
+def _kind_market(
+    tmp_path: Path, kind: str, audit_flag: object, risk_flag: bool, **audit: Any
+) -> Path:
+    spec = {
+        "command_id": "cmd-1",
+        "kind": kind,
+        "risk_sequence": 0,
+        "ingress_ordinal": 10,
+        "flag": audit_flag,
+        "state": "HALTED",
+        "place": False,
+    }
+    spec.update(audit)
+    return _control_market(
+        tmp_path,
+        commands=[spec],
+        control_risk=[
+            {
+                "risk_sequence": 0,
+                "ordinal": 10,
+                "flag": risk_flag,
+                "state": "HALTED",
+                "place": False,
+            }
+        ],
+    )
+
+
+def test_a_halt_recorded_with_a_false_flag_is_refused(tmp_path: Path) -> None:
+    """Both records agree. Both are wrong: OPERATOR_HALT must have sent True."""
+    path = _kind_market(tmp_path, "OPERATOR_HALT", False, False)
+    result = verify_store(path)
+    assert result.checks["control_audit_cross_links"] is False
+    assert any("requires signal_flag True" in f for f in result.failures)
+
+
+def test_a_release_recorded_with_a_true_flag_is_refused(tmp_path: Path) -> None:
+    path = _kind_market(tmp_path, "RELEASE_OPERATOR_HALT", True, True, state="SAFE", place=False)
+    result = verify_store(path)
+    assert result.checks["control_audit_cross_links"] is False
+    assert any("requires signal_flag False" in f for f in result.failures)
+
+
+def test_an_unknown_command_kind_is_refused(tmp_path: Path) -> None:
+    path = _kind_market(tmp_path, "ENABLE_LIVE_TRADING", True, True)
+    result = verify_store(path)
+    assert result.checks["control_audit_cross_links"] is False
+    assert any("unknown kind" in f for f in result.failures)
+
+
+@pytest.mark.parametrize("field_name", ["flag", "place"])
+def test_a_null_audit_boolean_is_not_false(tmp_path: Path, field_name: str) -> None:
+    """The P11 lesson, in the control table: None and False are different audit facts."""
+    path = _kind_market(tmp_path, "OPERATOR_HALT", True, True, **{field_name: None})
+    result = verify_store(path)
+    assert result.checks["control_audit_cross_links"] is False
+    assert any("not a bool" in f for f in result.failures)
+
+
+def test_a_null_risk_sequence_on_an_accepted_command_is_refused(tmp_path: Path) -> None:
+    path = _kind_market(tmp_path, "OPERATOR_HALT", True, True, risk_sequence=None)
+    result = verify_store(path)
+    assert result.checks["control_audit_cross_links"] is False
+    assert any("not an int" in f for f in result.failures)
+
+
+def test_a_valid_halt_and_release_pair_still_passes(tmp_path: Path) -> None:
+    assert verify_store(_control_market(tmp_path)).checks["control_audit_cross_links"] is True

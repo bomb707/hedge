@@ -17,7 +17,7 @@ import sqlite3
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
 from maker5m.persistence.schema import (
     DECISION_SCHEMA_VERSION,
@@ -91,6 +91,17 @@ def read_manifest(connection: sqlite3.Connection, market_id: str) -> Manifest | 
     }
     fields["notes"] = tuple(fields.get("notes") or ())
     return Manifest(**fields)
+
+
+REQUIRED_CONTROL_FLAG: Final[dict[str, bool]] = {
+    "OPERATOR_HALT": True,
+    "RELEASE_OPERATOR_HALT": False,
+}
+"""What each command kind must have sent to the risk engine.
+
+Without this the cross-link only proves the two records agree with *each other*, so a halt
+recorded as `flag=False` in both places would pass while having done the opposite of what it
+says. The kind is the thing an operator chose; the flag is what the engine was told."""
 
 
 def _has_control_audit(connection: sqlite3.Connection) -> bool:
@@ -530,21 +541,65 @@ def verify_store(
     claimed: set[int] = set()
     seen_ids: set[str] = set()
     for row in control_rows:
-        command_id = str(row.get("command_id"))
+        command_id = row.get("command_id")
+        if type(command_id) is not str or not command_id:
+            control_problems.append(f"a control audit row has command_id {command_id!r}")
+            continue
         if command_id in seen_ids:
             control_problems.append(f"command {command_id} audited more than once")
         seen_ids.add(command_id)
-        if not row.get("accepted"):
+
+        kind = row.get("kind")
+        required_flag = REQUIRED_CONTROL_FLAG.get(kind) if type(kind) is str else None
+        if required_flag is None:
+            # An unknown command kind is not a command this build can judge, and a cross-link
+            # that only compares the two records to each other would pass a pair that had both
+            # been changed to the wrong flag.
+            control_problems.append(f"command {command_id}: unknown kind {kind!r}")
             continue
+
+        accepted = row.get("accepted")
+        if type(accepted) is not bool:
+            control_problems.append(f"command {command_id}: accepted is {accepted!r}, not a bool")
+            continue
+        if not accepted:
+            continue
+
+        # Typed, not coerced. `bool(None)` and `bool(False)` are the same value and different
+        # audit facts — the class of defect P11 closed and this had reintroduced.
+        flag = row.get("signal_flag")
+        if type(flag) is not bool:
+            control_problems.append(f"command {command_id}: signal_flag is {flag!r}, not a bool")
+            continue
+        if flag is not required_flag:
+            control_problems.append(
+                f"command {command_id}: {kind} requires signal_flag {required_flag}, "
+                f"audit says {flag}"
+            )
+
+        allows_place = row.get("allows_place")
+        if type(allows_place) is not bool:
+            control_problems.append(
+                f"command {command_id}: allows_place is {allows_place!r}, not a bool"
+            )
+            continue
+
         sequence = row.get("risk_sequence")
-        verdict = control_risk_rows.get(int(sequence)) if sequence is not None else None
+        if type(sequence) is not int:
+            control_problems.append(
+                f"command {command_id}: risk_sequence is {sequence!r}, not an int"
+            )
+            continue
+
+        verdict = control_risk_rows.get(sequence)
         if verdict is None:
             control_problems.append(
                 f"command {command_id} names risk_sequence {sequence}, which is not a stored "
                 "OPERATOR_CONTROL record"
             )
             continue
-        claimed.add(int(sequence))
+        claimed.add(sequence)
+
         if verdict.get("as_of_ingress_ordinal") != row.get("ingress_ordinal"):
             control_problems.append(
                 f"command {command_id}: audit says ingress {row.get('ingress_ordinal')}, risk "
@@ -554,18 +609,23 @@ def verify_store(
             control_problems.append(
                 f"command {command_id}: risk row reason is {verdict.get('signal_reason')!r}"
             )
-        if bool(verdict.get("signal_flag")) != bool(row.get("signal_flag")):
+        if verdict.get("signal_flag") is not flag:
             control_problems.append(
-                f"command {command_id}: audit flag {row.get('signal_flag')!r} against risk row "
-                f"flag {verdict.get('signal_flag')!r}"
+                f"command {command_id}: audit flag {flag!r} against risk row flag "
+                f"{verdict.get('signal_flag')!r}"
             )
         if verdict.get("state") != row.get("risk_state"):
             control_problems.append(
                 f"command {command_id}: audit state {row.get('risk_state')!r}, risk row "
                 f"{verdict.get('state')!r}"
             )
-        if bool(verdict.get("allows_place")) != bool(row.get("allows_place")):
-            control_problems.append(f"command {command_id}: allows_place disagrees")
+        if verdict.get("allows_place") is not allows_place:
+            control_problems.append(
+                f"command {command_id}: allows_place {allows_place!r} against risk row "
+                f"{verdict.get('allows_place')!r}"
+            )
+        if row.get("market_id") != found_id:
+            control_problems.append(f"command {command_id}: payload names another market")
 
     for sequence in sorted(set(control_risk_rows) - claimed):
         control_problems.append(

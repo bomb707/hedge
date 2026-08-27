@@ -20,6 +20,7 @@ from maker5m.ui.channel import (
     SnapshotChannel,
 )
 from maker5m.ui.control import CommandOutcome, ControlIngress
+from maker5m.ui.hotpath import ControlEvent, drain_operator_commands
 from maker5m.ui.model import (
     COMMAND_SCHEMA_VERSION,
     SNAPSHOT_SCHEMA_VERSION,
@@ -48,6 +49,7 @@ __all__ = [
     "CommandInbox",
     "CommandKind",
     "CommandOutcome",
+    "ControlEvent",
     "ControlIngress",
     "HotCommandChannel",
     "OperatorCommand",
@@ -56,6 +58,7 @@ __all__ = [
     "SnapshotChannel",
     "SnapshotPublisher",
     "UiSnapshot",
+    "drain_operator_commands",
     "parameter_views",
     "render_dashboard",
     "render_history",

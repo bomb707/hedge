@@ -75,6 +75,50 @@ production.
 
 ---
 
+## P12E: commit boundary closure
+
+Full evidence in [`evidence/P12E-COMMIT-BOUNDARY.md`](evidence/P12E-COMMIT-BOUNDARY.md). No new
+live market: the runtime decision path is byte-identical to the reviewed P12D boundary.
+
+**An INSERT is not a record.** The store batches on purpose — `BEGIN`, up to five hundred
+inserts, `COMMIT` — so a statement the transaction accepted is not yet in the file. P12D closed
+the statement-level hole and left this one: rows were counted into the manifest and announced to
+the operator while the `COMMIT` that would make them durable had not happened and might not. A
+failing commit was counted as a batch and forgotten, with only a `sink_error` quietly disagreeing.
+
+Two states now, named apart. **Accepted into the open transaction** is
+`rows_accepted_into_transaction`. **Committed** is `decisions_written`, `risk_written`,
+`control_records_written` and `fills_written` — the counters the manifest reports. The worker
+stages a row when the transaction takes it and promotes it when the transaction commits, and
+`on_decision_record`, `on_risk_record` and `on_control_record` all now mean one thing: this row is
+in a transaction that committed. Batching remains, at 500.
+
+The batch check moved from the end of `_execute` to the start of each writer, so a row and its
+storage envelope always share a transaction and a commit never lands inside a row's own write.
+That was not theoretical: with the check at the end, the last row of a market fell into the batch
+its own write had just committed, and the 40,000-row concurrency test caught it at 39,999.
+
+**Commit failure fails closed.** Error counted, rollback attempted, staged rows dropped
+unannounced, fresh transaction opened, consumption continues. The storage sequences are not
+reissued, so the hole stands and the market cannot verify COMPLETE — a gap the verifier finds
+beats a row an operator was told about that is not in the file. `close()` reports whether the
+final commit succeeded, so a partial tail cannot vanish for never having filled a batch.
+
+Proved by failing the `COMMIT` rather than the `INSERT`: a wrapper around a real sqlite3
+connection that raises on commit and passes everything else through. Six tests, all failing
+against P12D. In the operator-command case `ControlIngress` still halts the bot — trading safety
+does not depend on telemetry — while nothing is counted, announced, or shown as durable, and audit
+completeness reads false.
+
+`btc-updown-5m-1787811600` re-read through the verified archive: COMPLETE, 124,272 decisions,
+124,274 risk records, 2 control rows, 0 drops/gaps/sink errors, PLACE SAFE 646 / HALTED 0 /
+RECOVERING 0, RESOLVED UP at block 92,737,974 with payouts [1,0] — identical to the P12D read.
+The P12D latency contract re-checked on 4,883 real cycles, unchanged. Plane-3 work now arrives in
+bursts of a batch, so the overhead benchmark was re-run: decide p50 **−4 ns**, full cycle
+**+1,843 ns (+3.50 %)** healthy, inside a 1.6 µs run-to-run spread. Every P8C limit met.
+
+---
+
 ## P12D: final contract closure
 
 Full evidence in
@@ -1383,6 +1427,7 @@ orders, which P8 does not place. Both stay OPEN.
 | P12 real-market gate | **PASSED** — UI killed mid-market, trading continued |
 | P12 Plane-3 isolation gate | **PASSED** (P12C) — no synchronous I/O of any kind on the ingress path, stdout included |
 | P12 snapshot coherence gate | **PASSED** (P12C) — every published figure joined to the observation it describes; final frame equals the manifest |
+| P12 transaction-durability gate | **PASSED** (P12E) — a persisted callback and a written counter mean the row is in a transaction that committed; a failed commit announces nothing and cannot verify COMPLETE |
 | P12 ordering/metric-contract gate | **PASSED** (P12D) — `decide_ns` is P8's decide_duration; "written" means durably written; audit columns equal their payload; delivery order is the transport's, not a wall clock's |
 | P12 control-audit gate | **PASSED** — command id durably cross-linked to its RiskRow |
 | P11 implementation gate | **PASSED** — versioned schemas, non-blocking worker, exact analytics, verifier |
@@ -1448,6 +1493,7 @@ orders, which P8 does not place. Both stay OPEN.
 | P12B branch | `fix/p12-plane3-isolation` |
 | P12C branch | `fix/p12-snapshot-coherence` |
 | P12D branch | `fix/p12-final-contract-closure` |
+| P12E branch | `fix/p12-commit-boundary` |
 | P12C final snapshot | retained unedited; its `decide_ns` label is corrected in `p12d-p12c-snapshot-latency-correction.json`, not in the file |
 | P12B final snapshot | **known-inaccurate read-model artifact**, retained unedited; see `p12c-p12b-revalidation-btc-updown-5m-1787807700.json` |
 | P11 store size | 5,230 B/decision raw → **95.7 B archived**; engineered in P11B, not deferred |

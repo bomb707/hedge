@@ -403,6 +403,7 @@ Evidence: [`evidence/P11-TELEMETRY-PERSISTENCE.md`](evidence/P11-TELEMETRY-PERSI
 | Plane-3 isolation | **PASSED** (P12C) — no synchronous I/O of any kind on the ingress path, stdout included, proved against the shipped runner |
 | Control audit | **PASSED** (P12C) — command id durably cross-linked to its RiskRow, both directions, with the kind implying the flag |
 | Snapshot coherence | **PASSED** (P12C) — every published figure joined to the observation it describes; the final frame equals the manifest six for six |
+| Transaction durability | **PASSED** (P12E) — a written counter and a persisted callback mean a committed transaction, not an accepted statement; a failed commit announces nothing and leaves the market non-COMPLETE |
 | Metric and ordering contracts | **PASSED** (P12D) — `decide_ns` is P8's `decide_duration`, verified against the analyzer on 4,883 real cycles; a persisted callback means a durable row; audit columns equal their payload; command order is the transport's, not the sender's clock |
 
 The acceptance gate below asks that the UI be killed mid-market with trading uninterrupted and no
@@ -414,7 +415,8 @@ through the existing risk overlay, `StrategyEngine` is untouched, and a release 
 operator's own condition. **PLACE while HALTED: 0; while RECOVERING: 0**, over 6,209 decisions
 taken under the halt.
 
-Evidence: [`evidence/P12D-FINAL-CONTRACT-CLOSURE.md`](evidence/P12D-FINAL-CONTRACT-CLOSURE.md)
+Evidence: [`evidence/P12E-COMMIT-BOUNDARY.md`](evidence/P12E-COMMIT-BOUNDARY.md),
+[`evidence/P12D-FINAL-CONTRACT-CLOSURE.md`](evidence/P12D-FINAL-CONTRACT-CLOSURE.md)
 and [`evidence/P12C-SNAPSHOT-COHERENCE.md`](evidence/P12C-SNAPSHOT-COHERENCE.md), which
 supersedes the architecture of [`evidence/P12B-PLANE3-ISOLATION.md`](evidence/P12B-PLANE3-ISOLATION.md)
 and [`evidence/P12-UI-CONTROL-PLANE.md`](evidence/P12-UI-CONTROL-PLANE.md). Both are retained, and

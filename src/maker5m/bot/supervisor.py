@@ -39,6 +39,7 @@ from typing import Any
 from maker5m.bot.cold import ColdRequest, cold_finalize
 from maker5m.bot.config import PaperConfig, config_identity
 from maker5m.bot.corpus import CorpusIndex
+from maker5m.bot.resources import GcObserver
 from maker5m.bot.session import MarketSession, PrearmRecord
 from maker5m.bot.settle import settle_market
 from maker5m.feeds.discovery import discover_market, slug_for, t0_of_slug
@@ -173,6 +174,7 @@ class Supervisor:
     skipped_slots: list[dict[str, Any]] = field(default_factory=list)
     cold_high_water: int = 0
     append_failures: int = 0
+    gc_observer: GcObserver = field(default_factory=GcObserver)
     log: Any = _flushed_print
     restarted: bool = False
 
@@ -210,6 +212,7 @@ class Supervisor:
     async def run(self) -> None:
         """Collect markets until the target is met or the process is stopped."""
         self.ui.start()
+        self.gc_observer.install()
         context = get_context("spawn")
         self.pool = ProcessPoolExecutor(max_workers=2, mp_context=context)
         already = self.corpus.completed_slugs()
@@ -223,6 +226,7 @@ class Supervisor:
         finally:
             await self._drain_cold()
             self.ui.stop()
+            self.gc_observer.remove()
             if self.pool is not None:
                 self.pool.shutdown(wait=True)
             self.pool = None
@@ -236,7 +240,11 @@ class Supervisor:
         looking at N+1 would skip N+1 entirely, every time. The first version of this loop did
         exactly that.
         """
-        launched: dict[str, MarketSession] = {}
+        # Slugs, not sessions. Holding the session objects here kept every market of the run
+        # alive: the corrected pilot ended with four live sessions after four markets, so
+        # "released" was false however thoroughly `release()` cleared their insides. The only
+        # thing this needs to know is which slugs have been launched.
+        launched: set[str] = set()
         t0 = self._first_t0()
         while self._keep_going(len(launched)):
             slug = slug_for(t0)
@@ -265,7 +273,7 @@ class Supervisor:
             session = MarketSession(market=market, config=self.config, prearm=prearm, ui=self.ui)
             session.source_revision = str(self.identity.get("source_revision", ""))
             self.attempted += 1
-            launched[slug] = session
+            launched.add(slug)
             self.log(
                 f"[{time.strftime('%H:%M:%S')}] {slug} launched "
                 f"(prearm lead {prearm.lead_seconds:.1f}s, attempt {self.attempted})"
@@ -620,6 +628,7 @@ class Supervisor:
                 "cold_backlog": len(self.cold),
                 "cold_backlog_high_water": self.cold_high_water,
                 "cold_backlog_cap": MAX_COLD_BACKLOG,
+                "gc": self.gc_observer.summary(),
             },
             "incidents": list(session.incidents),
             "operational_faults": operational_faults,

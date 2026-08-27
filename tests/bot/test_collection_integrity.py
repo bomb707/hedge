@@ -303,3 +303,40 @@ def test_a_released_session_stops_being_live(tmp_path: Path) -> None:
     gc.collect()
     assert sample_resources().live_sessions == before
     assert len(LIVE_SESSIONS) == before
+
+
+def test_the_launch_loop_does_not_hold_the_markets_it_launched(tmp_path: Path) -> None:
+    """§31. Four markets left four live sessions: `release()` cleared their insides while the
+    loop's own bookkeeping kept the objects themselves alive."""
+    import ast
+    import inspect
+
+    import maker5m.bot.supervisor as supervisor_module
+
+    source = inspect.getsource(supervisor_module.Supervisor._loop)
+    tree = ast.parse(source.lstrip())
+    annotations = [
+        ast.unparse(node.annotation)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.AnnAssign) and ast.unparse(node.target) == "launched"
+    ]
+    assert annotations == ["set[str]"], "the loop remembers slugs, not sessions"
+
+
+def test_the_collector_measures_what_the_garbage_collector_costs() -> None:
+    """A full collection is proportional to tracked objects and lands wherever it lands."""
+    import gc
+
+    from maker5m.bot.resources import GcObserver
+
+    observer = GcObserver()
+    observer.install()
+    try:
+        gc.collect(2)
+    finally:
+        observer.remove()
+
+    summary = observer.summary()
+    assert summary["collections"].get("2", 0) >= 1
+    assert summary["max_pause_ns"].get("2", 0) > 0
+    assert summary["tracked_objects"] > 0

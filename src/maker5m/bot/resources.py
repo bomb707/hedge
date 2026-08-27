@@ -12,14 +12,16 @@ than a zero that would read as "nothing held".
 
 from __future__ import annotations
 
+import gc
 import os
 import threading
 import weakref
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from time import perf_counter_ns
 from typing import Any
 
-__all__ = ["LIVE_SESSIONS", "ResourceSample", "sample_resources", "tiers"]
+__all__ = ["LIVE_SESSIONS", "GcObserver", "ResourceSample", "sample_resources", "tiers"]
 
 
 LIVE_SESSIONS: weakref.WeakSet[Any] = weakref.WeakSet()
@@ -66,6 +68,57 @@ def tiers(samples: list[int]) -> dict[str, int | None]:
         "p99": quantile(ordered, 0.99),
         "max": ordered[-1],
     }
+
+
+@dataclass(slots=True)
+class GcObserver:
+    """What the garbage collector did, and for how long. Measured, never assumed.
+
+    A full collection is proportional to the number of *tracked* objects, live or not, and this
+    process holds a market's recorded event stream — around 750,000 tracked objects per market,
+    which costs about 74 ms to traverse. That traversal happens inside whatever allocation
+    happens to trigger it, and on this process that can be the ingress owner's own cycle: the
+    corrected pilot measured single `observe` calls of 277 to 674 ms against a 25 microsecond
+    median while several markets' graphs were resident.
+
+    This records it rather than inferring it. No threshold is tuned here on a hunch; the numbers
+    go into the corpus and the decision is taken on them.
+    """
+
+    collections: dict[int, int] = field(default_factory=dict)
+    pause_ns: dict[int, int] = field(default_factory=dict)
+    max_pause_ns: dict[int, int] = field(default_factory=dict)
+    _started: int = 0
+    _installed: bool = False
+
+    def install(self) -> None:
+        if self._installed:
+            return
+        gc.callbacks.append(self._on_gc)
+        self._installed = True
+
+    def remove(self) -> None:
+        if self._installed and self._on_gc in gc.callbacks:
+            gc.callbacks.remove(self._on_gc)
+        self._installed = False
+
+    def _on_gc(self, phase: str, info: dict[str, int]) -> None:
+        if phase == "start":
+            self._started = perf_counter_ns()
+            return
+        generation = int(info.get("generation", -1))
+        elapsed = perf_counter_ns() - self._started
+        self.collections[generation] = self.collections.get(generation, 0) + 1
+        self.pause_ns[generation] = self.pause_ns.get(generation, 0) + elapsed
+        self.max_pause_ns[generation] = max(self.max_pause_ns.get(generation, 0), elapsed)
+
+    def summary(self) -> dict[str, Any]:
+        return {
+            "collections": {str(k): v for k, v in sorted(self.collections.items())},
+            "total_pause_ns": {str(k): v for k, v in sorted(self.pause_ns.items())},
+            "max_pause_ns": {str(k): v for k, v in sorted(self.max_pause_ns.items())},
+            "tracked_objects": len(gc.get_objects()),
+        }
 
 
 def _rss_bytes() -> int | None:

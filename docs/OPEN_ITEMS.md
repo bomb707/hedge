@@ -804,6 +804,17 @@ Two P12 facts belong in the record:
   feed, an unreconciled position or an ambiguous settlement all still forbid placement after a
   release, which is why the command is named for what it does rather than "resume".
 
+P12C adds a third, found by rebuilding a closed market's snapshot from its store:
+
+* **P11's risk rows do not persist P6's `HealthFrame`.** A snapshot rebuilt from durable rows
+  therefore reads `UNKNOWN` for the feed statuses, which is the read model behaving correctly —
+  it will not infer health from the presence of data, since a spot price can be present and the
+  feed STALE. Live snapshots carry the real statuses because the frame is still in memory. This
+  is recorded rather than fixed: changing what a `RiskRow` contains is a P11 schema decision with
+  a version consequence, and no P12 read model may compensate for it by guessing. Whether the
+  durable risk row should carry the health it was evaluated against is left OPEN for the phase
+  that owns the schema.
+
 ---
 
 ## Summary table

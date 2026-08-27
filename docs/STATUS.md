@@ -75,10 +75,77 @@ production.
 
 ---
 
-## P12B: Plane-3 isolation closure
+## P12C: snapshot coherence closure
+
+Full evidence in [`evidence/P12C-SNAPSHOT-COHERENCE.md`](evidence/P12C-SNAPSHOT-COHERENCE.md).
+P12B's market is **retained and valid**; P12B's *architecture* and *final snapshot* are
+superseded.
+
+**Stdout is I/O.** P12B took the filesystem out of `on_tick` and left five `print(..., flush=True)`
+calls on it. The rule is no synchronous I/O on the single ingress consumer — a write to a pipe
+nobody is draining blocks as thoroughly as a stalled `stat`. The hot side now appends an
+immutable fact to a bounded channel and the run log is rendered on the main thread after close.
+Not a different logger: `logging` would be the same synchronous write behind a lock.
+
+The P12B test that claimed to prove this reproduced the tick body *in the test file* while the
+shipped one printed. Now one extracted production function is tested with `print`, `logging` and
+thirteen filesystem entry points replaced by raisers, and a second test walks the AST of the
+shipped `tools/p12_market.py`. It fails against the P12B file.
+
+**The snapshot is joined to its own decision.** `controller.trace.records[-1]` was the newest
+verdict, not the one the decision names, and `_latency_sample(run)` read the merger while Plane 1
+was mutating it. The worker now hands over `(record, observation)`, latency comes from that
+observation's P8 stamps, and the verdict is looked up by `risk_sequence` — an unarrived verdict
+reads unavailable rather than borrowing a neighbour's.
+
+**The final snapshot comes from the manifest.** P12B's last frame said 82,335 decisions / 82,337
+risk / 1 drop / INCOMPLETE beside a manifest saying 82,336 / 82,338 / 0 / COMPLETE. A `closed`
+message now carries the manifest's own figures and a straggling counter cannot walk them back.
+Audit completeness compares acceptance against persistence instead of counting exceptions that
+`BoundedChannel.publish` never raises, and command history comes from persisted audit rows.
+
+**`None` and `False` are different audit facts.** The control cross-link compared truthiness and
+proved only that two rows agreed — a halt written `flag=False` in both would have passed. Typed
+comparisons now, and the command kind must imply the flag.
+
+### Real market — `btc-updown-5m-1787811600`
+
+124,272 decisions · 124,274 risk records · 2 control-audit rows · 248,549 storage entries exact
+from 1 · 0 drops, gaps, sink errors · verification **COMPLETE** · archive 650.0 MB → 11.9 MB
+(54.5×), restored and verified.
+
+```text
+halt     a52f1f38fada4dd0  ordinal 1358  risk_seq 1300  HALTED   place=False cancel=True
+release  a3e7df18eaaf4cd1  ordinal 8241  risk_seq 8016  RECOVERING -> SAFE
+kill     SIGKILL at ordinal 8430 -> +24,384 events, +23,820 decisions in 47s, risk SAFE
+restart  same market, both commands shown from the durable audit rows
+final    RESOLVED UP, block 92,737,974, payout [1,0], REDEMPTION DISABLED
+snapshot 124,272 / 124,274 / 0 / 0 / complete / COMPLETE — six for six against the manifest
+```
+
+**PLACE while HALTED: 0. PLACE while RECOVERING: 0** — with 7,077 decisions under the halt.
+Latency published: decide 268,302 ns · prepare 3,676 ns · reconcile 14,551 ns · receive-to-
+reconcile 286,529 ns, sampled at ordinal 127,451.
+
+Overhead against the accepted P11 stack: decide p50 **−11 ns (−0.05 %)**, full cycle **+1,477 ns
+(+2.81 %)**; stalled bridge **−177 ns** and **+839 ns**. Within-mode spread is about 1.5 µs, so
+these sit inside each other's noise. Every P8C limit met; no limit moved.
+
+**A market this round cost.** The first P12C attempt, `btc-updown-5m-1787810700`, traded for the
+full five minutes and then died formatting its own run log, after `worker.stop` and before the
+manifest — a complete capture left with a database and no closure. Not presented as acceptance
+evidence; its UI acceptance log is retained as superseded. The renderer is now tested and its
+call site guarded.
+
+---
+
+## P12B: Plane-3 isolation closure (SUPERSEDED for architecture)
 
 Full evidence in [`evidence/P12B-PLANE3-ISOLATION.md`](evidence/P12B-PLANE3-ISOLATION.md). The
-first P12 market is **retained and superseded for architectural acceptance**.
+first P12 market is **retained and superseded for architectural acceptance**. P12B itself is now
+superseded by [P12C](evidence/P12C-SNAPSHOT-COHERENCE.md) for architecture and for its final
+snapshot; **its store and its market remain valid** — `btc-updown-5m-1787807700` verifies
+COMPLETE, and the P12C revalidation rebuilds its final frame from those same bytes.
 
 **"Does not wait for the UI process" is not "cannot block the trading loop."** P12's first
 version polled the command inbox and wrote the snapshot from inside `on_tick` — the single
@@ -1271,7 +1338,8 @@ orders, which P8 does not place. Both stay OPEN.
 | **Current phase** | **P12 — operator UI and control plane** |
 | P12 implementation gate | **PASSED** — Plane-3 UI, immutable snapshot, ordered control, no trading reference |
 | P12 real-market gate | **PASSED** — UI killed mid-market, trading continued |
-| P12 Plane-3 isolation gate | **PASSED** — zero filesystem work on the ingress path |
+| P12 Plane-3 isolation gate | **PASSED** (P12C) — no synchronous I/O of any kind on the ingress path, stdout included |
+| P12 snapshot coherence gate | **PASSED** (P12C) — every published figure joined to the observation it describes; final frame equals the manifest |
 | P12 control-audit gate | **PASSED** — command id durably cross-linked to its RiskRow |
 | P11 implementation gate | **PASSED** — versioned schemas, non-blocking worker, exact analytics, verifier |
 | P11 real-market gate | **PASSED** — P11B healthy market + controlled stalled sink |
@@ -1334,6 +1402,8 @@ orders, which P8 does not place. Both stay OPEN.
 | P11F branch | `fix/p11-supported-schema-domain` |
 | P12 branch | `feature/p12-ui-control-plane` |
 | P12B branch | `fix/p12-plane3-isolation` |
+| P12C branch | `fix/p12-snapshot-coherence` |
+| P12B final snapshot | **known-inaccurate read-model artifact**, retained unedited; see `p12c-p12b-revalidation-btc-updown-5m-1787807700.json` |
 | P11 store size | 5,230 B/decision raw → **95.7 B archived**; engineered in P11B, not deferred |
 | Remote | `origin` → `https://github.com/bomb707/hedge.git` |
 

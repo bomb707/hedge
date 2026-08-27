@@ -399,9 +399,10 @@ Evidence: [`evidence/P11-TELEMETRY-PERSISTENCE.md`](evidence/P11-TELEMETRY-PERSI
 | Gate | Status |
 |---|---|
 | Implementation | **PASSED** — Plane-3 UI, immutable snapshot, ordered control channel |
-| Real-market | **PASSED** (P12B) — UI SIGKILLed mid-market; +13,728 events and +13,440 decisions in the next 47 s |
-| Plane-3 isolation | **PASSED** (P12B) — zero filesystem work on the ingress path, proved by removing the filesystem |
-| Control audit | **PASSED** (P12B) — command id durably cross-linked to its RiskRow, both directions |
+| Real-market | **PASSED** (P12C) — UI SIGKILLed mid-market; +24,384 events and +23,820 decisions in the next 47 s |
+| Plane-3 isolation | **PASSED** (P12C) — no synchronous I/O of any kind on the ingress path, stdout included, proved against the shipped runner |
+| Control audit | **PASSED** (P12C) — command id durably cross-linked to its RiskRow, both directions, with the kind implying the flag |
+| Snapshot coherence | **PASSED** (P12C) — every published figure joined to the observation it describes; the final frame equals the manifest six for six |
 
 The acceptance gate below asks that the UI be killed mid-market with trading uninterrupted and no
 journal gap. Both held on `btc-updown-5m-1787803500`, whose telemetry verifies COMPLETE with zero
@@ -412,7 +413,10 @@ through the existing risk overlay, `StrategyEngine` is untouched, and a release 
 operator's own condition. **PLACE while HALTED: 0; while RECOVERING: 0**, over 6,209 decisions
 taken under the halt.
 
-Evidence: [`evidence/P12-UI-CONTROL-PLANE.md`](evidence/P12-UI-CONTROL-PLANE.md).
+Evidence: [`evidence/P12C-SNAPSHOT-COHERENCE.md`](evidence/P12C-SNAPSHOT-COHERENCE.md), which
+supersedes the architecture of [`evidence/P12B-PLANE3-ISOLATION.md`](evidence/P12B-PLANE3-ISOLATION.md)
+and [`evidence/P12-UI-CONTROL-PLANE.md`](evidence/P12-UI-CONTROL-PLANE.md). Both are retained, and
+both earlier markets' stores remain valid.
 **No strategy open item was opened or closed, and the UI cannot edit a strategy value.**
 
 - **Goal:** operator visibility and a narrow control channel.

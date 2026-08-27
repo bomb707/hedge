@@ -39,7 +39,7 @@ from typing import Any
 from maker5m.bot.cold import ColdRequest, cold_finalize
 from maker5m.bot.config import PaperConfig, config_identity
 from maker5m.bot.corpus import CorpusIndex
-from maker5m.bot.resources import GcObserver
+from maker5m.bot.resources import GcObserver, pace_full_collections
 from maker5m.bot.session import MarketSession, PrearmRecord
 from maker5m.bot.settle import settle_market
 from maker5m.feeds.discovery import discover_market, slug_for, t0_of_slug
@@ -213,6 +213,7 @@ class Supervisor:
         """Collect markets until the target is met or the process is stopped."""
         self.ui.start()
         self.gc_observer.install()
+        pace_full_collections()
         context = get_context("spawn")
         self.pool = ProcessPoolExecutor(max_workers=2, mp_context=context)
         already = self.corpus.completed_slugs()

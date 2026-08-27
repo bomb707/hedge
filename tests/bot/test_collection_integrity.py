@@ -340,3 +340,36 @@ def test_the_collector_measures_what_the_garbage_collector_costs() -> None:
     assert summary["collections"].get("2", 0) >= 1
     assert summary["max_pause_ns"].get("2", 0) > 0
     assert summary["tracked_objects"] > 0
+
+
+def test_full_collections_are_paced_not_disabled() -> None:
+    """The measured fix: forty times rarer, never switched off.
+
+    A full collection over the retained journal graph finds almost nothing — `ReplayStep` holds
+    an event and a decision, which hold tuples, integers and strings, and reference counting
+    frees all of it. But an asyncio process does produce cycles elsewhere, so something has to
+    collect them eventually.
+    """
+    import gc
+
+    from maker5m.bot.resources import GEN2_EVERY, pace_full_collections
+
+    before = gc.get_threshold()
+    try:
+        allocations, gen1, gen2 = pace_full_collections()
+        assert gen2 == GEN2_EVERY
+        assert gen2 > before[2], "rarer than the default"
+        assert gc.isenabled(), "and still enabled"
+        assert allocations == before[0] and gen1 == before[1], "only the full-collection pace"
+    finally:
+        gc.set_threshold(*before)
+
+
+def test_the_gc_pace_is_part_of_the_collection_identity() -> None:
+    """§26. It changes how the collector behaves, so two runs that differ in it differ."""
+    from maker5m.bot.config import config_identity
+
+    identity = config_identity(
+        PaperConfig(evidence_dir=Path("a"), corpus_path=Path("b"), ui_dir=Path("c"))
+    )
+    assert identity["gc_full_collection_every"] > 10

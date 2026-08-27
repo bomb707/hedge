@@ -19,9 +19,17 @@ import weakref
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import perf_counter_ns
-from typing import Any
+from typing import Any, Final
 
-__all__ = ["LIVE_SESSIONS", "GcObserver", "ResourceSample", "sample_resources", "tiers"]
+__all__ = [
+    "GEN2_EVERY",
+    "LIVE_SESSIONS",
+    "GcObserver",
+    "ResourceSample",
+    "pace_full_collections",
+    "sample_resources",
+    "tiers",
+]
 
 
 LIVE_SESSIONS: weakref.WeakSet[Any] = weakref.WeakSet()
@@ -70,6 +78,35 @@ def tiers(samples: list[int]) -> dict[str, int | None]:
     }
 
 
+GEN2_EVERY: Final[int] = 400
+"""How many generation-1 collections pass before a full one. CPython's default is 10.
+
+**OPERATIONAL, and chosen from a measurement rather than a preference.** A full collection is
+proportional to the number of *tracked* objects, and this process holds a market's recorded event
+stream: about 750,000 tracked objects per market, 2.3 million with a closed market's cold work
+still in flight. The corrected pilot measured 37 full collections costing 17.1 seconds in twenty
+minutes, with a **worst case of 1.46 seconds**, and that traversal runs inside whichever
+allocation triggers it — including the ingress owner's own cycle, where single `observe` calls of
+541 and 762 milliseconds appeared against a 25 microsecond median.
+
+Full collections over that graph find almost nothing: `ReplayStep` holds an event and a decision,
+which hold tuples, integers and strings. It is acyclic, and reference counting frees all of it.
+The collector is therefore made *rarer*, not disabled — cyclic garbage does exist elsewhere in an
+asyncio process and something has to collect it eventually.
+
+Forty times fewer full collections, not zero. The effect is recorded per market by `GcObserver`,
+so the next run's numbers say whether this was the right value rather than whether it sounded
+like one.
+"""
+
+
+def pace_full_collections(every: int = GEN2_EVERY) -> tuple[int, int, int]:
+    """Make full collections rare. Returns the thresholds in force. Process-wide, Plane 3."""
+    allocations, gen1, _ = gc.get_threshold()
+    gc.set_threshold(allocations, gen1, every)
+    return gc.get_threshold()
+
+
 @dataclass(slots=True)
 class GcObserver:
     """What the garbage collector did, and for how long. Measured, never assumed.
@@ -114,6 +151,7 @@ class GcObserver:
 
     def summary(self) -> dict[str, Any]:
         return {
+            "thresholds": list(gc.get_threshold()),
             "collections": {str(k): v for k, v in sorted(self.collections.items())},
             "total_pause_ns": {str(k): v for k, v in sorted(self.pause_ns.items())},
             "max_pause_ns": {str(k): v for k, v in sorted(self.max_pause_ns.items())},

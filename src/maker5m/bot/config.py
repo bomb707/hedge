@@ -22,6 +22,7 @@ from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any, Final
 
+from maker5m.bot.resources import GEN2_EVERY
 from maker5m.safety import LIVE_TRADING_ENABLED
 from maker5m.settlement import REDEMPTION_ENABLED
 from maker5m.strategy import BaseLot, StrategyConfig, default_config
@@ -170,6 +171,7 @@ def config_identity(config: PaperConfig) -> dict[str, Any]:
         "settle_timeout_s": config.settle_timeout_s,
         "settle_poll_s": _plain(config.settle_poll_s),
         "keep_raw_store": config.keep_raw_store,
+        "gc_full_collection_every": GEN2_EVERY,
         "thresholds": {"OPERATIONAL": _plain(asdict(config.thresholds))},
         "live_trading_enabled": LIVE_TRADING_ENABLED,
         "redemption_enabled": REDEMPTION_ENABLED,

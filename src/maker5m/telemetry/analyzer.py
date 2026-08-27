@@ -25,15 +25,15 @@ from that point. It is marked ``STALE`` rather than bridged. Trading was unaffec
 happened in observation, not execution — but the measurement must say so.
 """
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import Final
+from typing import Any, Final, NamedTuple
 
 from maker5m.domain import Outcome
 from maker5m.execution.reconciler import ReconcileAction, ReconcilePlan, SideAction, SideReason
 from maker5m.numeric.units import ShareUnits
 from maker5m.strategy.eligibility import EligibilityResult
-from maker5m.telemetry.classifier import QualityReason, classify
+from maker5m.telemetry.classifier import QualityReason, QuoteClassification, classify
 from maker5m.telemetry.metrics import ActionCounters, Distribution
 from maker5m.telemetry.observation import (
     NOT_CAPTURED,
@@ -43,14 +43,17 @@ from maker5m.telemetry.observation import (
     OBS_DOWN_PLACED_ID,
     OBS_ELIGIBILITY,
     OBS_EVENT_KIND,
+    OBS_EVENT_TS,
     OBS_FILL,
     OBS_HEALTHY,
+    OBS_INGRESS_ORDINAL,
     OBS_PLAN,
     OBS_PREPARE_DONE_NS,
     OBS_RAW_RECEIVE_NS,
     OBS_RECONCILE_DONE_NS,
     OBS_REDUCE_STAGE_NS,
     OBS_SEQ,
+    OBS_TELEMETRY,
     OBS_UP_DEPTH,
     OBS_UP_PLACED_ID,
     Observation,
@@ -142,6 +145,28 @@ class LatencyBook:
         }
 
 
+class QuoteEvent(NamedTuple):
+    """One side's classification, with the coordinates a corpus needs to bucket it.
+
+    A NamedTuple for the reason P8 already established for its hot types: construction is 76 ns
+    against 1,791 ns for a frozen dataclass, and this is built twice per classified cycle.
+    """
+
+    ingress_ordinal: Any
+    event_kind: Any
+    event_timestamp_ns: Any
+    phase: str | None
+    outcome: str
+    classification: QuoteClassification
+
+
+def _phase_of(observation: Observation) -> str | None:
+    """The phase the decision recorded, or ``None``. Never inferred from a clock."""
+    telemetry = observation[OBS_TELEMETRY]
+    phase = getattr(telemetry, "phase", None)
+    return None if phase is None else str(getattr(phase, "value", phase))
+
+
 @dataclass(slots=True)
 class TelemetryAnalyzer:
     """Rebuilds the whole P8 measurement from observations, in order."""
@@ -157,6 +182,15 @@ class TelemetryAnalyzer:
     shadow: ShadowQueueTracker = field(default_factory=ShadowQueueTracker)
     counters: ActionCounters = field(default_factory=ActionCounters)
     latency: LatencyBook = field(default_factory=LatencyBook)
+
+    on_quote: Callable[[QuoteEvent], None] | None = field(default=None, repr=False)
+    """Optional Plane-3 observer of every classification this analyzer makes.
+
+    Added for P13, which needs the L3 distribution broken down by side, phase and time rather
+    than as one market-wide total — and must not answer that with a second classifier. The
+    classification handed out here is the same object `count_quality` receives; nothing is
+    recomputed, and with no observer attached this costs one `is None` per side.
+    """
 
     processed: int = 0
     gaps: int = 0
@@ -331,6 +365,17 @@ class TelemetryAnalyzer:
             self.counters.count_quality(classification.quality.value, classification.reason.value)
             if classification.queue_ahead is not None:
                 self.latency.queue_ahead.add(int(classification.queue_ahead))
+            if self.on_quote is not None:
+                self.on_quote(
+                    QuoteEvent(
+                        observation[OBS_INGRESS_ORDINAL],
+                        observation[OBS_EVENT_KIND],
+                        observation[OBS_EVENT_TS],
+                        _phase_of(observation),
+                        side.outcome.value,
+                        classification,
+                    )
+                )
 
     # -- results ---------------------------------------------------------------------------
 

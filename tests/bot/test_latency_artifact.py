@@ -373,3 +373,15 @@ def test_a_correct_artifact_still_passes_the_strict_validator(tmp_path: Path) ->
     )
     assert payload["slug"] == "market-a"
     assert validate_latency_identity(payload, {**entry, "sample_every": 10}) == []
+
+
+@pytest.mark.parametrize("value", [True, 1.0, "1"])
+def test_the_reader_refuses_a_mistyped_schema_even_without_an_expected_identity(
+    tmp_path: Path, value: Any
+) -> None:
+    """§20. The reader's own gate, for callers that pass no identity to check against."""
+    entry = written(tmp_path, "market-a", [1], [2], [3])
+    broken = rewrite(entry, schema_version=value)
+
+    with pytest.raises(ValueError, match="latency schema"):
+        read_latency(Path(broken["latency_artifact"]["path"]))

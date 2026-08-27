@@ -525,15 +525,19 @@ def test_both_feeds_above_their_floors_raise_no_feed_fault(tmp_path: Path) -> No
 
 
 def test_the_supervisor_records_a_prearm_failure_without_stopping(tmp_path: Path) -> None:
+    import asyncio
+
     supervisor = acceptance(paper(tmp_path))
-    supervisor._record_prearm_failure(
-        PrearmRecord(
-            slug="btc-updown-5m-9",
-            t0_ns=T0_A * NANOS_PER_SECOND,
-            started_ns=1,
-            ready_ns=2,
-            ok=False,
-            error="DiscoveryError: gamma returned 0 events",
+    asyncio.run(
+        supervisor._record_prearm_failure(
+            PrearmRecord(
+                slug="btc-updown-5m-9",
+                t0_ns=T0_A * NANOS_PER_SECOND,
+                started_ns=1,
+                ready_ns=2,
+                ok=False,
+                error="DiscoveryError: gamma returned 0 events",
+            )
         )
     )
     entry = supervisor.corpus.entries()[0]

@@ -234,10 +234,12 @@ def read_latency(
         )
     parsed: dict[str, Any] = json.loads(lzma.decompress(compressed).decode("utf-8"))
     version = parsed.get("schema_version")
-    if version != LATENCY_SCHEMA_VERSION:
+    # Typed here too, not only inside the identity check: a caller that passes no expected
+    # identity still must not be able to read `True`, `1.0` or `"1"` as schema 1.
+    if not _exact_int(version) or version != LATENCY_SCHEMA_VERSION:
         raise ValueError(
-            f"{path.name} declares latency schema {version!r}, this build reads "
-            f"{LATENCY_SCHEMA_VERSION}"
+            f"{path.name} declares latency schema {version!r} "
+            f"({type(version).__name__}), this build reads {LATENCY_SCHEMA_VERSION} as an int"
         )
     if expected_identity is not None:
         problems = validate_latency_identity(parsed, expected_identity)

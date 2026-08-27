@@ -125,19 +125,25 @@ def test_the_runtime_total_always_equals_the_durable_count(
     for index in range(4):
         finalize(supervisor, finished_market(tmp_path, supervisor, index))
         assert supervisor.completed == supervisor.qualifying_now()
-        assert supervisor.last_durable_count == supervisor.completed
 
 
 def test_the_target_stops_at_exactly_two_hundred(tmp_path: Path) -> None:
+    """The running set decides when to *ask*; the full durable audit decides the answer."""
     supervisor = acceptance(paper(tmp_path))
     supervisor.target_markets = 200
 
-    supervisor.completed_existing = 100
-    assert supervisor._keep_going(launched=0) is True
-    supervisor.completed_existing = 199
-    assert supervisor._keep_going(launched=0) is True
-    supervisor.completed_existing = 200
-    assert supervisor._keep_going(launched=0) is False
+    supervisor.qualified_attempts = {f"attempt-{index}" for index in range(100)}
+    assert asyncio.run(supervisor._still_collecting(launched=0)) is True
+
+    supervisor.qualified_attempts = {f"attempt-{index}" for index in range(199)}
+    assert asyncio.run(supervisor._still_collecting(launched=0)) is True
+
+    # The set says 200. The corpus holds nothing, so the audit says 0 and collection continues:
+    # durable truth wins over the running count, never the other way round.
+    supervisor.qualified_attempts = {f"attempt-{index}" for index in range(200)}
+    assert asyncio.run(supervisor._still_collecting(launched=0)) is True
+    assert supervisor.last_durable_count == 0
+    assert supervisor.qualified_attempts == set(), "the durable answer replaced the running set"
 
 
 def test_a_failed_terminal_record_counts_zero_through_the_real_path(
@@ -151,7 +157,7 @@ def test_a_failed_terminal_record_counts_zero_through_the_real_path(
             return False
 
     supervisor = acceptance(paper(tmp_path))
-    supervisor.ledger = RefusingTerminal(path=tmp_path / "attempts.jsonl")
+    supervisor.audit.ledger = RefusingTerminal(path=tmp_path / "attempts.jsonl")
     stub_cold(supervisor, monkeypatch)
     session = finished_market(tmp_path, supervisor, 0)
 
@@ -163,7 +169,7 @@ def test_a_failed_terminal_record_counts_zero_through_the_real_path(
     assert supervisor.qualifying_now() == 0
     assert supervisor.ledger_failures == 1
     assert supervisor.halted_for_integrity is True
-    assert supervisor._keep_going(launched=0) is False
+    assert supervisor._may_launch(launched=0) is False
 
 
 def test_a_market_that_did_not_verify_counts_zero(tmp_path: Path, monkeypatch: Any) -> None:

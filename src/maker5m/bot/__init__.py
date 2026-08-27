@@ -11,10 +11,18 @@ change either, and no order, cancellation or redemption transaction is ever sent
 """
 
 from maker5m.bot.attempts import AttemptLedger
+from maker5m.bot.audit import AuditIO
 from maker5m.bot.config import OperationalThresholds, PaperConfig, config_identity
 from maker5m.bot.corpus import CorpusIndex, CorpusStats
 from maker5m.bot.latency import LATENCY_SCHEMA_VERSION, LatencyArtifact, read_latency, write_latency
-from maker5m.bot.qualify import AttemptIndex, Qualification, qualification_of, qualifying_rows
+from maker5m.bot.qualify import (
+    AttemptIndex,
+    Qualification,
+    QualificationReport,
+    qualification_of,
+    qualify_all,
+    qualifying_rows,
+)
 from maker5m.bot.quality import QUALITY_LABELS, QUEUE_PROVENANCE, QualityAggregate
 from maker5m.bot.resources import ResourceSample, sample_resources
 from maker5m.bot.session import MarketSession, PrearmRecord
@@ -27,6 +35,7 @@ __all__ = [
     "QUEUE_PROVENANCE",
     "AttemptIndex",
     "AttemptLedger",
+    "AuditIO",
     "CorpusIndex",
     "CorpusStats",
     "LatencyArtifact",
@@ -35,12 +44,14 @@ __all__ = [
     "PaperConfig",
     "PrearmRecord",
     "Qualification",
+    "QualificationReport",
     "QualityAggregate",
     "ResourceSample",
     "Supervisor",
     "UiPlane",
     "config_identity",
     "qualification_of",
+    "qualify_all",
     "qualifying_rows",
     "read_latency",
     "sample_resources",

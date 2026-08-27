@@ -30,7 +30,14 @@ from typing import Any
 from maker5m.bot.attempts import ABORTED, FAILED, FINISHED, STARTED
 from maker5m.bot.latency import read_latency
 
-__all__ = ["AttemptIndex", "Qualification", "qualification_of", "qualifying_rows"]
+__all__ = [
+    "AttemptIndex",
+    "Qualification",
+    "QualificationReport",
+    "qualification_of",
+    "qualify_all",
+    "qualifying_rows",
+]
 
 JOINED_IDENTITY: tuple[str, ...] = (
     "slug",
@@ -101,20 +108,71 @@ class AttemptIndex:
 
 @dataclass(frozen=True, slots=True)
 class Qualification:
-    """Whether one corpus row counts, and every reason it does not."""
+    """Whether one corpus row counts, and every reason it does not.
 
+    Carries the row's position and attempt as well as its slug, because a slug does not identify
+    a row: two rows can name the same market, and rejoining judgements to rows by slug alone
+    would let a refused row's numbers enter the aggregates on a qualifying neighbour's ticket.
+    """
+
+    row_index: int
     slug: str
+    attempt_id: str | None
     qualifies: bool
     reasons: tuple[str, ...] = ()
 
     def summary(self) -> dict[str, Any]:
-        return {"slug": self.slug, "qualifies": self.qualifies, "reasons": list(self.reasons)}
+        return {
+            "row_index": self.row_index,
+            "slug": self.slug,
+            "attempt_id": self.attempt_id,
+            "qualifies": self.qualifies,
+            "reasons": list(self.reasons),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class QualificationReport:
+    """Every row judged, and the collection-level facts no single row can see."""
+
+    judgements: tuple[Qualification, ...]
+    duplicate_result_attempts: dict[str, int]
+    duplicate_market_slugs: dict[str, int]
+
+    @property
+    def count(self) -> int:
+        return sum(1 for judgement in self.judgements if judgement.qualifies)
+
+    @property
+    def attempt_ids(self) -> set[str]:
+        return {
+            str(judgement.attempt_id)
+            for judgement in self.judgements
+            if judgement.qualifies and judgement.attempt_id
+        }
+
+    @property
+    def slugs(self) -> set[str]:
+        return {judgement.slug for judgement in self.judgements if judgement.qualifies}
+
+    @property
+    def consistent(self) -> bool:
+        return not self.duplicate_result_attempts and not self.duplicate_market_slugs
+
+    def summary(self) -> dict[str, Any]:
+        return {
+            "qualifying": self.count,
+            "duplicate_result_attempts": self.duplicate_result_attempts,
+            "duplicate_market_slugs": self.duplicate_market_slugs,
+            "consistent": self.consistent,
+        }
 
 
 def qualification_of(
     entry: dict[str, Any],
     attempts: AttemptIndex,
     *,
+    row_index: int = 0,
     epoch: str,
     config_sha256: str,
     source_revision: str,
@@ -146,7 +204,14 @@ def qualification_of(
     reasons.extend(_attempt_reasons(entry, attempts))
     if verify_latency:
         reasons.extend(_latency_reasons(entry))
-    return Qualification(slug=slug, qualifies=not reasons, reasons=tuple(reasons))
+    attempt_id = entry.get("attempt_id")
+    return Qualification(
+        row_index=row_index,
+        slug=slug,
+        attempt_id=None if attempt_id is None else str(attempt_id),
+        qualifies=not reasons,
+        reasons=tuple(reasons),
+    )
 
 
 def _attempt_reasons(entry: dict[str, Any], attempts: AttemptIndex) -> list[str]:
@@ -226,7 +291,7 @@ def _latency_reasons(entry: dict[str, Any]) -> list[str]:
     return reasons
 
 
-def qualifying_rows(
+def qualify_all(
     entries: Iterable[dict[str, Any]],
     events: Iterable[dict[str, Any]],
     *,
@@ -236,13 +301,33 @@ def qualifying_rows(
     source_tree_sha: str | None = None,
     run_mode: str = "ACCEPTANCE_CLEAN",
     verify_latency: bool = True,
-) -> list[Qualification]:
-    """Judge every row. The count is `sum(q.qualifies for q in ...)` and nothing else."""
+) -> QualificationReport:
+    """Judge every row, then the collection.
+
+    Two facts belong to the corpus rather than to any row in it. **One result per attempt**: two
+    rows naming one attempt are two claims about one market, and choosing between them silently
+    would be inventing an answer — so neither counts. **One result per market**: the gate is two
+    hundred *markets*, not two hundred JSON lines, so two attempts that both produced a result for
+    one slug count once at most, and in an acceptance epoch neither counts and the duplication is
+    an integrity fault. Neither should ever happen, which is exactly why it is worth refusing
+    rather than tidying away.
+    """
+    rows = list(entries)
     attempts = AttemptIndex.build(events)
-    return [
-        qualification_of(
+
+    by_attempt: dict[str, int] = {}
+    for entry in rows:
+        attempt = entry.get("attempt_id")
+        if attempt:
+            by_attempt[str(attempt)] = by_attempt.get(str(attempt), 0) + 1
+    duplicate_attempts = {attempt: count for attempt, count in by_attempt.items() if count > 1}
+
+    judged: list[Qualification] = []
+    for index, entry in enumerate(rows):
+        judgement = qualification_of(
             entry,
             attempts,
+            row_index=index,
             epoch=epoch,
             config_sha256=config_sha256,
             source_revision=source_revision,
@@ -250,5 +335,51 @@ def qualifying_rows(
             run_mode=run_mode,
             verify_latency=verify_latency,
         )
-        for entry in entries
-    ]
+        attempt = judgement.attempt_id
+        if attempt is not None and attempt in duplicate_attempts:
+            judgement = _refuse(
+                judgement,
+                f"{duplicate_attempts[attempt]} result rows name attempt {attempt}",
+            )
+        judged.append(judgement)
+
+    slug_counts: dict[str, int] = {}
+    for judgement in judged:
+        if judgement.qualifies:
+            slug_counts[judgement.slug] = slug_counts.get(judgement.slug, 0) + 1
+    duplicate_slugs = {slug: count for slug, count in slug_counts.items() if count > 1}
+    if duplicate_slugs:
+        judged = [
+            _refuse(
+                judgement,
+                f"{duplicate_slugs[judgement.slug]} qualifying results for market {judgement.slug}",
+            )
+            if judgement.qualifies and judgement.slug in duplicate_slugs
+            else judgement
+            for judgement in judged
+        ]
+
+    return QualificationReport(
+        judgements=tuple(judged),
+        duplicate_result_attempts=duplicate_attempts,
+        duplicate_market_slugs=duplicate_slugs,
+    )
+
+
+def _refuse(judgement: Qualification, reason: str) -> Qualification:
+    return Qualification(
+        row_index=judgement.row_index,
+        slug=judgement.slug,
+        attempt_id=judgement.attempt_id,
+        qualifies=False,
+        reasons=(*judgement.reasons, reason),
+    )
+
+
+def qualifying_rows(
+    entries: Iterable[dict[str, Any]],
+    events: Iterable[dict[str, Any]],
+    **judgement: Any,
+) -> list[Qualification]:
+    """The judgements alone. Kept for callers that do not need the collection-level facts."""
+    return list(qualify_all(entries, events, **judgement).judgements)

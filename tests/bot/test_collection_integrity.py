@@ -15,7 +15,7 @@ from typing import Any
 
 import pytest
 
-from maker5m.bot import CorpusIndex, PaperConfig
+from maker5m.bot import CorpusIndex, PaperConfig, qualify_all
 from maker5m.bot.supervisor import MAX_COLD_BACKLOG, MAX_MARKET_LIFECYCLES
 from tests.bot.test_multi_market import acceptance, clean_cold, collected, paper
 
@@ -139,8 +139,13 @@ def test_a_running_market_closing_cannot_push_past_the_cap(tmp_path: Path) -> No
 def test_a_skipped_slot_is_recorded_rather_than_silently_missing(tmp_path: Path) -> None:
     """§16. A missing five-minute window must be visible in the corpus, with its reason."""
     supervisor = acceptance(paper(tmp_path))
-    supervisor._record_skip(
-        "btc-updown-5m-1787826000", 1_787_826_000, "COLD_BACKLOG_CAP", "three markets in flight"
+    asyncio.run(
+        supervisor._record_skip(
+            "btc-updown-5m-1787826000",
+            1_787_826_000,
+            "COLD_BACKLOG_CAP",
+            "three markets in flight",
+        )
     )
     entry = supervisor.corpus.entries()[0]
     assert entry["verification_status"] == "NOT_STARTED"
@@ -178,7 +183,7 @@ def test_a_market_whose_row_cannot_be_written_does_not_count(tmp_path: Path) -> 
             return False
 
     supervisor = acceptance(paper(tmp_path))
-    supervisor.corpus = RefusingIndex(path=tmp_path / "corpus.jsonl")
+    supervisor.audit.corpus = RefusingIndex(path=tmp_path / "corpus.jsonl")
     ui_dir = tmp_path / "ui"
     from maker5m.bot import UiPlane
 
@@ -188,7 +193,7 @@ def test_a_market_whose_row_cannot_be_written_does_not_count(tmp_path: Path) -> 
 
     appended = supervisor.corpus.append(entry)
     if appended:  # pragma: no cover - the fixture refuses by construction
-        supervisor.completed_this_process += 1
+        supervisor.qualified_attempts.add(str(entry.get("attempt_id")))
 
     assert appended is False
     assert supervisor.completed == 0
@@ -229,14 +234,22 @@ def test_the_remaining_target_counts_what_the_corpus_already_holds(tmp_path: Pat
     collected_row(supervisor, "btc-updown-5m-148", terminal="ATTEMPT_FAILED")
     collected_row(supervisor, "btc-updown-5m-149", terminal=None)
 
-    supervisor.completed_existing = supervisor.qualifying_now(verify_latency=False)
-    assert supervisor.completed_existing == 148, "a row is not finished until its attempt is"
-    assert supervisor.completed == 148
-    assert supervisor._keep_going(launched=0) is True
+    report = qualify_all(
+        supervisor.corpus.entries(),
+        supervisor.ledger.events(),
+        **supervisor._expectation(verify_latency=False),
+    )
+    supervisor.qualified_attempts = report.attempt_ids
+    supervisor.qualified_slugs = report.slugs
+    supervisor.completed_existing = report.count
 
-    supervisor.completed_this_process = 52
+    assert report.count == 148, "a row is not finished until its attempt is"
+    assert supervisor.completed == 148
+    assert asyncio.run(supervisor._still_collecting(launched=0)) is True
+
+    supervisor.qualified_attempts |= {f"later-{index}" for index in range(52)}
     assert supervisor.completed == 200
-    assert supervisor._keep_going(launched=0) is False, "stops at exactly 200 joined rows"
+    assert supervisor._may_launch(launched=0) is True, "not halted; the target decides"
 
 
 def test_rows_from_another_epoch_config_or_build_do_not_count(tmp_path: Path) -> None:

@@ -65,7 +65,7 @@ def test_a_market_whose_terminal_record_failed_does_not_count(tmp_path: Path) ->
     """The row is durable, the attempt is half-recorded, and the collector cannot prove it
     finished."""
     supervisor = acceptance(paper(tmp_path))
-    supervisor.ledger = RefusingTerminal(path=tmp_path / "attempts.jsonl")
+    supervisor.audit.ledger = RefusingTerminal(path=tmp_path / "attempts.jsonl")
 
     attempt = supervisor.ledger.start(
         slug="btc-updown-5m-1", t0_ns=1, identity=build_of(supervisor)
@@ -75,8 +75,8 @@ def test_a_market_whose_terminal_record_failed_does_not_count(tmp_path: Path) ->
     terminal = supervisor.ledger.finish(attempt, corpus_appended=True)
     if not terminal:
         supervisor._integrity_fault("terminal record could not be written")
-    elif True:  # pragma: no cover - the fixture refuses by construction
-        supervisor.completed_this_process += 1
+    else:  # pragma: no cover - the fixture refuses by construction
+        supervisor.qualified_attempts.add(attempt)
 
     events = [event["event"] for event in supervisor.ledger.events()]
     assert events == [STARTED], "the start is there; the terminal record is not"
@@ -94,12 +94,12 @@ def test_a_market_whose_terminal_record_failed_does_not_count(tmp_path: Path) ->
 def test_an_acceptance_run_stops_collecting_when_its_ledger_fails(tmp_path: Path) -> None:
     """§5. A corpus whose audit trail cannot be written is not a corpus."""
     supervisor = acceptance(paper(tmp_path))
-    assert supervisor._keep_going(launched=0) is True
+    assert supervisor._may_launch(launched=0) is True
 
     supervisor._integrity_fault("the terminal attempt record could not be written")
 
     assert supervisor.halted_for_integrity is True
-    assert supervisor._keep_going(launched=0) is False
+    assert supervisor._may_launch(launched=0) is False
     assert supervisor.integrity_faults
 
 
@@ -111,7 +111,7 @@ def test_an_exploratory_run_records_the_fault_and_carries_on(tmp_path: Path) -> 
     supervisor._integrity_fault("the terminal attempt record could not be written")
 
     assert supervisor.halted_for_integrity is False
-    assert supervisor._keep_going(launched=0) is True
+    assert supervisor._may_launch(launched=0) is True
     assert supervisor.integrity_faults
 
 
@@ -148,7 +148,7 @@ def test_recovery_that_cannot_be_written_leaves_the_attempt_open(tmp_path: Path)
 
 def test_an_acceptance_collector_refuses_to_start_when_recovery_fails(tmp_path: Path) -> None:
     supervisor = acceptance(paper(tmp_path))
-    supervisor.ledger = RefusingTerminal(path=tmp_path / "attempts.jsonl")
+    supervisor.audit.ledger = RefusingTerminal(path=tmp_path / "attempts.jsonl")
     supervisor.ledger.start(slug="btc-updown-5m-1", t0_ns=1, identity=build_of(supervisor))
 
     supervisor.recovered_attempts = supervisor.ledger.recover()
@@ -157,7 +157,7 @@ def test_an_acceptance_collector_refuses_to_start_when_recovery_fails(tmp_path: 
 
     assert supervisor.recovered_attempts == []
     assert supervisor.halted_for_integrity is True
-    assert supervisor._keep_going(launched=0) is False
+    assert supervisor._may_launch(launched=0) is False
 
 
 # -- §11: two terminal events for one attempt --------------------------------------------------

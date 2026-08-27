@@ -28,7 +28,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from maker5m.bot import AttemptIndex, AttemptLedger, CorpusIndex, qualifying_rows, read_latency
+from maker5m.bot import AttemptIndex, AttemptLedger, CorpusIndex, qualify_all, read_latency
 from maker5m.bot.quality import QUALITY_LABELS, QUEUE_PROVENANCE
 from maker5m.telemetry.metrics import quantile
 
@@ -138,7 +138,7 @@ def _quantiles(values: list[int]) -> dict[str, int | None]:
 
 def accounting(
     rows: list[dict[str, Any]],
-    judgements: list[Any],
+    joined: Any,
     ledger: Any,
 ) -> dict[str, Any]:
     """Audit **every** row for the epoch, not only the ones that passed.
@@ -162,22 +162,31 @@ def accounting(
         and not attempts.terminals.get(str(row.get("attempt_id")))
     ]
     identity_problems = {
-        judgement.slug: list(judgement.reasons)
-        for judgement in judgements
+        f"{judgement.slug}#{judgement.row_index}": list(judgement.reasons)
+        for judgement in joined.judgements
         if not judgement.qualifies
     }
     return {
         **counts,
+        "duplicate_result_attempts": len(joined.duplicate_result_attempts),
+        "duplicate_result_attempt_detail": joined.duplicate_result_attempts,
+        "duplicate_market_slugs": joined.duplicate_market_slugs,
+        "unique_result_attempt_ids": len(
+            {str(row.get("attempt_id")) for row in rows if row.get("attempt_id")}
+        ),
+        "unique_market_slugs": len({str(row.get("slug")) for row in rows}),
         "duplicate_start_detail": attempts.duplicate_starts(),
         "duplicate_terminal_detail": attempts.duplicates(),
         "ledger_consistent": not attempts.duplicate_starts() and not attempts.duplicates(),
         "corpus_rows": len(rows),
-        "qualifying_rows": sum(1 for judgement in judgements if judgement.qualifies),
+        "qualifying_rows": joined.count,
+        "qualifying_markets": len(joined.slugs),
         "rows_without_attempt_id": no_attempt,
         "rows_without_start": without_start,
         "rows_without_finished_terminal": without_terminal,
         "rows_refused_with_reasons": identity_problems,
         "every_row_joins_one_attempt": not (no_attempt or without_start or without_terminal),
+        "one_result_per_attempt_and_market": joined.consistent,
         "ledger": ledger.summary(),
         "note": (
             "Every row for this epoch, judged by the same rule the collector counts with. A "
@@ -202,10 +211,10 @@ def report(
     # expectation is taken from them rather than invented here; a corpus that disagrees with
     # itself about which build made it fails the join and says so.
     reference = identity or (entries[0] if entries else {})
-    judgements = (
-        qualifying_rows(
+    joined = (
+        qualify_all(
             entries,
-            ledger.events() if ledger is not None else (),
+            ledger.events(),
             epoch=str(reference.get("epoch")),
             config_sha256=str(reference.get("config_sha256")),
             source_revision=str(reference.get("source_revision")),
@@ -213,12 +222,15 @@ def report(
             run_mode=str(reference.get("run_mode", "ACCEPTANCE_CLEAN")),
         )
         if ledger is not None
-        else []
+        else None
     )
-    qualified = {judgement.slug for judgement in judgements if judgement.qualifies}
+    judgements = list(joined.judgements) if joined is not None else []
+    # Paired by position, not by slug. Two rows can name one market, and selecting by slug would
+    # let a refused row's counts into the aggregates on a qualifying neighbour's ticket — which
+    # is precisely the contamination the uniqueness rule exists to catch.
     eligible = (
-        [entry for entry in entries if str(entry.get("slug")) in qualified]
-        if ledger is not None
+        [entry for entry, judgement in zip(entries, judgements, strict=True) if judgement.qualifies]
+        if joined is not None
         else [
             e
             for e in entries
@@ -351,7 +363,9 @@ def report(
         "provenance": "REAL_PUBLIC_MARKET_DATA",
         "epoch": epoch,
         "attempted": len(entries),
-        "accounting": None if ledger is None else accounting(entries, judgements, ledger),
+        "accounting": None
+        if ledger is None or joined is None
+        else accounting(entries, joined, ledger),
         "status_counts": dict(sorted(status.items())),
         "evidence_eligible": len(eligible),
         "replay_status_counts": dict(sorted(replay_status.items())),

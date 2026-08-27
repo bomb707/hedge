@@ -37,10 +37,11 @@ from pathlib import Path
 from typing import Any
 
 from maker5m.bot.attempts import FAILED, FINISHED, AttemptLedger, LedgerWriteError
+from maker5m.bot.audit import AuditIO
 from maker5m.bot.cold import ColdRequest, cold_finalize
 from maker5m.bot.config import PaperConfig, config_identity
 from maker5m.bot.corpus import CorpusIndex
-from maker5m.bot.qualify import qualifying_rows
+from maker5m.bot.qualify import qualify_all
 from maker5m.bot.resources import GcObserver, pace_full_collections
 from maker5m.bot.session import MarketSession, PrearmRecord
 from maker5m.bot.settle import settle_market
@@ -175,8 +176,7 @@ class Supervisor:
     A pilot wants exactly the markets it asked for."""
 
     ui: UiPlane = field(init=False)
-    corpus: CorpusIndex = field(init=False)
-    ledger: AttemptLedger = field(init=False)
+    audit: AuditIO = field(init=False)
     identity: dict[str, Any] = field(init=False)
     pool: ProcessPoolExecutor | None = None
     cold: set[asyncio.Task[None]] = field(default_factory=set)
@@ -186,7 +186,6 @@ class Supervisor:
     completed_existing: int = 0
     """Durable qualifying rows this epoch already held when the process started."""
 
-    completed_this_process: int = 0
     skipped: list[str] = field(default_factory=list)
     skipped_slots: list[dict[str, Any]] = field(default_factory=list)
     cold_high_water: int = 0
@@ -201,8 +200,18 @@ class Supervisor:
     recovered_attempts: list[dict[str, Any]] = field(default_factory=list)
     integrity_faults: list[str] = field(default_factory=list)
     halted_for_integrity: bool = False
+    qualified_attempts: set[str] = field(default_factory=set)
+    """Attempts whose result qualifies. Membership, not arithmetic — an id is in it or it is not.
+
+    Seeded by the full startup audit and extended one market at a time by the same shared
+    qualifier. The runtime total is this set's size, so counting a market twice would require
+    adding the same attempt id twice, which a set declines to do."""
+
+    qualified_slugs: set[str] = field(default_factory=set)
+    """Markets already counted. Two attempts producing a result for one slug is not two markets."""
+
     last_durable_count: int = 0
-    """The joined qualifying count as of the last finalisation. Read, never accumulated."""
+    """The joined qualifying count as of the last full audit."""
     gc_observer: GcObserver = field(default_factory=GcObserver)
     allow_dirty_requested: bool = False
     run_mode: str = field(init=False, default="ACCEPTANCE_CLEAN")
@@ -213,8 +222,14 @@ class Supervisor:
         if LIVE_TRADING_ENABLED:  # pragma: no cover - the flag is a constant False
             raise RuntimeError("refusing to start a paper run while live trading is enabled")
         self.ui = UiPlane(directory=self.config.ui_dir)
-        self.corpus = CorpusIndex(path=self.config.corpus_path)
-        self.ledger = AttemptLedger(path=self.config.corpus_path.with_name("attempts.jsonl"))
+        # One owner for the corpus index and the attempt ledger, on its own thread. The event
+        # loop this supervisor runs on is also consuming a live market's frames, and an fsync on
+        # it delays them. `corpus` and `ledger` below are views onto this owner rather than
+        # separate handles, so there is no second reference to get out of step with it.
+        self.audit = AuditIO(
+            corpus=CorpusIndex(path=self.config.corpus_path),
+            ledger=AttemptLedger(path=self.config.corpus_path.with_name("attempts.jsonl")),
+        )
         self.identity = config_identity(self.config)
         # What kind of run this is, decided once and recorded on everything it produces. A run
         # against modified tracked source can collect, persist, replay and verify — it simply
@@ -242,29 +257,38 @@ class Supervisor:
                     }
         return found
 
-    def qualifying_now(self, *, verify_latency: bool = True) -> int:
-        """Durable rows that count, by the one definition everything else uses.
+    @property
+    def corpus(self) -> CorpusIndex:
+        """The audit owner's index. Read-only here: there is one of it, and it lives there."""
+        return self.audit.corpus
 
-        The corpus alone cannot answer this: a row whose terminal attempt record never reached
-        the disk describes a market this collector cannot prove it finished, and a latency
-        artifact belonging to another market is not this market's latency. So the join lives in
-        `maker5m.bot.qualify` and the runtime count, the resume arithmetic and the final report
-        all call it. One definition, or the collector says 200 while the report says 198.
+    @property
+    def ledger(self) -> AttemptLedger:
+        return self.audit.ledger
+
+    def _expectation(self, *, verify_latency: bool = True) -> dict[str, Any]:
+        """What a qualifying row for this run must agree with. One place, one answer."""
+        return {
+            "epoch": self.config.epoch,
+            "config_sha256": str(self.identity.get("config_sha256")),
+            "source_revision": str(self.identity.get("source_revision")),
+            "source_tree_sha": str(self.identity.get("source_tree_sha")),
+            "run_mode": self.run_mode,
+            "verify_latency": verify_latency,
+        }
+
+    def qualifying_now(self, *, verify_latency: bool = True) -> int:
+        """The durable joined count, computed here and now. Synchronous; startup and tests only.
+
+        Production reads `completed`, which is the size of a set the same qualifier maintains.
+        This exists so a caller outside the event loop — the runner's startup line, a test — can
+        ask the question directly without standing up a worker.
         """
-        return sum(
-            1
-            for judgement in qualifying_rows(
-                self.corpus.entries(),
-                self.ledger.events(),
-                epoch=self.config.epoch,
-                config_sha256=str(self.identity.get("config_sha256")),
-                source_revision=str(self.identity.get("source_revision")),
-                source_tree_sha=str(self.identity.get("source_tree_sha")),
-                run_mode=self.run_mode,
-                verify_latency=verify_latency,
-            )
-            if judgement.qualifies
-        )
+        return qualify_all(
+            self.corpus.entries(),
+            self.ledger.events(),
+            **self._expectation(verify_latency=verify_latency),
+        ).count
 
     # -- prearm --------------------------------------------------------------------------
 
@@ -292,13 +316,14 @@ class Supervisor:
     async def run(self) -> None:
         """Collect markets until the target is met or the process is stopped."""
         self.ui.start()
+        self.audit.start()
         self.gc_observer.install()
         pace_full_collections()
         context = get_context("spawn")
         self.pool = ProcessPoolExecutor(max_workers=2, mp_context=context)
         # Anything a previous process died in the middle of, closed off and inventoried before
         # this one starts. Nothing is presumed to have completed and nothing is deleted.
-        self.recovered_attempts = self.ledger.recover(inventory=self._orphans)
+        self.recovered_attempts = await self.audit.recover(inventory=self._orphans)
         for attempt in self.recovered_attempts:
             self.log(
                 f"    recovered abandoned attempt {attempt.get('slug')} "
@@ -312,13 +337,27 @@ class Supervisor:
                 "off durably; they remain open"
             )
         already = self.corpus.completed_slugs()
-        self.completed_existing = self.qualifying_now()
+        # One complete joined audit, off the loop, before any market is launched. This is where
+        # historical revalidation belongs: it costs one pass at startup instead of a pass per
+        # market, which over two hundred markets is 20,100 artifact decompressions.
+        baseline = await self.audit.full_audit(self._expectation())
+        self.qualified_attempts = baseline.attempt_ids
+        self.qualified_slugs = baseline.slugs
+        self.completed_existing = baseline.count
+        self.last_durable_count = baseline.count
+        if not baseline.consistent:
+            self._integrity_fault(
+                f"the corpus holds {len(baseline.duplicate_result_attempts)} attempt(s) with "
+                f"more than one result and {len(baseline.duplicate_market_slugs)} market(s) with "
+                "more than one qualifying result"
+            )
         try:
             await self._loop(already)
         finally:
             await self._drain_cold()
             self.ui.stop()
             self.gc_observer.remove()
+            self.audit.stop()
             if self.pool is not None:
                 self.pool.shutdown(wait=True)
             self.pool = None
@@ -338,7 +377,7 @@ class Supervisor:
         # thing this needs to know is which slugs have been launched.
         launched: set[str] = set()
         t0 = self._first_t0()
-        while self._keep_going(len(launched)):
+        while await self._still_collecting(len(launched)):
             slug = slug_for(t0)
             if slug in already or slug in launched:
                 t0 += MARKET_SECONDS
@@ -349,7 +388,7 @@ class Supervisor:
             # its terminal record is written. Waiting happens to a market that has not started;
             # a running one is never made to wait on a closed one's settlement.
             if not await self._reserve(deadline=t0 - LAUNCH_DEADLINE_SECONDS):
-                self._record_skip(
+                await self._record_skip(
                     slug,
                     t0,
                     "COLD_CAPACITY_UNAVAILABLE",
@@ -363,12 +402,12 @@ class Supervisor:
             market, prearm = await self.prearm(slug)
             if market is None:
                 self._release()
-                self._record_prearm_failure(prearm)
+                await self._record_prearm_failure(prearm)
                 t0 += MARKET_SECONDS
                 continue
 
             try:
-                attempt_id = self.ledger.start(
+                attempt_id = await self.audit.start_attempt(
                     slug=slug,
                     t0_ns=t0 * NANOS_PER_SECOND,
                     identity={
@@ -422,20 +461,49 @@ class Supervisor:
 
     @property
     def completed(self) -> int:
-        """Durable qualifying rows for this epoch: what was already there plus what we added.
+        """Markets that count: the size of the qualified-attempt set.
 
-        The target is a property of the *corpus*, not of this process's uptime. A collector
-        restarted after 150 markets collects fifty more, not two hundred more, and a market
-        whose corpus line did not reach the disk has not been collected at all.
+        Not a running total, and not "what was there plus what we added" — an attempt is a member
+        of this set or it is not, so the same market cannot be counted twice however many times
+        its finalisation is observed. The target is a property of the corpus rather than of this
+        process's uptime: a collector restarted after 150 markets collects fifty more.
         """
-        return self.completed_existing + self.completed_this_process
+        return len(self.qualified_attempts)
 
-    def _keep_going(self, launched: int) -> bool:
+    @property
+    def completed_this_process(self) -> int:
+        return max(0, len(self.qualified_attempts) - self.completed_existing)
+
+    async def _still_collecting(self, launched: int) -> bool:
+        """Whether to launch another market, confirming the target against durable truth first.
+
+        The incremental set says when the target *might* be met; the full audit says whether it
+        is. If the audit comes back short — a row that did not survive, an artifact that no
+        longer validates — the durable answer replaces the running set and collection continues.
+        """
+        if not self._may_launch(launched):
+            return False
+        if self.target_markets is None or self.completed < self.target_markets:
+            return True
+        if await self._confirm_target():
+            self.log(f"    target met: {self.last_durable_count} markets confirmed by full audit")
+            return False
+        self.log(
+            f"    the running set said {self.target_markets}; the full audit says "
+            f"{self.last_durable_count}. Continuing."
+        )
+        return self._may_launch(launched)
+
+    def _may_launch(self, launched: int) -> bool:
+        """The conditions that stop a run regardless of the target: a halt, or a launch limit.
+
+        Deliberately not the target. `_still_collecting` owns that, because the target is only
+        met once a full durable audit says so, and a guard that answered it here would return
+        False before the confirmation ever ran — which it did.
+        """
         if self.halted_for_integrity:
             return False
-        if self.launch_limit is not None and launched >= self.launch_limit:
-            return False
-        return self.target_markets is None or self.completed < self.target_markets
+        return self.launch_limit is None or launched < self.launch_limit
 
     def _closed(self, session: MarketSession) -> None:
         """A session's trading window ended. Everything it still owes is cold from here."""
@@ -503,28 +571,62 @@ class Supervisor:
             self.lifecycle_high_water = self.lifecycles
         return True
 
-    def _recount(self, slug: str) -> None:
-        """Re-derive the completion total from the durable record. Never `+= 1`.
+    async def _admit(self, entry: dict[str, Any], slug: str) -> None:
+        """Judge one newly written market and, if it counts, admit it to the qualified set.
 
-        A counter maintained by hand beside a rule maintained somewhere else drifts, and this one
-        did: an increment written when the corpus row landed survived beside the increment written
-        when the terminal record landed, so every successful market counted twice and a
-        `--markets 200` run would have stopped at about a hundred. The live log said "(8 durable)"
-        over four rows.
+        The same shared qualifier the startup audit uses, applied to one row — so exactly one
+        latency artifact is read, not every artifact ever written. Re-validating the whole
+        corpus after every market is 20,100 decompressions across two hundred markets, all of
+        them on the thread that is also consuming the next market's frames, and all of them
+        answering a question the startup audit already answered.
 
-        So the total is not incremented at all — it is read back out of the corpus and the ledger
-        by the same joined qualification the resume arithmetic and the final report use, and the
-        two are compared. If they ever disagree, that is a collector-integrity fault, because a
-        run that cannot count its own evidence has nothing to say about two hundred markets.
+        Membership, not arithmetic. An attempt is in the set or it is not, so a market cannot be
+        counted twice; a slug already counted is a duplicate result and an integrity fault,
+        because two attempts producing a result for one market is not two markets.
         """
-        durable = self.qualifying_now()
-        self.last_durable_count = durable
-        self.completed_this_process = max(0, durable - self.completed_existing)
-        if self.completed != durable:  # pragma: no cover - arithmetic, kept as a tripwire
+        judgement = await self.audit.judge_row(entry, self._expectation())
+        if not judgement.qualifies:
+            self.log(f"    {slug}: does not count — {'; '.join(judgement.reasons)}")
+            return
+        attempt = judgement.attempt_id
+        if attempt is None:
+            return
+        if attempt in self.qualified_attempts:
+            self._integrity_fault(f"attempt {attempt} already has a qualifying result")
+            return
+        if judgement.slug in self.qualified_slugs:
             self._integrity_fault(
-                f"after finalising {slug} the runtime total is {self.completed} and the durable "
-                f"joined count is {durable}"
+                f"DUPLICATE_MARKET_RESULT: {judgement.slug} already has a qualifying result "
+                f"from another attempt"
             )
+            return
+        self.qualified_attempts.add(attempt)
+        self.qualified_slugs.add(judgement.slug)
+
+    async def _confirm_target(self) -> bool:
+        """The full joined audit, off the loop, before any completion is claimed.
+
+        The incremental set is judged one market at a time and never re-reads history; this is
+        where history is re-read. If the durable truth is short of the incremental count, the
+        durable truth wins and collection continues.
+        """
+        report = await self.audit.full_audit(self._expectation())
+        self.last_durable_count = report.count
+        if not report.consistent:
+            self._integrity_fault(
+                f"the corpus holds {len(report.duplicate_result_attempts)} attempt(s) with more "
+                f"than one result and {len(report.duplicate_market_slugs)} duplicated market(s)"
+            )
+        if report.attempt_ids != self.qualified_attempts:
+            missing = len(self.qualified_attempts - report.attempt_ids)
+            extra = len(report.attempt_ids - self.qualified_attempts)
+            self.log(
+                f"    full audit disagrees with the running set: {missing} counted but not "
+                f"durable, {extra} durable but not counted — taking the durable answer"
+            )
+            self.qualified_attempts = report.attempt_ids
+            self.qualified_slugs = report.slugs
+        return self.target_markets is not None and report.count >= self.target_markets
 
     def _integrity_fault(self, detail: str) -> None:
         """The audit trail failed. Record it, and stop collecting *acceptance* evidence.
@@ -584,7 +686,7 @@ class Supervisor:
             # verifier liked it: the previous version incremented the total whether or not the
             # append succeeded, so a full disk would have produced a "200-market corpus" with
             # fewer than two hundred rows in it.
-            appended = self.corpus.append(entry)
+            appended = await self.audit.append_row(entry)
             if not appended:
                 self.append_failures += 1
                 self.log(f"    corpus append FAILED for {session.slug}; it does not count")
@@ -597,7 +699,7 @@ class Supervisor:
             # perfectly and whose terminal record did not reach the disk is not an accounting
             # rounding error: it is a market this collector cannot prove it finished, and the
             # ledger's answer is checked rather than assumed.
-            terminal = self.ledger.finish(
+            terminal = await self.audit.finish_attempt(
                 session.attempt_id or "unknown",
                 event=FINISHED if appended else FAILED,
                 slug=session.slug,
@@ -619,13 +721,14 @@ class Supervisor:
                     f"the terminal attempt record for {session.slug} could not be written; "
                     "the market is retained and cannot count"
                 )
-            self._recount(session.slug)
+            if appended and terminal:
+                await self._admit(entry, session.slug)
             self.log(
                 f"    {session.slug}: {entry.get('verification_status')} "
                 f"replay={entry.get('replay', {}).get('status')} "
                 f"eligible={entry.get('evidence_eligible')} appended={appended} "
                 f"terminal={terminal} "
-                f"(runtime {self.completed} / durable {self.last_durable_count})"
+                f"(markets {self.completed}, last full audit {self.last_durable_count})"
             )
             self._release()
 
@@ -654,7 +757,7 @@ class Supervisor:
 
     # -- the corpus entry ----------------------------------------------------------------
 
-    def _record_skip(self, slug: str, t0_seconds: int, reason: str, detail: str) -> None:
+    async def _record_skip(self, slug: str, t0_seconds: int, reason: str, detail: str) -> None:
         """A market this collector chose not to start. Recorded, so the gap is auditable."""
         entry = {
             "slug": slug,
@@ -673,10 +776,10 @@ class Supervisor:
             "cold_backlog_high_water": self.cold_high_water,
         }
         self.skipped_slots.append({"slug": slug, "reason": reason})
-        self.corpus.append(entry)
+        await self.audit.append_row(entry)
 
-    def _record_prearm_failure(self, prearm: PrearmRecord) -> None:
-        self.corpus.append(
+    async def _record_prearm_failure(self, prearm: PrearmRecord) -> None:
+        await self.audit.append_row(
             {
                 "slug": prearm.slug,
                 "epoch": self.config.epoch,

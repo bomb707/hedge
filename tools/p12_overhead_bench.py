@@ -80,11 +80,13 @@ def _bench_config() -> Any:
     return default_config(BaseLot.of(15))
 
 
-def _observe(publisher: Any, record: Any, controller: Any) -> None:
-    """Plane 3: update the read model and offer a frame. Runs on the worker thread."""
-    records = controller.trace.records
-    verdict = records[-1] if records else None
-    publisher.observe(record, verdict)
+def _observe(publisher: Any, record: Any, observation: Any) -> None:
+    """Plane 3: update the read model and offer a frame. Runs on the worker thread.
+
+    The shipped shape: the decision and its latency come from the observation it was built
+    from, and nothing reaches back into the controller or the merger.
+    """
+    publisher.observe_decision(record, observation)
     import time as _time
 
     publisher.maybe_publish(_time.time())
@@ -187,6 +189,7 @@ def child_run(mode: str, journal: Path, limit: int) -> dict[str, object]:
         HotCommandChannel,
         SnapshotChannel,
         SnapshotPublisher,
+        drain_operator_commands,
     )
 
     worker: PersistenceWorker | None = None
@@ -209,6 +212,8 @@ def child_run(mode: str, journal: Path, limit: int) -> dict[str, object]:
 
     ui_root = Path(directory.name) / "ui"
     hot_commands = HotCommandChannel()
+    control_events = BoundedChannel(capacity=512)
+    control = ControlIngress(controller=controller)
     bridge = None
     publisher = None
     if mode != "off":
@@ -221,11 +226,12 @@ def child_run(mode: str, journal: Path, limit: int) -> dict[str, object]:
         publisher = SnapshotPublisher(
             identity=None, config=_bench_config(), bridge=bridge, t0_ns=int(definition.t0)
         )
-        control = ControlIngress(controller=controller)
-        del control
         bridge.start()
         if worker is not None:
-            worker.on_record = lambda record: _observe(publisher, record, controller)
+            worker.on_decision_record = lambda record, captured: _observe(
+                publisher, record, captured
+            )
+            worker.on_risk_record = publisher.observe_risk
 
     decide_ns: list[int] = []
     cycle_ns: list[int] = []
@@ -267,9 +273,17 @@ def child_run(mode: str, journal: Path, limit: int) -> dict[str, object]:
                 source_ts,
                 strategy_intent=decision.orders,
             )
-            # The whole of the hot side's UI work, in every configuration that has one.
-            for _pending in hot_commands.pop_all():
-                pass
+            # The whole of the hot side's UI work, and the shipped function rather than a
+            # paraphrase of it: the same call `on_tick` makes, with a real ControlIngress and a
+            # real report channel behind it.
+            if mode != "off":
+                drain_operator_commands(
+                    hot_commands,
+                    control,
+                    ingress_ordinal=merger.ordinal,
+                    now_ns=state.last_event_timestamp,
+                    report=control_events.publish,
+                )
             risk_states[record.state.value] += 1
             last = harness.buffer.records[-1] if harness.buffer.records else None
             if last is not None:

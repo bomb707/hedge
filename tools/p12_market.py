@@ -400,31 +400,13 @@ async def main(
 
     # Plane 3, main thread, after trading: render what the ingress owner recorded. The facts
     # were captured on the hot path in nanoseconds; the formatting and the write happen here.
-    for kind, payload in _drained(control_events):
-        if kind == "command":
-            outcome = payload[1]
-            print(
-                f"    operator {outcome.kind} {outcome.command_id}: "
-                f"accepted={outcome.accepted} ordinal={outcome.ingress_ordinal} "
-                f"risk_seq={outcome.risk_sequence} state={outcome.risk_state}",
-                flush=True,
-            )
-        elif kind == "sink":
-            at, active = payload
-            print(
-                f"    [+{at:.0f}s] sink "
-                f"{'stalled (controlled local fault)' if active else 'resumed'}",
-                flush=True,
-            )
-        elif kind == "bridge":
-            at, active = payload
-            print(
-                f"    [+{at:.0f}s] UI bridge "
-                f"{'stalled (controlled local fault)' if active else 'resumed'}",
-                flush=True,
-            )
-    if control_events.dropped:
-        print(f"    {control_events.dropped} hot-side event(s) dropped", flush=True)
+    # Guarded, because this is evidence formatting running after the market has closed and a
+    # bad format string must not be able to cost a captured market its manifest.
+    try:
+        for line in render_hot_events(_drained(control_events), dropped=control_events.dropped):
+            print(line, flush=True)
+    except Exception as error:  # pragma: no cover - defensive
+        print(f"    could not render hot-side events: {error!r}", flush=True)
 
     print(
         f"    persisted {worker.stats.decisions_written} decisions, "
@@ -693,6 +675,32 @@ async def main(
     path.write_text(json.dumps(evidence, indent=2, sort_keys=True, default=str), encoding="utf-8")
     print(json.dumps({k: evidence[k] for k in ("telemetry_complete", "verification")}, indent=2))
     print(f"wrote {path}", flush=True)
+
+
+def render_hot_events(events: list[Any], *, dropped: int = 0) -> list[str]:
+    """Format what the ingress owner recorded. Runs on the main thread, after the market.
+
+    Separate from the runner's flow, and tested, because the P12C run that first exercised this
+    crashed here on a subscript: an operator command arrives as `("command", outcome)`, so the
+    payload *is* the outcome. Formatting evidence is the last thing that should be able to end a
+    market run, and this is now the shape a test drives.
+    """
+    lines: list[str] = []
+    for kind, payload in events:
+        if kind == "command":
+            lines.append(
+                f"    operator {payload.kind} {payload.command_id}: "
+                f"accepted={payload.accepted} ordinal={payload.ingress_ordinal} "
+                f"risk_seq={payload.risk_sequence} state={payload.risk_state}"
+            )
+        elif kind in ("sink", "bridge"):
+            at, active = payload
+            what = "sink" if kind == "sink" else "UI bridge"
+            state = "stalled (controlled local fault)" if active else "resumed"
+            lines.append(f"    [+{at:.0f}s] {what} {state}")
+    if dropped:
+        lines.append(f"    {dropped} hot-side event(s) dropped")
+    return lines
 
 
 def _drained(channel: BoundedChannel) -> list[Any]:

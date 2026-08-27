@@ -450,3 +450,34 @@ def test_a_straggling_counter_cannot_overwrite_the_closed_manifest() -> None:
     final = unit.build(now=3.0)
     assert final.decisions_persisted == 82_336
     assert final.dropped_records == 0
+
+
+# -- the renderer that ended a real market run -------------------------------------------------
+
+
+def test_hot_side_events_render_in_the_shape_the_hot_path_produces() -> None:
+    """A P12C market ran to completion and then died formatting its own run log.
+
+    `ControlEvent.of("command", outcome)` is `("command", outcome)`, so the payload is the
+    outcome itself. The runner subscripted it, and the traceback arrived after `worker.stop`
+    but before the manifest was written, which cost that capture its closure. This drives the
+    renderer with events built by the production hot function rather than by hand.
+    """
+    from tools.p12_market import render_hot_events
+
+    control = controller()
+    ingress = ControlIngress(controller=control)
+    channel = HotCommandChannel()
+    channel.push(command(CommandKind.OPERATOR_HALT, "abc123"))
+    events: list[Any] = []
+    drain_operator_commands(
+        channel, ingress, ingress_ordinal=41, now_ns=TimestampNs(9), report=events.append
+    )
+    events.append(("sink", (12.5, True)))
+    events.append(("bridge", (30.0, False)))
+
+    lines = render_hot_events(events, dropped=3)
+    assert lines[0].startswith("    operator OPERATOR_HALT abc123: accepted=True ordinal=41")
+    assert lines[1] == "    [+12s] sink stalled (controlled local fault)"
+    assert lines[2] == "    [+30s] UI bridge resumed"
+    assert lines[3] == "    3 hot-side event(s) dropped"

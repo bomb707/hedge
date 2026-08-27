@@ -83,6 +83,7 @@ from maker5m.ui import (
     HotCommandChannel,
     SnapshotChannel,
     SnapshotPublisher,
+    drain_operator_commands,
 )
 
 MIN_LEAD_SECONDS = 45
@@ -160,6 +161,9 @@ async def main(
     buffer = ObservationBuffer(capacity=buffer_capacity)
     risk_channel = BoundedChannel(capacity=min(DEFAULT_RISK_CAPACITY, max(buffer_capacity, 1)))
     audit_channel = BoundedChannel(capacity=256)
+    # Plane-3 evidence from the hot side. The ingress owner appends immutable facts here and
+    # never formats, writes or flushes anything; the run log is rendered later, off the loop.
+    control_events = BoundedChannel(capacity=512)
     fill_channel = BoundedChannel(capacity=8_192)
     worker = PersistenceWorker(
         buffer=buffer,
@@ -219,42 +223,15 @@ async def main(
         audit=lambda command, outcome: audit_channel.publish((command, outcome)),
     )
 
-    def _latency_sample(run: Any) -> dict[str, int] | None:
-        """P8's own stage timings for the cycle just captured, when it was sampled.
+    def on_persisted(record: Any, captured: Any) -> None:
+        """Plane 3, on the worker thread. Reads nothing another thread can change.
 
-        Read from the merger's recorded stage clocks — the same numbers P8's analyzer uses. No
-        second timer: a dashboard that measured its own latency would be measuring itself.
+        The decision and its latency both come out of the same immutable observation, so the
+        figures belong to that cycle by construction; the verdict is joined by sequence from
+        risk records this worker persisted. Nothing here reaches into the controller, the
+        merger or the pipeline.
         """
-        merger = run.pipeline.merger
-        if not merger.stages_measured or not merger.last_decide_ns:
-            return None
-        return {
-            "decide_ns": int(merger.last_decide_ns - merger.last_reduce_ns),
-            "reduce_ns": int(merger.last_reduce_ns),
-        }
-
-    def _verdict_for(records: Any, risk_sequence: int | None) -> Any:
-        """The exact RiskRecord this decision names, not merely the newest one.
-
-        A dashboard that showed decision N beside verdict N+4 because the latter was freshest
-        would be describing two different moments and calling it one.
-        """
-        if risk_sequence is None or not records:
-            return None
-        first = records[0].risk_sequence
-        index = risk_sequence - first
-        if 0 <= index < len(records) and records[index].risk_sequence == risk_sequence:
-            return records[index]
-        return None
-
-    def on_persisted(record: Any) -> None:
-        """Plane 3, on the worker thread: update the read model and offer a frame."""
-        publisher.observe(
-            record, controller.trace.records[-1] if controller.trace.records else None
-        )
-        sample = _latency_sample(runs[0])
-        if sample is not None:
-            publisher.observe_latency(record.ingress_ordinal, sample)
+        publisher.observe_decision(record, captured)
         publisher.deliver(
             "counters",
             {
@@ -264,9 +241,35 @@ async def main(
                 "sink_errors": worker.store.sink_errors,
             },
         )
+        publisher.deliver(
+            "audit_counts",
+            {
+                "accepted": audit_channel.accepted,
+                "persisted": worker.stats.control_records_written,
+                "dropped": audit_channel.dropped,
+            },
+        )
         publisher.maybe_publish(time.time())
 
-    worker.on_record = on_persisted
+    def on_control_persisted(row: Any) -> None:
+        """Command history is what durably exists, not what the ingress thread remembered."""
+        publisher.deliver(
+            "control_persisted",
+            {
+                "command_id": row.command_id,
+                "kind": row.kind,
+                "accepted": row.accepted,
+                "ingress_ordinal": row.ingress_ordinal,
+                "risk_sequence": row.risk_sequence,
+                "risk_state": row.risk_state,
+                "allows_place": row.allows_place,
+                "detail": row.detail,
+            },
+        )
+
+    worker.on_decision_record = on_persisted
+    worker.on_risk_record = publisher.observe_risk
+    worker.on_control_record = on_control_persisted
 
     hot_path_ns: list[int] = []
     last_evaluated = [-1]
@@ -343,22 +346,17 @@ async def main(
         if pipeline.merger.ordinal != last_evaluated[0]:
             evaluate_now(pipeline, now_ns)
 
-        # The whole of the hot side's UI work: a bounded pop from an in-memory deque. No
-        # syscall, no serialization, no lock, and nothing that can stall on a filesystem.
-        for command in hot_commands.pop_all():
-            outcome = control_ingress.apply(
-                command,
-                ingress_ordinal=pipeline.merger.ordinal,
-                now_ns=pipeline.merger.state.last_event_timestamp,
-            )
-            publisher.note_command(outcome.summary())
-            print(
-                f"    [+{(int(now_ns) - int(t0_ns)) / NANOS_PER_SECOND:.0f}s] operator "
-                f"{outcome.kind} {outcome.command_id}: accepted={outcome.accepted} "
-                f"ordinal={outcome.ingress_ordinal} risk_seq={outcome.risk_sequence} "
-                f"state={outcome.risk_state}",
-                flush=True,
-            )
+        # The whole of the hot side's UI work: a bounded pop from an in-memory deque, the
+        # risk-signal application, and an append to a bounded channel. No syscall, no
+        # serialization, no lock, no print. Stdout is I/O too: a write to a pipe nobody drains
+        # blocks the ingress owner as thoroughly as a stalled stat.
+        drain_operator_commands(
+            hot_commands,
+            control_ingress,
+            ingress_ordinal=pipeline.merger.ordinal,
+            now_ns=pipeline.merger.state.last_event_timestamp,
+            report=control_events.publish,
+        )
 
         offset = (int(now_ns) - int(t0_ns)) / NANOS_PER_SECOND
         if bridge_stall:
@@ -366,27 +364,18 @@ async def main(
             active = begin <= offset < end
             if active != bridge_stalling["active"]:
                 bridge_stalling["active"] = active
-                print(
-                    f"    [+{offset:.0f}s] UI bridge "
-                    f"{'stalled (controlled local fault)' if active else 'resumed'}",
-                    flush=True,
-                )
+                control_events.publish(("bridge", (round(offset, 1), active)))
         if not stall_window:
             return
         begin, end = stall_window
         if not stalling["active"] and begin <= offset < end:
             stalling["active"] = True
             stalling["started_at"] = offset
-            print(f"    [+{offset:.0f}s] sink stalled (controlled local fault)", flush=True)
+            control_events.publish(("sink", (round(offset, 1), True)))
         elif stalling["active"] and offset >= end:
             stalling["active"] = False
             stalling["ended_at"] = offset
-            print(
-                f"    [+{offset:.0f}s] sink resumed after "
-                f"{offset - float(stalling['started_at']):.0f}s; "
-                f"{stalling['events']} market events processed during the stall",
-                flush=True,
-            )
+            control_events.publish(("sink", (round(offset, 1), False)))
 
     bridge.start()
     worker.start()
@@ -408,6 +397,34 @@ async def main(
             time.sleep(0.05)
         worker.stop(timeout=30)
         bridge.stop(timeout=5)
+
+    # Plane 3, main thread, after trading: render what the ingress owner recorded. The facts
+    # were captured on the hot path in nanoseconds; the formatting and the write happen here.
+    for kind, payload in _drained(control_events):
+        if kind == "command":
+            outcome = payload[1]
+            print(
+                f"    operator {outcome.kind} {outcome.command_id}: "
+                f"accepted={outcome.accepted} ordinal={outcome.ingress_ordinal} "
+                f"risk_seq={outcome.risk_sequence} state={outcome.risk_state}",
+                flush=True,
+            )
+        elif kind == "sink":
+            at, active = payload
+            print(
+                f"    [+{at:.0f}s] sink "
+                f"{'stalled (controlled local fault)' if active else 'resumed'}",
+                flush=True,
+            )
+        elif kind == "bridge":
+            at, active = payload
+            print(
+                f"    [+{at:.0f}s] UI bridge "
+                f"{'stalled (controlled local fault)' if active else 'resumed'}",
+                flush=True,
+            )
+    if control_events.dropped:
+        print(f"    {control_events.dropped} hot-side event(s) dropped", flush=True)
 
     print(
         f"    persisted {worker.stats.decisions_written} decisions, "
@@ -521,6 +538,28 @@ async def main(
             "complete": verification.status.value == "COMPLETE",
         },
     )
+    # The closed market's own manifest, not the last live counters the read model happened to
+    # hold. P12B's final snapshot said 82,335 decisions and one drop while its manifest said
+    # 82,336 and none: the counters were a running estimate that stopped one record early.
+    publisher.deliver(
+        "closed",
+        {
+            "decision_count": stamped.decision_count,
+            "risk_count": stamped.risk_count,
+            "dropped_records": stamped.dropped_records,
+            "sink_errors": stamped.sink_errors,
+            "telemetry_complete": stamped.telemetry_complete,
+            "verification_status": verification.status.value,
+        },
+    )
+    publisher.deliver(
+        "audit_counts",
+        {
+            "accepted": audit_channel.accepted,
+            "persisted": worker.stats.control_records_written,
+            "dropped": audit_channel.dropped,
+        },
+    )
     publisher.publish_now(time.time())
     bridge.publish_pending()
     time.sleep(0.2)
@@ -632,6 +671,11 @@ async def main(
             "control_records_written": worker.stats.control_records_written,
             "audit_accepted": audit_channel.accepted,
             "audit_dropped": audit_channel.dropped,
+            "hot_event_channel": {
+                "capacity": control_events.capacity,
+                "accepted": control_events.accepted,
+                "dropped": control_events.dropped,
+            },
             "snapshot_path": str(snapshot_channel.path),
             "inbox_path": str(inbox.directory),
             "snapshots_published": snapshot_channel.published,
@@ -649,6 +693,15 @@ async def main(
     path.write_text(json.dumps(evidence, indent=2, sort_keys=True, default=str), encoding="utf-8")
     print(json.dumps({k: evidence[k] for k in ("telemetry_complete", "verification")}, indent=2))
     print(f"wrote {path}", flush=True)
+
+
+def _drained(channel: BoundedChannel) -> list[Any]:
+    """Empty a bounded channel, keeping its drop accounting exact."""
+    items: list[Any] = []
+    while channel.records:
+        items.append(channel.records.popleft())
+        channel.drained += 1
+    return items
 
 
 def _verified_readback(archive: Path, sidecar: Path, out: Path) -> dict[str, object]:

@@ -248,7 +248,10 @@ class SnapshotPublisher:
                 self.verification_status = str(payload["verification_status"])
                 self.closed = True
             elif kind == "counters":
-                self.counters.update(payload)
+                # A counter that arrives after the close is a straggler from a thread that has
+                # not noticed the market ended. The manifest already said what was written.
+                if not self.closed:
+                    self.counters.update(payload)
             elif kind == "audit_failure":
                 self.audit_failures += 1
             elif kind == "audit_counts":

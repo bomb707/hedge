@@ -6,6 +6,7 @@ not have caught, because they tested the pieces rather than the shape the runner
 
 from __future__ import annotations
 
+import ast
 import builtins
 import logging
 import os
@@ -366,3 +367,86 @@ def test_a_bridge_with_a_recorded_failure_is_not_available() -> None:
     unit.observe_risk(verdict(7, RiskState.SAFE, set()))
     unit.observe(decision(7))
     assert unit.build(now=1.0).control_channel_available is False
+
+
+# -- §2: the runner's own tick body, not a paraphrase of it ------------------------------------
+
+
+FORBIDDEN_IN_TICK = frozenset(
+    {
+        "print",
+        "open",
+        "write",
+        "flush",
+        "dump",
+        "dumps",
+        "listdir",
+        "iterdir",
+        "scandir",
+        "stat",
+        "rename",
+        "replace",
+        "read_text",
+        "write_text",
+        "mkdir",
+        "unlink",
+        "sleep",
+        "publish_now",
+        "maybe_publish",
+        "note_command",
+    }
+)
+
+
+def _runner_function(name: str) -> ast.FunctionDef:
+    """The production runner's own source, located by name."""
+    source = Path("tools/p12_market.py").read_text(encoding="utf-8")
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.FunctionDef) and node.name == name:
+            return node
+    raise AssertionError(f"tools/p12_market.py no longer defines {name}")
+
+
+def test_the_runners_tick_body_calls_nothing_that_can_block() -> None:
+    """P12B's tick printed with flush=True, and the test that claimed to reproduce it did not.
+
+    This reads the shipped file rather than a copy, so a print reintroduced there fails here.
+    It covers the lexical body only: what `evaluate_now` does is P8's and P9's to prove.
+    """
+    tick = _runner_function("on_tick")
+    called = {
+        node.func.id if isinstance(node.func, ast.Name) else node.func.attr
+        for node in ast.walk(tick)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name | ast.Attribute)
+    }
+    assert not called & FORBIDDEN_IN_TICK, sorted(called & FORBIDDEN_IN_TICK)
+    assert "drain_operator_commands" in called
+
+
+def test_the_worker_callback_reads_no_trading_object() -> None:
+    """`controller.trace.records[-1]` and `run.pipeline.merger` were cross-thread reads."""
+    body = ast.dump(_runner_function("on_persisted"))
+    for reached in ("trace", "merger", "controller", "pipeline"):
+        assert f"attr='{reached}'" not in body, reached
+
+
+def test_a_straggling_counter_cannot_overwrite_the_closed_manifest() -> None:
+    """The manifest is what was written; a live counter arriving later is behind, not ahead."""
+    unit = publisher()
+    unit.observe_risk(verdict(7, RiskState.SAFE, set()))
+    unit.observe(decision(7))
+    unit.deliver(
+        "closed",
+        {
+            "decision_count": 82_336,
+            "risk_count": 82_338,
+            "dropped_records": 0,
+            "sink_errors": 0,
+            "telemetry_complete": True,
+            "verification_status": "COMPLETE",
+        },
+    )
+    unit.deliver("counters", {"decisions": 82_335, "risk": 82_337, "dropped": 1})
+    final = unit.build(now=3.0)
+    assert final.decisions_persisted == 82_336
+    assert final.dropped_records == 0

@@ -437,7 +437,18 @@ both earlier markets' stores remain valid.
 
 ---
 
-## P13 — Live shadow / paper mode
+## P13 — Live shadow / paper mode   ← IMPLEMENTED, CORPUS IN PROGRESS
+
+**Status:**
+
+| Gate | Status |
+|---|---|
+| Implementation | **PASSED** — the full accepted stack composed from `maker5m.bot`; no live-write path; identity-isolated sessions; corpus index append-safe |
+| Pilot | **PASSED** — three consecutive real markets in one process, each COMPLETE and replay-exact, settlement overlapping the next market, prearm 74.9 s every handoff |
+| ≥200-market corpus | **IN PROGRESS** — collection running under `p13-corpus-1`; not claimed until the evidence exists |
+
+Evidence: [`evidence/P13-PILOT.md`](evidence/P13-PILOT.md).
+**No OPEN item closed, no strategy value changed, no order and no chain write.**
 
 - **Goal:** Canonical §34-L3. Run against the real live market with no real orders.
 - **Inputs:** all prior phases; Canonical §34-L3; Detailed §35.

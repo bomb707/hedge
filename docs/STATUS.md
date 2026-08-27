@@ -75,6 +75,57 @@ production.
 
 ---
 
+## P13: live paper — composition root and pilot
+
+Full evidence in [`evidence/P13-PILOT.md`](evidence/P13-PILOT.md). This is the **implementation
+and pilot** record. The ≥200-market corpus is a separate gate and is **IN PROGRESS**.
+
+`maker5m.bot` is now the composition root: config, session, supervisor, cold path, settlement
+watch, corpus index, L3 aggregation, resource sampling and an entry point with no flag that could
+send an order. Nothing re-implements a plane — P6 through P12 are composed.
+
+**Two markets run at once, on purpose.** A capture opens its feeds at T0-30 and ends at T0+305,
+five seconds past the next market's T0, so sessions overlap and are launched seventy-five seconds
+ahead while the previous one still trades. Nothing is "the current market": every object belongs
+to one slug, and operator commands follow one designated active market flipped at the handoff by
+the market's own clock.
+
+**Cold work runs in a child interpreter.** Decode 10.8 s, replay 3.2 s, encode 4.7 s, lzma 45 s —
+a thread would hold the GIL through all of it, stealing from the one consuming a live book.
+Spawned rather than forked, because forking a process holding an open SQLite connection and two
+live websockets copies exactly what a child must not inherit. Discovery runs in a thread for the
+same reason at a smaller scale.
+
+### Pilot — three consecutive real markets, one process, no restart
+
+```text
+btc-updown-5m-1787826000   COMPLETE  replay EXACT  143,740 decisions  PLACE SAFE 548
+btc-updown-5m-1787826300   COMPLETE  replay EXACT  154,465 decisions  PLACE SAFE 527
+btc-updown-5m-1787826600   COMPLETE  replay EXACT  205,851 decisions  PLACE SAFE 748
+```
+
+Prearm lead 74.9 s on every handoff; 0 drops, 0 gaps, 0 sink errors across all three; three
+settlements RESOLVED DOWN while later markets traded; archives 54.9× and verified. **PLACE while
+HALTED: 0. PLACE while RECOVERING: 0.** Phases fired at +3.001 s, +240.001 s, +280.001 s and
++300.000 s — no threshold was changed, and the composition obeys them.
+
+L3 over the three: AT_FRONT 33.3 %, PRICE_OK_BUT_DEEP 12.6 %, NOT_QUOTING 54.1 %, OFF_PRICE 0 %,
+STALE 0 %. Per-market AT_FRONT ranges 25.7–36.8 %, so the classifier is non-degenerate and
+market-sensitive. Queue-ahead p50 0, p95 166 M — **`SHADOW_ESTIMATE`**, never a venue queue
+position.
+
+The pilot found one real defect: the recorded event stream was held through the settlement watch,
+so RSS reached 1.25 GB with three markets in flight. It is now released as soon as the journal is
+on disk. Whether the plateau holds is a corpus-run question and will be answered from its trace.
+
+Overhead against the accepted P11 stack: decide p50 **+249 ns (+1.06 %)**, full cycle **+1,926 ns
+(+3.75 %)**. Every P8C limit met, no limit moved.
+
+**No OPEN item closed. No strategy value changed.** One frozen configuration, hashed into every
+entry. Real own-fill economics remains UNRUN / P14.
+
+---
+
 ## P12E: commit boundary closure
 
 Full evidence in [`evidence/P12E-COMMIT-BOUNDARY.md`](evidence/P12E-COMMIT-BOUNDARY.md). No new
@@ -1422,7 +1473,10 @@ orders, which P8 does not place. Both stay OPEN.
 
 | | |
 |---|---|
-| **Current phase** | **P12 — operator UI and control plane** |
+| **Current phase** | **P13 — live shadow / paper mode** |
+| P13 implementation gate | **PASSED** — full stack composed from `maker5m.bot`, no live-write path, identity-isolated sessions |
+| P13 pilot gate | **PASSED** — three consecutive real markets, one process, COMPLETE and replay-exact, settlement overlapping the next market |
+| P13 ≥200-market corpus gate | **IN PROGRESS** — collection running; not claimed until the evidence exists |
 | P12 implementation gate | **PASSED** — Plane-3 UI, immutable snapshot, ordered control, no trading reference |
 | P12 real-market gate | **PASSED** — UI killed mid-market, trading continued |
 | P12 Plane-3 isolation gate | **PASSED** (P12C) — no synchronous I/O of any kind on the ingress path, stdout included |
@@ -1481,7 +1535,7 @@ orders, which P8 does not place. Both stay OPEN.
 | GitHub default branch | `main` (verified 2026-08-26; the earlier `bootstrap/phase-0` observation no longer holds) |
 | P9 commits | `4be0032` risk engine · `6576de0` recovery + runner · `1584dee` stale recovery fix · `b2e715e` real-market evidence · `4c2ab1d` full fault market |
 | Last accepted milestone | P11F — supported schema domain (`ea892c4`, now `main`) |
-| Next milestone | P13 — **not started**, and not to be started before P12 is accepted |
+| Next milestone | P14 — **not started**. P13's corpus must complete first |
 | `main` | `ea892c4` — fast-forwarded through the whole accepted P11 lineage, pushed |
 | P11 branch | `feature/p11-telemetry-persistence` |
 | P11B branch | `fix/p11-persistence-integrity` |
@@ -1494,6 +1548,9 @@ orders, which P8 does not place. Both stay OPEN.
 | P12C branch | `fix/p12-snapshot-coherence` |
 | P12D branch | `fix/p12-final-contract-closure` |
 | P12E branch | `fix/p12-commit-boundary` |
+| P13 branch | `feature/p13-live-paper` |
+| P13 base | `feb7e2b` — merge of P12E into main, no rebase, no force |
+| P13 corpus epoch | `p13-corpus-1`, source `bb67b18`, config `02346b84…` |
 | P12C final snapshot | retained unedited; its `decide_ns` label is corrected in `p12d-p12c-snapshot-latency-correction.json`, not in the file |
 | P12B final snapshot | **known-inaccurate read-model artifact**, retained unedited; see `p12c-p12b-revalidation-btc-updown-5m-1787807700.json` |
 | P11 store size | 5,230 B/decision raw → **95.7 B archived**; engineered in P11B, not deferred |

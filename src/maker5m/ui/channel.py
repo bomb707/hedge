@@ -94,8 +94,11 @@ class SnapshotChannel:
         is counted and dropped rather than propagated — the same rule the telemetry sink follows,
         for the same reason.
         """
-        self.path.parent.mkdir(parents=True, exist_ok=True)
         try:
+            # Inside the try, not before it. An unwritable parent is exactly the case this
+            # method promises to absorb, and creating the directory is the first thing that
+            # can fail.
+            self.path.parent.mkdir(parents=True, exist_ok=True)
             _write_atomic(self.path, json.dumps(_encode(snapshot), separators=(",", ":")))
         except OSError:
             self.write_errors += 1

@@ -426,6 +426,11 @@ def test_a_refused_risk_row_is_not_counted_or_published(tmp_path: Path) -> None:
 
     channel.publish(_risk_record(0))
     unit.drain_side_channels()
+    # Accepted into the transaction, and nothing more than that until it commits.
+    assert unit.stats.rows_accepted_into_transaction == 1
+    assert unit.stats.risk_written == 0
+    assert published == []
+    unit.store.flush()
     assert unit.stats.risk_written == 1
     assert len(published) == 1
 

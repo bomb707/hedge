@@ -204,10 +204,17 @@ class MarketSession:
             bridge=ui.bridge,
             t0_ns=self.t0_ns,
         )
+        # The closure captures the *channel*, not the session. Capturing `self` here put the
+        # session in a reference cycle — session holds the ingress, the ingress holds the lambda,
+        # the lambda holds the session — so releasing it depended on a full garbage collection
+        # rather than on reference counting. With full collections deliberately made rare, that
+        # meant closed markets stayed resident: the pilot that paced the collector recorded three
+        # live sessions where two is the steady state.
+        audit_channel = self.audit_channel
         self.control_ingress = ControlIngress(
             controller=self.controller,
             publish=self.risk_channel.publish,
-            audit=lambda command, outcome: self.audit_channel.publish((command, outcome)),
+            audit=lambda command, outcome: audit_channel.publish((command, outcome)),
         )
         self.worker.on_decision_record = self._on_persisted
         self.worker.on_risk_record = self.publisher.observe_risk
@@ -636,3 +643,8 @@ class MarketSession:
         self.control_events.records.clear()
         self.controller.trace.records.clear()
         self.hot_path_ns.clear()
+        # Nothing here may need a full collection to be freed. Reference counting handles a
+        # graph with no cycles in it, and these are the two that would otherwise keep a closed
+        # market resident until the next gen-2 pass.
+        self.publisher.bridge = None
+        self.publisher.verdicts.clear()

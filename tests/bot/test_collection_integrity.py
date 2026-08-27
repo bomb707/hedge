@@ -373,3 +373,28 @@ def test_the_gc_pace_is_part_of_the_collection_identity() -> None:
         PaperConfig(evidence_dir=Path("a"), corpus_path=Path("b"), ui_dir=Path("c"))
     )
     assert identity["gc_full_collection_every"] > 10
+
+
+def test_a_session_is_freed_by_reference_counting_alone(tmp_path: Path) -> None:
+    """§31. Release must not depend on a full collection, which is now forty times rarer.
+
+    The session held its control ingress, the ingress held a lambda, and the lambda captured the
+    session. With that cycle in place a closed market stayed resident until the next gen-2 pass,
+    which is exactly the pass that was made rare to keep its cost off the ingress owner.
+    """
+    import gc
+
+    from maker5m.bot import UiPlane
+    from maker5m.bot.resources import sample_resources
+
+    gc.collect()
+    before = sample_resources().live_sessions
+    session = collected(tmp_path, UiPlane(directory=tmp_path / "ui"))
+    session.finish()
+
+    gc.disable()
+    try:
+        del session
+        assert sample_resources().live_sessions == before, "freed without collecting a cycle"
+    finally:
+        gc.enable()

@@ -948,3 +948,150 @@ def test_a_consistent_market_passes_every_identity_check(tmp_path: Path) -> None
         "decision_columns_match_payload",
     ):
         assert result.checks[name], name
+
+
+# -- the durable record must agree with itself about what it is ---------------------------------
+#
+# These check *internal consistency* of a store. They are not a defence against somebody
+# deliberately rewriting the database, the sidecar and the hashes together — the verified archive
+# SHA is the artifact-identity layer, and this is not a substitute for it.
+
+
+def _drop_payload_field(
+    path: Path, field_name: str, where: str = "persistence_sequence = 5"
+) -> None:
+    connection = sqlite3.connect(str(path))
+    sequence, payload = connection.execute(
+        f"SELECT persistence_sequence, payload FROM decisions WHERE {where}"
+    ).fetchone()
+    record = json.loads(payload)
+    record.pop(field_name, None)
+    connection.execute(
+        "UPDATE decisions SET payload = ? WHERE persistence_sequence = ?",
+        (json.dumps(record, separators=(",", ":")), sequence),
+    )
+    connection.commit()
+    connection.close()
+
+
+def _set_payload_field(path: Path, field_name: str, value: object) -> None:
+    connection = sqlite3.connect(str(path))
+    sequence, payload = connection.execute(
+        "SELECT persistence_sequence, payload FROM decisions WHERE persistence_sequence = 5"
+    ).fetchone()
+    record = json.loads(payload)
+    record[field_name] = value
+    connection.execute(
+        "UPDATE decisions SET payload = ? WHERE persistence_sequence = ?",
+        (json.dumps(record, separators=(",", ":")), sequence),
+    )
+    connection.commit()
+    connection.close()
+
+
+@pytest.mark.parametrize(
+    "field_name", ["market_id", "ingress_ordinal", "capture_sequence", "schema_version"]
+)
+def test_a_payload_missing_an_indexed_field_is_refused(tmp_path: Path, field_name: str) -> None:
+    """§7 A-D: absence is not agreement.
+
+    An indexed column exists for every one of these, so a payload that has lost its copy is a
+    damaged record rather than a nullable one. The previous `payload is not None` guard exempted
+    exactly this case.
+    """
+    path = build_market(tmp_path)
+    assert verify_store(path).status is VerificationStatus.COMPLETE, "control"
+
+    _drop_payload_field(path, field_name)
+    result = verify_store(path)
+    assert result.status is VerificationStatus.INCOMPLETE
+    assert not result.checks["decision_columns_match_payload"]
+    assert any(f"payload has no {field_name}" in f for f in result.failures)
+
+
+def test_a_downgraded_schema_version_cannot_buy_v1_exemptions(tmp_path: Path) -> None:
+    """§7 E: column says V1, payload says V2.
+
+    The column alone used to decide which contract applied, so a row could claim V1 and collect
+    its exemption from every V2 rule while its payload said otherwise.
+    """
+    path = build_market(tmp_path)
+    _mutate(path, "UPDATE decisions SET schema_version = 1 WHERE persistence_sequence = 5")
+    result = verify_store(path)
+    assert result.status is VerificationStatus.INCOMPLETE
+    assert not result.checks["decision_schema_version_self_consistent"]
+    assert any("schema versions disagree" in f for f in result.failures)
+
+
+def test_an_upgraded_schema_version_is_equally_refused(tmp_path: Path) -> None:
+    """§7 F: column says V2, payload says V1. Neither direction is believed over the other."""
+    path = build_market(tmp_path)
+    _set_payload_field(path, "schema_version", 1)
+    result = verify_store(path)
+    assert result.status is VerificationStatus.INCOMPLETE
+    assert not result.checks["decision_schema_version_self_consistent"]
+
+
+def test_a_row_with_disagreeing_versions_is_held_to_the_current_contract(
+    tmp_path: Path,
+) -> None:
+    """The exemption needs a *proven* version, so an unprovable one gets no discount.
+
+    A row claiming V1 in its column while its payload says V2, and which has also lost its risk
+    reference, must still fail the V2 risk requirement — otherwise the downgrade would be worth
+    something.
+    """
+    path = build_market(tmp_path)
+    _blank_decision_fields(
+        path,
+        "risk_sequence",
+        "risk_state",
+        "risk_allows_place",
+        "risk_allows_cancel",
+        where="persistence_sequence = 5",
+    )
+    _mutate(path, "UPDATE decisions SET schema_version = 1 WHERE persistence_sequence = 5")
+    result = verify_store(path)
+    assert not result.checks["decision_risk_reference_present"]
+    assert not result.checks["decision_schema_version_self_consistent"]
+
+
+def test_a_genuine_v1_row_keeps_its_historical_contract(tmp_path: Path) -> None:
+    """§7 H: both representations say V1, so the row predates the V2 fields and is exempt.
+
+    A V1 record means what it meant when it was written. Reinterpreting it under a contract that
+    did not exist yet would make old evidence fail for not having anticipated a later schema.
+    """
+    path = build_market(tmp_path)
+    connection = sqlite3.connect(str(path))
+    sequence, payload = connection.execute(
+        "SELECT persistence_sequence, payload FROM decisions WHERE persistence_sequence = 5"
+    ).fetchone()
+    record = json.loads(payload)
+    record["schema_version"] = 1
+    for field_name in (
+        "risk_sequence",
+        "risk_state",
+        "risk_allows_place",
+        "risk_allows_cancel",
+    ):
+        record.pop(field_name, None)
+    connection.execute(
+        "UPDATE decisions SET schema_version = 1, payload = ? WHERE persistence_sequence = ?",
+        (json.dumps(record, separators=(",", ":")), sequence),
+    )
+    connection.commit()
+    connection.close()
+
+    result = verify_store(path)
+    assert result.checks["decision_schema_version_self_consistent"], "both say V1"
+    assert result.checks["decision_risk_reference_present"], "V1 predates the requirement"
+    assert result.checks["decision_risk_copy_complete"]
+
+
+def test_a_consistent_v2_market_passes_the_schema_contract(tmp_path: Path) -> None:
+    """§7 G."""
+    result = verify_store(build_market(tmp_path, place_at=1, fills=1))
+    assert result.status is VerificationStatus.COMPLETE, result.failures
+    assert result.checks["decision_schema_version_self_consistent"]
+    assert result.checks["decision_columns_match_payload"]

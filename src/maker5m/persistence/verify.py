@@ -189,9 +189,18 @@ def verify_store(
             (found_id,),
         ):
             record = json.loads(row[0])
+            column_version = int(row[5])
+            payload_version = record.get("schema_version")
+            # The effective version is only knowable once both representations agree. Deciding
+            # it from the column alone was a downgrade bypass: a row whose column said 1 while
+            # its payload said 2 collected V1's exemptions from every V2 rule below.
+            schema_agrees = isinstance(payload_version, int) and payload_version == column_version
             decision_rows.append(
                 {
-                    "schema_version": int(row[5]),
+                    "schema_version": column_version,
+                    "payload_schema_version": payload_version,
+                    "schema_agrees": schema_agrees,
+                    "effective_version": column_version if schema_agrees else None,
                     "risk_sequence": record.get("risk_sequence"),
                     "place": record.get("up", {}).get("action") == "PLACE"
                     or record.get("down", {}).get("action") == "PLACE",
@@ -305,8 +314,11 @@ def verify_store(
     unpermitted: list[str] = []
     out_of_order = 0
     for row in decision_rows:
-        if row["schema_version"] < DECISION_SCHEMA_VERSION:
-            # A V1 row means what it meant when it was written and predates these fields.
+        effective = row["effective_version"]
+        if effective is not None and effective < DECISION_SCHEMA_VERSION:
+            # A V1 row means what it meant when it was written and predates these fields. The
+            # exemption needs a *proven* version: a row whose two representations disagree has
+            # not established that it is V1, so it is held to the current contract instead.
             continue
 
         referenced = row["risk_sequence"]
@@ -395,19 +407,38 @@ def verify_store(
     # contradicts itself and neither half can be believed over the other.
     blank_event_ids = 0
     inconsistent: list[str] = []
+    schema_disagreements: list[str] = []
     for row in decision_rows:
-        if row["schema_version"] >= DECISION_SCHEMA_VERSION and not row["event_id"]:
+        where = f"ingress {row['column_ingress_ordinal']}"
+
+        if not row["schema_agrees"]:
+            schema_disagreements.append(
+                f"{where}: column schema_version={row['schema_version']!r}, "
+                f"payload schema_version={row['payload_schema_version']!r}"
+            )
+
+        if (
+            row["effective_version"] is not None
+            and row["effective_version"] >= (DECISION_SCHEMA_VERSION)
+            and not row["event_id"]
+        ):
             blank_event_ids += 1
+
         for name, column, payload in (
+            ("schema_version", row["schema_version"], row["payload_schema_version"]),
             ("event_id", row["column_event_id"], row["event_id"]),
             ("market_id", row["column_market_id"], row["payload_market_id"]),
             ("ingress_ordinal", row["column_ingress_ordinal"], row["ingress_ordinal"]),
             ("capture_sequence", row["column_capture_sequence"], row["payload_capture_sequence"]),
         ):
-            if payload is not None and column != payload:
+            # Absence is not agreement. An indexed column exists for every one of these, so a
+            # payload that has lost its copy is a damaged record, not a nullable one — and the
+            # earlier `payload is not None` guard exempted exactly that.
+            if payload is None:
+                inconsistent.append(f"{where}: payload has no {name}, column has {column!r}")
+            elif column != payload:
                 inconsistent.append(
-                    f"ingress {row['column_ingress_ordinal']}: column {name}={column!r}, "
-                    f"payload {name}={payload!r}"
+                    f"{where}: column {name}={column!r}, payload {name}={payload!r}"
                 )
 
     checks["decisions_carry_a_real_event_id"] = blank_event_ids == 0
@@ -415,6 +446,14 @@ def verify_store(
         failures.append(
             f"{blank_event_ids} decision(s) carry no event id; P2 assigns one to every event, "
             "so a blank one is an identity that was lost rather than one that never existed"
+        )
+
+    checks["decision_schema_version_self_consistent"] = not schema_disagreements
+    if schema_disagreements:
+        failures.append(
+            f"{len(schema_disagreements)} decision(s) whose two schema versions disagree, so "
+            "which contract applies to them cannot be established: "
+            + "; ".join(schema_disagreements[:5])
         )
 
     checks["decision_columns_match_payload"] = not inconsistent

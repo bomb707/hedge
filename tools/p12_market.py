@@ -76,7 +76,14 @@ from maker5m.settlement.redeem import REDEMPTION_ENABLED
 from maker5m.strategy import BaseLot, StrategyEngine, default_config
 from maker5m.telemetry import InstrumentedRun, SamplingPolicy, TelemetryAnalyzer, perf_now_ns
 from maker5m.telemetry.observation import ObservationBuffer
-from maker5m.ui import CommandInbox, ControlIngress, SnapshotChannel, SnapshotPublisher
+from maker5m.ui import (
+    CommandBridge,
+    CommandInbox,
+    ControlIngress,
+    HotCommandChannel,
+    SnapshotChannel,
+    SnapshotPublisher,
+)
 
 MIN_LEAD_SECONDS = 45
 SAMPLE_EVERY = 10
@@ -148,6 +155,7 @@ async def main(
     )
     buffer = ObservationBuffer(capacity=buffer_capacity)
     risk_channel = BoundedChannel(capacity=min(DEFAULT_RISK_CAPACITY, max(buffer_capacity, 1)))
+    audit_channel = BoundedChannel(capacity=256)
     fill_channel = BoundedChannel(capacity=8_192)
     worker = PersistenceWorker(
         buffer=buffer,
@@ -157,6 +165,7 @@ async def main(
         metrics=metrics,
         risk=risk_channel,
         fills=fill_channel,
+        control_audit=audit_channel,
     )
 
     stalling = {"active": False, "started_at": 0.0, "ended_at": 0.0, "events": 0}
@@ -185,13 +194,52 @@ async def main(
             )
         )
 
+    # Plane 3 owns every filesystem call in the UI path. The bridge lists, reads, decodes and
+    # unlinks command files on its own thread and writes the snapshot; the ingress owner does a
+    # `popleft` on a deque and nothing else. "Does not wait for the UI process" was never the
+    # requirement — a `listdir` can stall on the filesystem with no UI involved at all.
     snapshot_channel = SnapshotChannel(ui_dir / "snapshot.json")
     inbox = CommandInbox(ui_dir / "inbox")
-    publisher = SnapshotPublisher(
-        channel=snapshot_channel, identity=identity, config=config, t0_ns=t0_ns
+    hot_commands = HotCommandChannel()
+    bridge = CommandBridge(inbox=inbox, channel=hot_commands, snapshot=snapshot_channel)
+    publisher = SnapshotPublisher(identity=identity, config=config, bridge=bridge, t0_ns=t0_ns)
+    control_ingress = ControlIngress(
+        controller=controller,
+        publish=risk_channel.publish,
+        audit=lambda command, outcome: audit_channel.publish((command, outcome)),
     )
-    control_ingress = ControlIngress(controller=controller, publish=risk_channel.publish)
-    worker.on_record = publisher.observe
+
+    def _verdict_for(records: Any, risk_sequence: int | None) -> Any:
+        """The exact RiskRecord this decision names, not merely the newest one.
+
+        A dashboard that showed decision N beside verdict N+4 because the latter was freshest
+        would be describing two different moments and calling it one.
+        """
+        if risk_sequence is None or not records:
+            return None
+        first = records[0].risk_sequence
+        index = risk_sequence - first
+        if 0 <= index < len(records) and records[index].risk_sequence == risk_sequence:
+            return records[index]
+        return None
+
+    def on_persisted(record: Any) -> None:
+        """Plane 3, on the worker thread: update the read model and offer a frame."""
+        publisher.observe(
+            record, controller.trace.records[-1] if controller.trace.records else None
+        )
+        publisher.deliver(
+            "counters",
+            {
+                "decisions": worker.stats.decisions_written,
+                "risk": worker.stats.risk_written,
+                "dropped": buffer.dropped,
+                "sink_errors": worker.store.sink_errors,
+            },
+        )
+        publisher.maybe_publish(time.time())
+
+    worker.on_record = on_persisted
 
     hot_path_ns: list[int] = []
     last_evaluated = [-1]
@@ -268,11 +316,9 @@ async def main(
         if pipeline.merger.ordinal != last_evaluated[0]:
             evaluate_now(pipeline, now_ns)
 
-        # Operator control, on the control tick and nowhere else. `drain` is a `listdir` with a
-        # bound on it: if the UI is running it may have left commands, and if it was killed
-        # thirty seconds ago this reads an empty directory and moves on. There is nothing here
-        # that can wait for it.
-        for command in inbox.drain():
+        # The whole of the hot side's UI work: a bounded pop from an in-memory deque. No
+        # syscall, no serialization, no lock, and nothing that can stall on a filesystem.
+        for command in hot_commands.pop_all():
             outcome = control_ingress.apply(
                 command,
                 ingress_ordinal=pipeline.merger.ordinal,
@@ -286,12 +332,6 @@ async def main(
                 f"state={outcome.risk_state}",
                 flush=True,
             )
-
-        publisher.counters["decisions"] = worker.stats.decisions_written
-        publisher.counters["risk"] = worker.stats.risk_written
-        publisher.counters["dropped"] = buffer.dropped
-        publisher.counters["sink_errors"] = worker.store.sink_errors
-        publisher.maybe_publish(time.time())
 
         if not stall_window:
             return
@@ -311,6 +351,7 @@ async def main(
                 flush=True,
             )
 
+    bridge.start()
     worker.start()
     try:
         result = await capture_market(
@@ -329,6 +370,7 @@ async def main(
         while len(buffer) and time.time() < deadline:
             time.sleep(0.05)
         worker.stop(timeout=30)
+        bridge.stop(timeout=5)
 
     print(
         f"    persisted {worker.stats.decisions_written} decisions, "
@@ -413,6 +455,38 @@ async def main(
     stamped = manifest
 
     verification = verify_store(database, expected_sha256=digest)
+
+    # Settlement and the verifier's answer are Plane-3 facts that arrive after trading. Both are
+    # delivered to the read model and a final frame is written, so the last thing an operator
+    # sees is the resolved market rather than a permanent "unknown".
+    if settlement is not None:
+        decision_summary = settlement.decision
+        publisher.deliver(
+            "settlement",
+            {
+                "state": decision_summary.state.value,
+                "winning_outcome": (
+                    None
+                    if decision_summary.winning_outcome is None
+                    else decision_summary.winning_outcome.value
+                ),
+                "authoritative_block": decision_summary.authoritative_block,
+                "payout_numerators": list(
+                    () if decision_summary.payout is None else decision_summary.payout.numerators
+                ),
+                "note": "redemption is disabled in this build; nothing was redeemed",
+            },
+        )
+    publisher.deliver(
+        "verification",
+        {
+            "status": verification.status.value,
+            "complete": verification.status.value == "COMPLETE",
+        },
+    )
+    publisher.publish_now(time.time())
+    bridge.publish_pending()
+    time.sleep(0.2)
 
     # Cold, lossless, and only after the store verified. 853 MB per market is not a durable
     # representation; ~11 MB is. The archive is proved to restore byte-identically before the
@@ -512,6 +586,15 @@ async def main(
         "hot_path_observe_ns": _tiers(hot_path_ns),
         "settlement": None if settlement is None else settlement.summary(),
         "ui": {
+            "bridge": bridge.stats.summary(),
+            "hot_channel": {
+                "capacity": hot_commands.capacity,
+                "accepted": hot_commands.accepted,
+                "high_water": hot_commands.high_water,
+            },
+            "control_records_written": worker.stats.control_records_written,
+            "audit_accepted": audit_channel.accepted,
+            "audit_dropped": audit_channel.dropped,
             "snapshot_path": str(snapshot_channel.path),
             "inbox_path": str(inbox.directory),
             "snapshots_published": snapshot_channel.published,

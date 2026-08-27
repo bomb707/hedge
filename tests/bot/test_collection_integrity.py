@@ -15,9 +15,9 @@ from typing import Any
 
 import pytest
 
-from maker5m.bot import CorpusIndex, PaperConfig, Supervisor
+from maker5m.bot import CorpusIndex, PaperConfig
 from maker5m.bot.supervisor import MAX_COLD_BACKLOG
-from tests.bot.test_multi_market import clean_cold, collected, paper
+from tests.bot.test_multi_market import acceptance, clean_cold, collected, paper
 
 
 def _never(event: asyncio.Event, name: str) -> asyncio.Task[None]:
@@ -29,12 +29,23 @@ def _never(event: asyncio.Event, name: str) -> asyncio.Task[None]:
     return asyncio.create_task(wait(), name=name)
 
 
-def row(slug: str, *, epoch: str, config: str, revision: str) -> dict[str, Any]:
+def row(
+    slug: str,
+    *,
+    epoch: str,
+    config: str,
+    revision: str,
+    tree: str = "tree",
+    clean: bool = True,
+) -> dict[str, Any]:
     return {
         "slug": slug,
         "epoch": epoch,
         "config_sha256": config,
         "source_revision": revision,
+        "source_tree_sha": tree,
+        "working_tree_clean": clean,
+        "run_mode": "ACCEPTANCE_CLEAN" if clean else "EXPLORATORY_DIRTY",
         "verification_status": "COMPLETE",
         "evidence_eligible": True,
     }
@@ -47,7 +58,7 @@ def test_the_launch_loop_waits_for_cold_capacity(tmp_path: Path) -> None:
     """§17. Cold tasks that never finish must stop the collector launching more markets."""
 
     async def scenario() -> tuple[bool, int]:
-        supervisor = Supervisor(config=paper(tmp_path))
+        supervisor = acceptance(paper(tmp_path))
         stuck = asyncio.Event()
         for index in range(MAX_COLD_BACKLOG):
             supervisor.cold.add(_never(stuck, f"stuck-{index}"))
@@ -66,7 +77,7 @@ def test_the_launch_loop_waits_for_cold_capacity(tmp_path: Path) -> None:
 
 def test_capacity_returns_when_a_cold_task_finishes(tmp_path: Path) -> None:
     async def scenario() -> bool:
-        supervisor = Supervisor(config=paper(tmp_path))
+        supervisor = acceptance(paper(tmp_path))
         release = asyncio.Event()
         for index in range(MAX_COLD_BACKLOG):
             supervisor.cold.add(_never(release, f"cold-{index}"))
@@ -78,7 +89,7 @@ def test_capacity_returns_when_a_cold_task_finishes(tmp_path: Path) -> None:
 
 def test_a_skipped_slot_is_recorded_rather_than_silently_missing(tmp_path: Path) -> None:
     """§16. A missing five-minute window must be visible in the corpus, with its reason."""
-    supervisor = Supervisor(config=paper(tmp_path))
+    supervisor = acceptance(paper(tmp_path))
     supervisor._record_skip(
         "btc-updown-5m-1787826000", 1_787_826_000, "COLD_BACKLOG_CAP", "three markets in flight"
     )
@@ -93,7 +104,7 @@ def test_a_skipped_slot_is_recorded_rather_than_silently_missing(tmp_path: Path)
 
 def test_the_backlog_high_water_is_recorded(tmp_path: Path) -> None:
     async def scenario() -> int:
-        supervisor = Supervisor(config=paper(tmp_path))
+        supervisor = acceptance(paper(tmp_path))
         release = asyncio.Event()
         for index in range(MAX_COLD_BACKLOG):
             supervisor.cold.add(_never(release, f"cold-{index}"))
@@ -117,7 +128,7 @@ def test_a_market_whose_row_cannot_be_written_does_not_count(tmp_path: Path) -> 
             self.append_errors += 1
             return False
 
-    supervisor = Supervisor(config=paper(tmp_path))
+    supervisor = acceptance(paper(tmp_path))
     supervisor.corpus = RefusingIndex(path=tmp_path / "corpus.jsonl")
     ui_dir = tmp_path / "ui"
     from maker5m.bot import UiPlane
@@ -138,7 +149,8 @@ def test_a_market_whose_row_cannot_be_written_does_not_count(tmp_path: Path) -> 
 def test_the_remaining_target_counts_what_the_corpus_already_holds(tmp_path: Path) -> None:
     """§23. A restart after 150 collects 50 more, not 200 more."""
     config = paper(tmp_path)
-    supervisor = Supervisor(config=config, target_markets=200)
+    supervisor = acceptance(config)
+    supervisor.target_markets = 200
     identity = supervisor.identity
     for index in range(150):
         supervisor.corpus.append(
@@ -147,14 +159,11 @@ def test_the_remaining_target_counts_what_the_corpus_already_holds(tmp_path: Pat
                 epoch=config.epoch,
                 config=str(identity["config_sha256"]),
                 revision=str(identity["source_revision"]),
+                tree=str(identity["source_tree_sha"]),
             )
         )
 
-    supervisor.completed_existing = supervisor.corpus.qualifying(
-        epoch=config.epoch,
-        config_sha256=str(identity["config_sha256"]),
-        source_revision=str(identity["source_revision"]),
-    )
+    supervisor.completed_existing = supervisor.qualifying_now()
     assert supervisor.completed_existing == 150
     assert supervisor.completed == 150
     assert supervisor._keep_going(launched=0) is True

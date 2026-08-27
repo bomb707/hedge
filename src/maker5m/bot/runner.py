@@ -36,8 +36,15 @@ def build(root: Path, *, keep_raw_store: bool = False, epoch: str = "p13-corpus-
     )
 
 
-async def _run(config: PaperConfig, markets: int | None, launches: int | None) -> Supervisor:
-    supervisor = Supervisor(config=config, target_markets=markets, launch_limit=launches)
+async def _run(
+    config: PaperConfig, markets: int | None, launches: int | None, allow_dirty: bool
+) -> Supervisor:
+    supervisor = Supervisor(
+        config=config,
+        target_markets=markets,
+        launch_limit=launches,
+        allow_dirty_requested=allow_dirty,
+    )
     identity = config_identity(config)
     print(
         json.dumps(
@@ -48,7 +55,9 @@ async def _run(config: PaperConfig, markets: int | None, launches: int | None) -
                 "source_revision": identity["source_revision"],
                 "source_tree_sha": identity["source_tree_sha"],
                 "working_tree_clean": identity["working_tree_clean"],
-                "already_qualifying_this_epoch": supervisor.completed_existing,
+                # The real durable count, not the field before `run` has filled it in.
+                "already_qualifying_this_epoch": supervisor.qualifying_now(),
+                "run_mode": supervisor.run_mode,
                 "live_trading_enabled": LIVE_TRADING_ENABLED,
                 "redemption_enabled": REDEMPTION_ENABLED,
                 "evidence_dir": str(config.evidence_dir),
@@ -100,7 +109,7 @@ def main() -> None:
             f"{modified}\ncommit them, or pass --allow-dirty for an exploratory run"
         )
     started = time.time()
-    supervisor = asyncio.run(_run(config, args.markets, args.launch_limit))
+    supervisor = asyncio.run(_run(config, args.markets, args.launch_limit, args.allow_dirty))
     stats = supervisor.corpus.stats()
     print(
         json.dumps(

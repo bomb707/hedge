@@ -123,9 +123,54 @@ def collected(
         )
     unit.analyzer.counters.actions = {"KEEP": 2 * decisions if actions is None else actions}
     if warm:
-        unit._note_warm("clob_book_ready_ns", TimestampNs(unit.t0_ns - 20 * NANOS_PER_SECOND))
-        unit._note_warm("spot_first_valid_ns", TimestampNs(unit.t0_ns - 10 * NANOS_PER_SECOND))
+        ready_at_t0(unit, clob_since=20, spot_since=10)
     return unit
+
+
+def ready_at_t0(
+    unit: MarketSession,
+    *,
+    clob_since: float | None,
+    spot_since: float | None,
+) -> None:
+    """Put a session in the warm state P6 would have reported at its T0.
+
+    Both halves, because they are different facts: the first-seen milestones are diagnostics,
+    and the boundary snapshot is what eligibility is judged on.
+    """
+    clob = None if clob_since is None else int(unit.t0_ns - clob_since * NANOS_PER_SECOND)
+    spot = None if spot_since is None else int(unit.t0_ns - spot_since * NANOS_PER_SECOND)
+    if clob is not None:
+        unit._note_warm("clob_book_ready_ns", TimestampNs(clob))
+    if spot is not None:
+        unit._note_warm("spot_first_valid_ns", TimestampNs(spot))
+    unit._note_prearm(
+        {
+            "at_ns": unit.t0_ns,
+            "clob_ready": clob is not None,
+            "spot_ready": spot is not None,
+            "clob_ready_since_ns": clob,
+            "spot_ready_since_ns": spot,
+        }
+    )
+
+
+def acceptance(config: PaperConfig) -> Supervisor:
+    """A supervisor that believes it is running from clean source.
+
+    Stated rather than inherited: a unit test must not pass or fail depending on whether the
+    repository happens to have uncommitted edits in it while the suite runs, and the rule under
+    test — dirty source is never acceptance evidence — has its own tests.
+    """
+    supervisor = Supervisor(config=config)
+    supervisor.identity = {
+        **supervisor.identity,
+        "working_tree_clean": True,
+        "source_revision": "revision",
+        "source_tree_sha": "tree",
+    }
+    supervisor.run_mode = "ACCEPTANCE_CLEAN"
+    return supervisor
 
 
 def clean_cold() -> dict[str, Any]:
@@ -288,7 +333,7 @@ def test_a_failed_market_is_kept_and_counts_toward_nothing(tmp_path: Path) -> No
 
 def test_a_replay_mismatch_makes_a_complete_market_ineligible(tmp_path: Path) -> None:
     """§16: a stream that does not reproduce is not evidence, whatever the store says."""
-    supervisor = Supervisor(config=paper(tmp_path))
+    supervisor = acceptance(paper(tmp_path))
     ui = UiPlane(directory=tmp_path / "ui")
     unit = collected(tmp_path, ui)
 
@@ -308,7 +353,7 @@ def test_a_replay_mismatch_makes_a_complete_market_ineligible(tmp_path: Path) ->
 
 def test_a_market_that_produced_almost_nothing_is_flagged_operationally(tmp_path: Path) -> None:
     """OPERATIONAL, and labelled as such: a broken collector, not a strategy judgement."""
-    supervisor = Supervisor(config=paper(tmp_path))
+    supervisor = acceptance(paper(tmp_path))
     ui = UiPlane(directory=tmp_path / "ui")
     unit = collected(tmp_path, ui, decisions=2)
 
@@ -321,7 +366,7 @@ def test_a_market_that_produced_almost_nothing_is_flagged_operationally(tmp_path
 
 
 def test_a_clean_market_classifies_both_sides_of_every_decision(tmp_path: Path) -> None:
-    supervisor = Supervisor(config=paper(tmp_path))
+    supervisor = acceptance(paper(tmp_path))
     ui = UiPlane(directory=tmp_path / "ui")
     entry = supervisor._entry(collected(tmp_path, ui, decisions=10), clean_cold())
     assert entry["classification"]["expected_classifications"] == 20
@@ -333,7 +378,7 @@ def test_a_clean_market_classifies_both_sides_of_every_decision(tmp_path: Path) 
 
 def test_a_short_classification_count_makes_the_market_ineligible(tmp_path: Path) -> None:
     """The P13 corpus counted 30,734 classifications for 143,740 decisions and called it a rate."""
-    supervisor = Supervisor(config=paper(tmp_path))
+    supervisor = acceptance(paper(tmp_path))
     ui = UiPlane(directory=tmp_path / "ui")
     unit = collected(tmp_path, ui, decisions=10, classifications=7)
     entry = supervisor._entry(unit, clean_cold())
@@ -343,7 +388,7 @@ def test_a_short_classification_count_makes_the_market_ineligible(tmp_path: Path
 
 
 def test_a_short_action_count_makes_the_market_ineligible(tmp_path: Path) -> None:
-    supervisor = Supervisor(config=paper(tmp_path))
+    supervisor = acceptance(paper(tmp_path))
     ui = UiPlane(directory=tmp_path / "ui")
     unit = collected(tmp_path, ui, decisions=10, actions=13)
     entry = supervisor._entry(unit, clean_cold())
@@ -352,7 +397,7 @@ def test_a_short_action_count_makes_the_market_ineligible(tmp_path: Path) -> Non
 
 
 def test_the_action_counts_are_reported_by_kind(tmp_path: Path) -> None:
-    supervisor = Supervisor(config=paper(tmp_path))
+    supervisor = acceptance(paper(tmp_path))
     ui = UiPlane(directory=tmp_path / "ui")
     unit = collected(tmp_path, ui, decisions=10)
     unit.analyzer.counters.actions = {"KEEP": 14, "PLACE": 4, "BLOCKED": 2}
@@ -376,13 +421,15 @@ def test_discovery_and_feed_readiness_are_separate_facts(tmp_path: Path) -> None
     assert prearm["spot_lead_seconds"] == 10.0
     assert prearm["feed_ready_lead_seconds"] == 10.0, "the later of the two feeds decides"
     assert prearm["feed_ready_before_t0"] is True
+    assert prearm["clob_ready_at_t0"] is True
+    assert prearm["spot_ready_at_t0"] is True
 
 
 def test_a_market_with_no_book_before_t0_is_not_warm(tmp_path: Path) -> None:
-    supervisor = Supervisor(config=paper(tmp_path))
+    supervisor = acceptance(paper(tmp_path))
     ui = UiPlane(directory=tmp_path / "ui")
     unit = collected(tmp_path, ui, warm=False)
-    unit._note_warm("spot_first_valid_ns", TimestampNs(unit.t0_ns - 10 * NANOS_PER_SECOND))
+    ready_at_t0(unit, clob_since=None, spot_since=10)
 
     prearm = unit.prearm_summary()
     assert prearm["feed_ready_ns"] is None
@@ -393,10 +440,10 @@ def test_a_market_with_no_book_before_t0_is_not_warm(tmp_path: Path) -> None:
 
 
 def test_a_market_with_no_spot_before_t0_is_not_warm(tmp_path: Path) -> None:
-    supervisor = Supervisor(config=paper(tmp_path))
+    supervisor = acceptance(paper(tmp_path))
     ui = UiPlane(directory=tmp_path / "ui")
     unit = collected(tmp_path, ui, warm=False)
-    unit._note_warm("clob_book_ready_ns", TimestampNs(unit.t0_ns - 20 * NANOS_PER_SECOND))
+    ready_at_t0(unit, clob_since=20, spot_since=None)
 
     assert unit.prearm_summary()["feed_ready_ns"] is None
     assert supervisor._entry(unit, clean_cold())["evidence_eligible"] is False
@@ -404,11 +451,10 @@ def test_a_market_with_no_spot_before_t0_is_not_warm(tmp_path: Path) -> None:
 
 def test_a_book_that_arrives_after_t0_is_not_prearm(tmp_path: Path) -> None:
     """Warm means warm *before* the market's first event, not eventually."""
-    supervisor = Supervisor(config=paper(tmp_path))
+    supervisor = acceptance(paper(tmp_path))
     ui = UiPlane(directory=tmp_path / "ui")
     unit = collected(tmp_path, ui, warm=False)
-    unit._note_warm("clob_book_ready_ns", TimestampNs(unit.t0_ns + 5 * NANOS_PER_SECOND))
-    unit._note_warm("spot_first_valid_ns", TimestampNs(unit.t0_ns - 10 * NANOS_PER_SECOND))
+    ready_at_t0(unit, clob_since=-5, spot_since=10)
 
     prearm = unit.prearm_summary()
     assert prearm["feed_ready_before_t0"] is False
@@ -428,7 +474,7 @@ def test_a_warm_milestone_is_recorded_once(tmp_path: Path) -> None:
 
 
 def test_a_market_with_no_clob_messages_is_ineligible(tmp_path: Path) -> None:
-    supervisor = Supervisor(config=paper(tmp_path))
+    supervisor = acceptance(paper(tmp_path))
     ui = UiPlane(directory=tmp_path / "ui")
     unit = collected(tmp_path, ui, clob=0, spot=10_000)
     entry = supervisor._entry(unit, clean_cold())
@@ -437,7 +483,7 @@ def test_a_market_with_no_clob_messages_is_ineligible(tmp_path: Path) -> None:
 
 
 def test_a_market_with_no_spot_messages_is_ineligible(tmp_path: Path) -> None:
-    supervisor = Supervisor(config=paper(tmp_path))
+    supervisor = acceptance(paper(tmp_path))
     ui = UiPlane(directory=tmp_path / "ui")
     unit = collected(tmp_path, ui, clob=10_000, spot=0)
     entry = supervisor._entry(unit, clean_cold())
@@ -446,7 +492,7 @@ def test_a_market_with_no_spot_messages_is_ineligible(tmp_path: Path) -> None:
 
 
 def test_both_feeds_above_their_floors_raise_no_feed_fault(tmp_path: Path) -> None:
-    supervisor = Supervisor(config=paper(tmp_path))
+    supervisor = acceptance(paper(tmp_path))
     ui = UiPlane(directory=tmp_path / "ui")
     entry = supervisor._entry(collected(tmp_path, ui, clob=10_000, spot=500), clean_cold())
     assert not [f for f in entry["operational_faults"] if "messages" in f]
@@ -454,7 +500,7 @@ def test_both_feeds_above_their_floors_raise_no_feed_fault(tmp_path: Path) -> No
 
 
 def test_the_supervisor_records_a_prearm_failure_without_stopping(tmp_path: Path) -> None:
-    supervisor = Supervisor(config=paper(tmp_path))
+    supervisor = acceptance(paper(tmp_path))
     supervisor._record_prearm_failure(
         PrearmRecord(
             slug="btc-updown-5m-9",
@@ -667,7 +713,7 @@ def test_dropping_the_recorded_steps_keeps_the_feed_counts(tmp_path: Path) -> No
     assert unit.capture is None
     assert unit.feed_counters == {"clob_messages": 486_028, "spot_messages": 26_404}
 
-    supervisor = Supervisor(config=paper(tmp_path))
+    supervisor = acceptance(paper(tmp_path))
     entry = supervisor._entry(unit, {"verification_status": "COMPLETE", "replay": {}})
     assert entry["feed_counters"]["clob_messages"] == 486_028
 
@@ -722,7 +768,7 @@ def test_the_hot_path_cost_is_recorded_per_market(tmp_path: Path) -> None:
     ui = UiPlane(directory=tmp_path / "ui")
     unit = session(tmp_path, ui, T0_A, "a")
     unit.hot_path_ns.extend([100, 200, 300, 400])
-    supervisor = Supervisor(config=paper(tmp_path))
+    supervisor = acceptance(paper(tmp_path))
     entry = supervisor._entry(unit, {"verification_status": "COMPLETE", "replay": {}})
     tiers = entry["worker"]
     assert entry["hot_path_observe_ns"]["n"] == 4

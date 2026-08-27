@@ -65,9 +65,9 @@ from maker5m.ui import ControlIngress, SnapshotPublisher
 __all__ = ["MarketSession", "PrearmRecord", "SessionResult"]
 
 
-def _lead(t0_ns: int, when_ns: int | None) -> float | None:
+def _lead(t0_ns: int, when_ns: Any) -> float | None:
     """Seconds before T0. ``None`` when it never happened — never a zero standing in for that."""
-    if when_ns is None:
+    if not isinstance(when_ns, int):
         return None
     return round((t0_ns - when_ns) / NANOS_PER_SECOND, 3)
 
@@ -248,6 +248,7 @@ class MarketSession:
             "spot_first_valid_ns": None,
         }
         self.feed_warm_started_ns: int | None = None
+        self.at_t0: dict[str, Any] = {}
 
     # -- Plane 3 observers -----------------------------------------------------------------
 
@@ -389,17 +390,29 @@ class MarketSession:
         if self.warm.get(key) is None:
             self.warm[key] = int(when_ns)
 
+    def _note_prearm(self, at_t0: dict[str, Any]) -> None:
+        """P6's warm state at the T0 boundary. Recorded once, by the capture that saw it."""
+        self.at_t0 = dict(at_t0)
+
     @property
     def feed_ready_ns(self) -> int | None:
-        """When this market was genuinely warm: a usable book **and** a real BTC price.
+        """When this market became warm and **stayed** warm up to its own T0.
 
-        Both, or nothing. A book with no spot cannot price a centre and a spot with no book has
-        nothing to quote against, so a single arriving feed is not a warm market — and `None`
-        here means exactly that, never "assume it was fine".
+        Both feeds, currently valid at the boundary, or nothing. A book with no spot cannot
+        price a centre and a spot with no book has nothing to quote against; and a feed that was
+        ready once and disconnected before T0 was not ready when it mattered. If either lost
+        continuity and recovered, this is measured from the recovery, because that is when the
+        market actually became warm.
+
+        `None` means exactly that, never "assume it was fine".
         """
-        book = self.warm.get("clob_book_ready_ns")
-        spot = self.warm.get("spot_first_valid_ns")
-        if book is None or spot is None:
+        if not self.at_t0:
+            return None
+        if not (self.at_t0.get("clob_ready") and self.at_t0.get("spot_ready")):
+            return None
+        book = self.at_t0.get("clob_ready_since_ns")
+        spot = self.at_t0.get("spot_ready_since_ns")
+        if not isinstance(book, int) or not isinstance(spot, int):
             return None
         return max(book, spot)
 
@@ -415,8 +428,16 @@ class MarketSession:
             "clob_book_ready_ns": book,
             "spot_first_valid_ns": spot,
             "feed_ready_ns": ready,
-            "clob_lead_seconds": _lead(self.t0_ns, book),
-            "spot_lead_seconds": _lead(self.t0_ns, spot),
+            "first_clob_lead_seconds": _lead(self.t0_ns, book),
+            "first_spot_lead_seconds": _lead(self.t0_ns, spot),
+            # The state at the boundary. `clob_lead_seconds` and `spot_lead_seconds` are
+            # measured from when each feed last *became* valid, so a disconnect and recovery
+            # shortens the lead instead of leaving the original figure standing.
+            "at_t0": dict(self.at_t0),
+            "clob_ready_at_t0": bool(self.at_t0.get("clob_ready")),
+            "spot_ready_at_t0": bool(self.at_t0.get("spot_ready")),
+            "clob_lead_seconds": _lead(self.t0_ns, self.at_t0.get("clob_ready_since_ns")),
+            "spot_lead_seconds": _lead(self.t0_ns, self.at_t0.get("spot_ready_since_ns")),
             "feed_ready_lead_seconds": _lead(self.t0_ns, ready),
             "feed_ready_before_t0": ready is not None and ready < self.t0_ns,
         }
@@ -438,6 +459,7 @@ class MarketSession:
                 observer=lambda kind, raw, decision: self._observe(kind, raw, decision),
                 on_tick=self._on_tick,
                 on_warm=self._note_warm,
+                on_prearm=self._note_prearm,
             )
         except Exception as error:
             self.incidents.append(f"capture failed: {type(error).__name__}: {error}")
@@ -495,9 +517,19 @@ class MarketSession:
         path.write_bytes(raw)
 
     async def settle(self, settle_fn: Any) -> None:
-        """Watch the chain for this market's resolution. Never blocks another market."""
+        """Watch the chain for this market's resolution. Never blocks another market.
+
+        The watch duration and poll interval come from this run's configuration, which is what
+        the corpus identity claims they are.
+        """
         try:
-            self.settlement = await asyncio.to_thread(settle_fn, self.market, self.slug)
+            self.settlement = await asyncio.to_thread(
+                settle_fn,
+                self.market,
+                self.slug,
+                timeout_s=self.config.settle_timeout_s,
+                poll_s=self.config.settle_poll_s,
+            )
         except Exception as error:
             self.incidents.append(f"settlement watch failed: {type(error).__name__}: {error}")
 

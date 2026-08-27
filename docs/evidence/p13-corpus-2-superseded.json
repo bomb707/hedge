@@ -1,0 +1,123 @@
+{
+  "attempts_launched": 12,
+  "complete_rows": 10,
+  "config_sha256": "63856fdf062f28fffa22d7d9e9e0ebe554d7a09998e1ad7b455ab54b3aa3e320",
+  "corpus_index_sha256": "dc28448f871268c49ba6bef444908a1728a67c04f90e7d7dc3a5b222ec73e560",
+  "durable_rows": 10,
+  "eligible_rows": 10,
+  "epoch": "p13-corpus-2",
+  "in_flight_at_stop": 2,
+  "kind": "P13_CORPUS_2_SUPERSEDED",
+  "markets": [
+    {
+      "archive_sha256": "d4471d35a8d33e0e6433005727ece368318c704d1d4a0316df25e21530723252",
+      "classified": 307988,
+      "decisions": 153994,
+      "journal_sha256": "4cd9973f1d2909f9c3f148f5cc66594213b8c28fcbef2288c80129d6c3f636cf",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787841300",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "7c796393d88308ceb8db1fd4f2d2b721fb2c8fbb4b6dd87a5af16ff2019bfe49",
+      "classified": 413676,
+      "decisions": 206838,
+      "journal_sha256": "9007a86b62725e212f1b6652aa182feb4e792d42c1983c91249e123fb97246fc",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787841600",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "83285831f1f4ce731e755724a77773dcd0f01ea302cf6e99c822e36185af1520",
+      "classified": 245178,
+      "decisions": 122589,
+      "journal_sha256": "f25ea2bf710a4edbe40c41e7fc02b7b7080622537a0af31eb049a37c53e84943",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787841900",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "57461567c61752476ac42eaa881eacc0795cb545c8f2edf45f6095e6d8e4ca64",
+      "classified": 518670,
+      "decisions": 259335,
+      "journal_sha256": "3c1c53c0963f1340478e7c974925b9391b1a706e5bc0db2f85233561135dfc0a",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787842200",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "7ac09a0b6ee9dccec7bafa33d6d26c636bd9c1cdcb7cc9cf5311152eddc10d5c",
+      "classified": 288374,
+      "decisions": 144187,
+      "journal_sha256": "dbdef052528d13c7e91f3b6c844355e30bcc99858e4bb123bd7c6e3a505d258a",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787842500",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "fbed4be5307de4971388f0095dd723c114271c8af3da3e47a61f8e2b19d77c2b",
+      "classified": 376470,
+      "decisions": 188235,
+      "journal_sha256": "3652bee722550f593c2cbaa085af76d0bb7c8f2b65ff0c423c7bc3473823ce98",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787842800",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "1ff664b196cf90c1d29d275c76b61c5060b1e6ca824c0707247b874f4d5dceb2",
+      "classified": 309492,
+      "decisions": 154746,
+      "journal_sha256": "da0253318139dce9bfa05364fc763c9c526cbf7d4942f8cc5019588beb3af9b2",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787843100",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "7d507d8b754be64cbc150011cbfcddf57273d214d3c688ed34baee3a567744f5",
+      "classified": 307644,
+      "decisions": 153822,
+      "journal_sha256": "9ba29cf2d531a86c23a3a84983041af050b93c3aeb99ad5b215f71681d46e65c",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787843400",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "6027ddfcc410258e8b66a1ba206deaa960ca9b4ed4287bde04c40a5d52b8411d",
+      "classified": 459486,
+      "decisions": 229743,
+      "journal_sha256": "59059f330a69a42b8d02f1e227f2898d309e54e1cea1dbd191b457778165b5a5",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787843700",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "93b2cf34514301af108183f40dc1a0f9d389cdf2ef4c881caf6fb00defd11c7e",
+      "classified": 310298,
+      "decisions": 155149,
+      "journal_sha256": "7939fce0317e0af6fa0c107f933a89b9772f4b0cd02856835d28b770f023171b",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787844000",
+      "verification_status": "COMPLETE"
+    }
+  ],
+  "note": "Nothing in this epoch was deleted, rewritten or reclassified. Retained as exploratory engineering and replay evidence, excluded from the >=200 acceptance count.",
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "replay_exact_rows": 10,
+  "root": "/home/hr/p13-corpus-2",
+  "source_revision": "3866ea2b632319fd8381adbc3c00a5e000f91942",
+  "status": "SUPERSEDED_FOR_FINAL_P13_ACCEPTANCE",
+  "stopped_by": "SIGTERM to PID 3958641, verified as this root's runner (cwd /home/hr/hedge) before signalling",
+  "stopped_utc": "2026-08-27T15:29:00Z",
+  "what_remains_valid": [
+    "Real Polymarket, Binance and Polygon data throughout.",
+    "10 stores verified COMPLETE and 10 journals replaying EXACT under P5, with exhaustive L3.",
+    "Composition, overlap, settlement, prearm-diagnostic and resource evidence."
+  ],
+  "why_it_cannot_count": [
+    "Live per-trigger latency was not durably retained: the analyzer's own CLOB and spot receive-to-decide and receive-to-reconcile samples died with the session, and a replay cannot stand in for latency experienced during a live market.",
+    "In-flight attempts were not durably registered, so a market interrupted before finalization leaves no row at all \u2014 two of these twelve.",
+    "The cold-backlog cap was checked at launch but not reserved, so sessions already running could carry the count past it as they closed.",
+    "Feed readiness recorded the first time a book and a spot appeared, not whether either was still valid at T0; a disconnect after that first milestone would not have shown.",
+    "A clean resume would have counted rows collected by a dirty exploratory run at the same HEAD."
+  ]
+}

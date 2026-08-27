@@ -175,6 +175,8 @@ class Supervisor:
     cold_high_water: int = 0
     append_failures: int = 0
     gc_observer: GcObserver = field(default_factory=GcObserver)
+    allow_dirty_requested: bool = False
+    run_mode: str = field(init=False, default="ACCEPTANCE_CLEAN")
     log: Any = _flushed_print
     restarted: bool = False
 
@@ -184,7 +186,25 @@ class Supervisor:
         self.ui = UiPlane(directory=self.config.ui_dir)
         self.corpus = CorpusIndex(path=self.config.corpus_path)
         self.identity = config_identity(self.config)
+        # What kind of run this is, decided once and recorded on everything it produces. A run
+        # against modified tracked source can collect, persist, replay and verify — it simply
+        # cannot be final empirical evidence, and the row has to say so itself rather than
+        # depending on somebody remembering which run wrote it.
+        self.run_mode = (
+            "ACCEPTANCE_CLEAN"
+            if self.identity.get("working_tree_clean") is True
+            else "EXPLORATORY_DIRTY"
+        )
         self.config.evidence_dir.mkdir(parents=True, exist_ok=True)
+
+    def qualifying_now(self) -> int:
+        """Durable rows already collected for this exact epoch, config, revision and tree."""
+        return self.corpus.qualifying(
+            epoch=self.config.epoch,
+            config_sha256=str(self.identity.get("config_sha256")),
+            source_revision=str(self.identity.get("source_revision")),
+            source_tree_sha=str(self.identity.get("source_tree_sha")),
+        )
 
     # -- prearm --------------------------------------------------------------------------
 
@@ -217,11 +237,7 @@ class Supervisor:
         context = get_context("spawn")
         self.pool = ProcessPoolExecutor(max_workers=2, mp_context=context)
         already = self.corpus.completed_slugs()
-        self.completed_existing = self.corpus.qualifying(
-            epoch=self.config.epoch,
-            config_sha256=str(self.identity.get("config_sha256")),
-            source_revision=str(self.identity.get("source_revision")),
-        )
+        self.completed_existing = self.qualifying_now()
         try:
             await self._loop(already)
         finally:
@@ -441,6 +457,8 @@ class Supervisor:
             "recorded_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "verification_status": "NOT_STARTED",
             "evidence_eligible": False,
+            "run_mode": self.run_mode,
+            "working_tree_clean": self.identity.get("working_tree_clean"),
             "skip_reason": reason,
             "incidents": [detail],
             "cold_backlog": len(self.cold),
@@ -459,6 +477,8 @@ class Supervisor:
                 "recorded_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 "verification_status": "NOT_STARTED",
                 "evidence_eligible": False,
+                "run_mode": self.run_mode,
+                "working_tree_clean": self.identity.get("working_tree_clean"),
                 "prearm": prearm.summary(),
                 "incidents": [f"prearm failed: {prearm.error}"],
             }
@@ -527,6 +547,14 @@ class Supervisor:
                 f"spot_ready={prearm['spot_first_valid_ns']}"
             )
 
+        # A dirty run's market is retained, verified and replayed like any other. It is simply
+        # not acceptance evidence, and says so in its own row.
+        if self.run_mode != "ACCEPTANCE_CLEAN":
+            operational_faults.append(
+                "OPERATIONAL: collected from modified tracked source (EXPLORATORY_DIRTY); "
+                "retained, and not eligible as final empirical evidence"
+            )
+
         eligible = (
             status == "COMPLETE"
             and replay.get("status") == "EXACT"
@@ -546,6 +574,8 @@ class Supervisor:
             "source_revision": self.identity.get("source_revision"),
             "source_tree_sha": self.identity.get("source_tree_sha"),
             "working_tree_clean": self.identity.get("working_tree_clean"),
+            "run_mode": self.run_mode,
+            "allow_dirty_requested": self.allow_dirty_requested,
             "provenance": session.identity.provenance,
             "live_trading_enabled": LIVE_TRADING_ENABLED,
             "orders_sent": 0,

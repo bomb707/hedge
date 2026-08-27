@@ -31,9 +31,18 @@ SETTLE_POLL_SECONDS: Final[float] = 5.0
 
 
 def settle_market(
-    market: Any, slug: str, *, timeout_s: int = SETTLE_TIMEOUT_SECONDS
+    market: Any,
+    slug: str,
+    *,
+    timeout_s: int = SETTLE_TIMEOUT_SECONDS,
+    poll_s: float = SETTLE_POLL_SECONDS,
 ) -> SettlementRecord | None:
     """Poll until the market resolves or the watch window closes. ``None`` means unresolved.
+
+    The watch duration and the poll interval are the collection's, not this module's: they are
+    recorded in the corpus identity, so they have to be the values that actually ran. They were
+    hashed and ignored for a round, which made the identity describe a configuration nothing
+    used.
 
     Unresolved is a recorded state, not a retry loop that runs for ever: a market whose payout
     has not appeared inside the window is evidence about the chain, and P9 already treats an
@@ -65,5 +74,5 @@ def settle_market(
             return SettlementRecord(
                 target=target, decision=decision, policy=policy, provider_readings=readings
             )
-        time.sleep(SETTLE_POLL_SECONDS)
+        time.sleep(poll_s)
     return None

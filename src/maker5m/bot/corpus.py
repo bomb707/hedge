@@ -87,23 +87,37 @@ class CorpusIndex:
         self.appended += 1
         return True
 
-    def qualifying(self, *, epoch: str, config_sha256: str, source_revision: str) -> int:
+    def qualifying(
+        self,
+        *,
+        epoch: str,
+        config_sha256: str,
+        source_revision: str,
+        source_tree_sha: str | None = None,
+    ) -> int:
         """Durable rows that count toward this epoch's target.
 
-        Three identities, all three required. A row from another epoch describes another
-        collection; a row from another config hash describes another experiment; a row from
-        another source revision describes another build. Pooling any of them would make the
-        two-hundred-market claim mean less than it says, so a change to any of the three starts
-        the count again — which is the point of freezing them before the run.
+        Every identity is required. Another epoch is another collection, another config hash
+        another experiment, another revision another build — and **a dirty tree is not a build at
+        all**. `git rev-parse HEAD` does not move when tracked files are edited, so an
+        exploratory run started with `--allow-dirty` produces rows carrying the same revision as
+        a clean acceptance run. Without `working_tree_clean` in this filter, a later clean
+        restart would have counted them and called modified source final empirical evidence.
+
+        The tree hash is compared when the caller supplies one, so a row from a different commit
+        with a coincidentally equal revision string cannot slip through either.
         """
         return sum(
             1
             for entry in self.entries()
             if entry.get("verification_status") == "COMPLETE"
             and entry.get("evidence_eligible") is True
+            and entry.get("working_tree_clean") is True
+            and entry.get("run_mode") == "ACCEPTANCE_CLEAN"
             and entry.get("epoch") == epoch
             and entry.get("config_sha256") == config_sha256
             and entry.get("source_revision") == source_revision
+            and (source_tree_sha is None or entry.get("source_tree_sha") == source_tree_sha)
         )
 
     def _close_a_torn_line(self) -> None:

@@ -40,6 +40,7 @@ __all__ = [
     "RISK_ROW_SCHEMA_VERSION",
     "SETTLEMENT_ROW_SCHEMA_VERSION",
     "STORE_SCHEMA_VERSION",
+    "SUPPORTED_DECISION_SCHEMA_VERSIONS",
     "DecisionRecord",
     "ExactRatio",
     "FillProvenance",
@@ -61,6 +62,15 @@ DECISION_SCHEMA_VERSION: Final[int] = 2
 V1 stored one intent and could not distinguish 'the strategy declined to quote' from 'the
 strategy wanted to quote and safety refused'. Bumped rather than reinterpreted: a V1 row still
 means what it meant when it was written."""
+SUPPORTED_DECISION_SCHEMA_VERSIONS: Final[frozenset[int]] = frozenset({1, DECISION_SCHEMA_VERSION})
+"""Every DecisionRecord contract this build defines. Nothing else is a contract.
+
+Enumerated rather than expressed as a range, because "older than current" is not the same as
+"a version we know how to read". A record stamped 0, -1 or 3 is internally consistent about a
+schema that has never existed here, and reading it under V1's rules — or under V2's — would be
+guessing at a layout nobody wrote down.
+"""
+
 FILL_SCHEMA_VERSION: Final[int] = 1
 RISK_ROW_SCHEMA_VERSION: Final[int] = 1
 SETTLEMENT_ROW_SCHEMA_VERSION: Final[int] = 1

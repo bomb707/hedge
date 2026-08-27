@@ -22,6 +22,7 @@ from typing import Any
 from maker5m.persistence.schema import (
     DECISION_SCHEMA_VERSION,
     MANIFEST_SCHEMA_VERSION,
+    SUPPORTED_DECISION_SCHEMA_VERSIONS,
     Manifest,
 )
 from maker5m.persistence.store import SchemaVersionError, database_digest, open_for_read
@@ -90,6 +91,16 @@ def read_manifest(connection: sqlite3.Connection, market_id: str) -> Manifest | 
     }
     fields["notes"] = tuple(fields.get("notes") or ())
     return Manifest(**fields)
+
+
+def _exact_int(value: object) -> bool:
+    """An honest integer, and not a bool.
+
+    `isinstance(x, int)` is true for `True` and `False`, so a payload storing `true` where a
+    version or an ordinal belongs would compare equal to `1` and pass. A durable record's types
+    are part of what it says, and `True` does not say `1`.
+    """
+    return type(value) is int
 
 
 def _exact_from(values: list[int], first: int) -> bool:
@@ -191,16 +202,23 @@ def verify_store(
             record = json.loads(row[0])
             column_version = int(row[5])
             payload_version = record.get("schema_version")
-            # The effective version is only knowable once both representations agree. Deciding
-            # it from the column alone was a downgrade bypass: a row whose column said 1 while
-            # its payload said 2 collected V1's exemptions from every V2 rule below.
-            schema_agrees = isinstance(payload_version, int) and payload_version == column_version
+            # The effective version is only knowable once both representations agree, and
+            # agreement is not enough on its own — see `supported` below. Deciding it from the
+            # column alone was a downgrade bypass: a row whose column said 1 while its payload
+            # said 2 collected V1's exemptions from every V2 rule.
+            schema_agrees = _exact_int(payload_version) and payload_version == column_version
             decision_rows.append(
                 {
                     "schema_version": column_version,
                     "payload_schema_version": payload_version,
                     "schema_agrees": schema_agrees,
-                    "effective_version": column_version if schema_agrees else None,
+                    "schema_supported": schema_agrees
+                    and column_version in SUPPORTED_DECISION_SCHEMA_VERSIONS,
+                    "effective_version": (
+                        column_version
+                        if schema_agrees and column_version in SUPPORTED_DECISION_SCHEMA_VERSIONS
+                        else None
+                    ),
                     "risk_sequence": record.get("risk_sequence"),
                     "place": record.get("up", {}).get("action") == "PLACE"
                     or record.get("down", {}).get("action") == "PLACE",
@@ -315,10 +333,11 @@ def verify_store(
     out_of_order = 0
     for row in decision_rows:
         effective = row["effective_version"]
-        if effective is not None and effective < DECISION_SCHEMA_VERSION:
-            # A V1 row means what it meant when it was written and predates these fields. The
-            # exemption needs a *proven* version: a row whose two representations disagree has
-            # not established that it is V1, so it is held to the current contract instead.
+        if effective == 1:
+            # V1 means what it meant when it was written and predates these fields. Matched
+            # exactly, not by `effective < DECISION_SCHEMA_VERSION`: "older than current" is not
+            # a definition of a contract, and it would hand the V1 exemption to a record stamped
+            # 0 or -1 that names no schema at all.
             continue
 
         referenced = row["risk_sequence"]
@@ -408,8 +427,14 @@ def verify_store(
     blank_event_ids = 0
     inconsistent: list[str] = []
     schema_disagreements: list[str] = []
+    unsupported_versions: list[str] = []
     for row in decision_rows:
         where = f"ingress {row['column_ingress_ordinal']}"
+
+        if row["schema_agrees"] and not row["schema_supported"]:
+            # Internally consistent about a schema this build has never defined. That is not a
+            # damaged record — it is a record we cannot read, which is a different answer.
+            unsupported_versions.append(f"{where}: schema_version={row['schema_version']!r}")
 
         if not row["schema_agrees"]:
             schema_disagreements.append(
@@ -424,18 +449,35 @@ def verify_store(
         ):
             blank_event_ids += 1
 
-        for name, column, payload in (
-            ("schema_version", row["schema_version"], row["payload_schema_version"]),
-            ("event_id", row["column_event_id"], row["event_id"]),
-            ("market_id", row["column_market_id"], row["payload_market_id"]),
-            ("ingress_ordinal", row["column_ingress_ordinal"], row["ingress_ordinal"]),
-            ("capture_sequence", row["column_capture_sequence"], row["payload_capture_sequence"]),
+        for name, column, payload, wanted in (
+            ("schema_version", row["schema_version"], row["payload_schema_version"], int),
+            ("event_id", row["column_event_id"], row["event_id"], str),
+            ("market_id", row["column_market_id"], row["payload_market_id"], str),
+            ("ingress_ordinal", row["column_ingress_ordinal"], row["ingress_ordinal"], int),
+            (
+                "capture_sequence",
+                row["column_capture_sequence"],
+                row["payload_capture_sequence"],
+                int,
+            ),
         ):
             # Absence is not agreement. An indexed column exists for every one of these, so a
-            # payload that has lost its copy is a damaged record, not a nullable one — and the
+            # payload that has lost its copy is a damaged record, not a nullable one — and an
             # earlier `payload is not None` guard exempted exactly that.
             if payload is None:
                 inconsistent.append(f"{where}: payload has no {name}, column has {column!r}")
+                continue
+            # Nor is the *type* incidental. `1 == True` and `1 == 1.0` are both true in Python,
+            # so a payload storing a bool or a float where an integer belongs would agree with
+            # its column while saying something else. What the record says includes how it says
+            # it.
+            if (wanted is int and not _exact_int(payload)) or (
+                wanted is str and type(payload) is not str
+            ):
+                inconsistent.append(
+                    f"{where}: payload {name} is {type(payload).__name__} "
+                    f"({payload!r}), not {wanted.__name__}"
+                )
             elif column != payload:
                 inconsistent.append(
                     f"{where}: column {name}={column!r}, payload {name}={payload!r}"
@@ -446,6 +488,14 @@ def verify_store(
         failures.append(
             f"{blank_event_ids} decision(s) carry no event id; P2 assigns one to every event, "
             "so a blank one is an identity that was lost rather than one that never existed"
+        )
+
+    checks["decision_schema_version_supported"] = not unsupported_versions
+    if unsupported_versions:
+        failures.append(
+            f"{len(unsupported_versions)} decision(s) declare a schema this build does not "
+            f"define (known: {sorted(SUPPORTED_DECISION_SCHEMA_VERSIONS)}): "
+            + "; ".join(unsupported_versions[:5])
         )
 
     checks["decision_schema_version_self_consistent"] = not schema_disagreements
@@ -574,11 +624,15 @@ def verify_store(
 
     checks["manifest_reports_complete"] = manifest.telemetry_complete
 
-    status = (
-        VerificationStatus.COMPLETE
-        if not failures and manifest.telemetry_complete
-        else VerificationStatus.INCOMPLETE
-    )
+    # An unsupported schema outranks incompleteness: "this build cannot read these records" is a
+    # more fundamental answer than "some records are missing", and reporting the second would
+    # imply the first had been judged.
+    if unsupported_versions:
+        status = VerificationStatus.UNSUPPORTED
+    elif not failures and manifest.telemetry_complete:
+        status = VerificationStatus.COMPLETE
+    else:
+        status = VerificationStatus.INCOMPLETE
     return VerificationResult(
         status=status,
         market_id=found_id,

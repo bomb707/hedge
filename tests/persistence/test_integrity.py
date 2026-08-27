@@ -1095,3 +1095,148 @@ def test_a_consistent_v2_market_passes_the_schema_contract(tmp_path: Path) -> No
     assert result.status is VerificationStatus.COMPLETE, result.failures
     assert result.checks["decision_schema_version_self_consistent"]
     assert result.checks["decision_columns_match_payload"]
+
+
+# -- agreeing about a version is not the same as naming one we can read -------------------------
+#
+# The distinction the verifier draws, and the reason for it:
+#
+#   both representations are exact ints, equal, and name a schema we define  -> read it
+#   both are exact ints and equal, and name one we do not define             -> UNSUPPORTED
+#   either is not an exact int, or they disagree                             -> INCOMPLETE
+#
+# The middle case is a record we simply cannot read; the last is a record that contradicts
+# itself. Reporting the second as the first would imply we had judged its contents.
+
+
+def _set_schema_versions(path: Path, column: object, payload: object) -> None:
+    connection = sqlite3.connect(str(path))
+    sequence, raw = connection.execute(
+        "SELECT persistence_sequence, payload FROM decisions WHERE persistence_sequence = 5"
+    ).fetchone()
+    record = json.loads(raw)
+    record["schema_version"] = payload
+    connection.execute(
+        "UPDATE decisions SET schema_version = ?, payload = ? WHERE persistence_sequence = ?",
+        (column, json.dumps(record, separators=(",", ":")), sequence),
+    )
+    connection.commit()
+    connection.close()
+
+
+@pytest.mark.parametrize("version", [0, -1, 3, 999])
+def test_a_schema_this_build_does_not_define_is_unsupported(tmp_path: Path, version: int) -> None:
+    """§7: internally consistent, and about a contract that has never existed here.
+
+    `0` and `-1` are not "older" in any meaningful sense, which is why the exemption matches V1
+    exactly rather than testing `version < current`.
+    """
+    path = build_market(tmp_path)
+    assert verify_store(path).status is VerificationStatus.COMPLETE, "control"
+
+    _set_schema_versions(path, version, version)
+    result = verify_store(path)
+    assert result.status is VerificationStatus.UNSUPPORTED
+    assert not result.checks["decision_schema_version_supported"]
+    assert result.checks["decision_schema_version_self_consistent"], "the two do agree"
+    assert any("does not define" in f for f in result.failures)
+
+
+def test_a_boolean_is_not_a_schema_version(tmp_path: Path) -> None:
+    """`True == 1` in Python. A durable record saying `true` is not saying `1`."""
+    path = build_market(tmp_path)
+    _set_schema_versions(path, 1, True)
+    result = verify_store(path)
+    assert result.status is not VerificationStatus.COMPLETE
+    assert not result.checks["decision_columns_match_payload"]
+    assert any("is bool" in f for f in result.failures)
+
+
+def test_a_float_is_not_a_schema_version(tmp_path: Path) -> None:
+    """`2 == 2.0` too."""
+    path = build_market(tmp_path)
+    _set_schema_versions(path, 2, 2.0)
+    result = verify_store(path)
+    assert result.status is not VerificationStatus.COMPLETE
+    assert not result.checks["decision_columns_match_payload"]
+    assert any("is float" in f for f in result.failures)
+
+
+def test_a_string_is_not_a_schema_version(tmp_path: Path) -> None:
+    path = build_market(tmp_path)
+    _set_schema_versions(path, 2, "2")
+    result = verify_store(path)
+    assert result.status is not VerificationStatus.COMPLETE
+    assert not result.checks["decision_columns_match_payload"]
+
+
+def test_exact_v2_keeps_the_current_contract(tmp_path: Path) -> None:
+    result = verify_store(build_market(tmp_path, place_at=1))
+    assert result.status is VerificationStatus.COMPLETE, result.failures
+    assert result.checks["decision_schema_version_supported"]
+    assert result.checks["decision_risk_reference_present"]
+
+
+def test_exact_v1_keeps_the_historical_contract(tmp_path: Path) -> None:
+    """A V1 row predates the V2 risk fields and is still readable."""
+    path = build_market(tmp_path)
+    connection = sqlite3.connect(str(path))
+    sequence, raw = connection.execute(
+        "SELECT persistence_sequence, payload FROM decisions WHERE persistence_sequence = 5"
+    ).fetchone()
+    record = json.loads(raw)
+    record["schema_version"] = 1
+    for name in ("risk_sequence", "risk_state", "risk_allows_place", "risk_allows_cancel"):
+        record.pop(name, None)
+    connection.execute(
+        "UPDATE decisions SET schema_version = 1, payload = ? WHERE persistence_sequence = ?",
+        (json.dumps(record, separators=(",", ":")), sequence),
+    )
+    connection.commit()
+    connection.close()
+
+    result = verify_store(path)
+    assert result.checks["decision_schema_version_supported"]
+    assert result.checks["decision_risk_reference_present"], "V1 predates the requirement"
+    assert result.status is VerificationStatus.COMPLETE, result.failures
+
+
+def test_an_unsupported_version_outranks_incompleteness(tmp_path: Path) -> None:
+    """ "We cannot read these" is a more fundamental answer than "some are missing"."""
+    path = build_market(tmp_path, manifest_overrides={"sink_errors": 3})
+    assert verify_store(path).status is VerificationStatus.INCOMPLETE
+
+    _set_schema_versions(path, 3, 3)
+    assert verify_store(path).status is VerificationStatus.UNSUPPORTED
+
+
+# -- the duplicated identity fields are typed too ------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value", "type_name"),
+    [
+        ("ingress_ordinal", True, "bool"),
+        ("capture_sequence", True, "bool"),
+        ("ingress_ordinal", 1.0, "float"),
+        ("capture_sequence", 1.0, "float"),
+        ("market_id", 12345, "int"),
+        ("event_id", 42, "int"),
+    ],
+)
+def test_a_payload_identity_field_of_the_wrong_type_is_refused(
+    tmp_path: Path, field_name: str, value: object, type_name: str
+) -> None:
+    """`1 == True` and `1 == 1.0` are both true. What the record says includes how it says it."""
+    path = build_market(tmp_path)
+    _set_payload_field(path, field_name, value)
+    result = verify_store(path)
+    assert result.status is not VerificationStatus.COMPLETE
+    assert not result.checks["decision_columns_match_payload"]
+    assert any(f"is {type_name}" in f for f in result.failures)
+
+
+def test_a_correctly_typed_identity_still_passes(tmp_path: Path) -> None:
+    result = verify_store(build_market(tmp_path))
+    assert result.status is VerificationStatus.COMPLETE, result.failures
+    assert result.checks["decision_columns_match_payload"]

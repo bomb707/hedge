@@ -75,6 +75,39 @@ production.
 
 ---
 
+## P11E: durable schema contract closure
+
+Full evidence in [`evidence/P11E-SCHEMA-CONTRACT.md`](evidence/P11E-SCHEMA-CONTRACT.md).
+**Read-side only** — the diff against P11D is the verifier and its tests, so the existing real
+evidence was re-verified rather than re-gathered and no market was spent.
+
+Two holes, both absence read as agreement:
+
+* the column/payload comparison was guarded by `payload is not None`, so a payload that had
+  **lost** its copy of an indexed field was exempted rather than caught. Every decision has an
+  indexed `market_id`, `ingress_ordinal`, `capture_sequence`, `event_id` and `schema_version`; a
+  payload missing one is a damaged record, not a nullable one.
+* the effective schema version came from the column alone and was never compared with the
+  payload's — a **downgrade bypass**. A row whose column said V1 while its payload said V2
+  collected V1's exemption from every V2 rule, which is precisely the set P11D had just made
+  load-bearing.
+
+Both representations must now be present and equal before any version rule is applied, and the
+V1 exemption requires a *proven* V1: a row whose versions disagree has proved nothing and is held
+to the current contract, so the downgrade is worth nothing. A genuine V1 row — both saying V1 —
+keeps its historical meaning.
+
+**This checks internal consistency, not authenticity.** It is not a defence against rewriting the
+database, sidecar and hashes together; the verified archive SHA remains the artifact-identity
+layer.
+
+**`btc-updown-5m-1787780700` re-verified COMPLETE** — 114,287 decisions, every risk/identity/
+schema count 0, 678 PLACEs all under a persisted SAFE RiskRow, 0 HALTED, 0 RECOVERING.
+**`btc-updown-5m-1787771100` re-verified INCOMPLETE** — its schema and identity checks both pass;
+it fails only for the genuine persistence loss the controlled stall caused.
+
+---
+
 ## P11D: reference completeness closure
 
 Full evidence in
@@ -1095,7 +1128,7 @@ orders, which P8 does not place. Both stay OPEN.
 | **Current phase** | **P11 — durable telemetry persistence** |
 | P11 implementation gate | **PASSED** — versioned schemas, non-blocking worker, exact analytics, verifier |
 | P11 real-market gate | **PASSED** — P11B healthy market + controlled stalled sink |
-| P11 durability-integrity gate | **PASSED** — every V2 decision names and matches its governing RiskRow; exact risk and storage order; real, self-consistent event ids; append-only audit rows; verified archive reads |
+| P11 durability-integrity gate | **PASSED** — every V2 decision names and matches its governing RiskRow; exact risk and storage order; real, self-consistent event ids; self-consistent schema version; append-only audit rows; verified archive reads |
 | P11 storage representation | **CLOSED** — lossless `lzma` archive, 54.7×, 2.2 GB per 200-market corpus |
 | P11 authenticated fill/economics | **UNRUN / DEFERRED TO P14** |
 | P10 implementation gate | **PASSED** — verifier, payout arithmetic, plan, encoder, audit record |
@@ -1150,6 +1183,7 @@ orders, which P8 does not place. Both stay OPEN.
 | P11B branch | `fix/p11-persistence-integrity` |
 | P11C branch | `fix/p11-final-audit-closure` |
 | P11D branch | `fix/p11-reference-completeness` |
+| P11E branch | `fix/p11-schema-contract-integrity` |
 | P11 store size | 5,230 B/decision raw → **95.7 B archived**; engineered in P11B, not deferred |
 | Remote | `origin` → `https://github.com/bomb707/hedge.git` |
 

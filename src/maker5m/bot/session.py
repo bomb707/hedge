@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Any
 
 from maker5m.bot.config import PaperConfig
+from maker5m.bot.latency import LatencyArtifact, write_latency
 from maker5m.bot.quality import QualityAggregate
 from maker5m.bot.resources import LIVE_SESSIONS, ResourceSample, sample_resources, tiers
 from maker5m.execution import Executor, RecordingTransport, VenueAdapter
@@ -249,6 +250,8 @@ class MarketSession:
         }
         self.feed_warm_started_ns: int | None = None
         self.at_t0: dict[str, Any] = {}
+        self.latency_path = config.evidence_dir / f"{self.slug}.latency.json.xz"
+        self.latency: LatencyArtifact | None = None
 
     # -- Plane 3 observers -----------------------------------------------------------------
 
@@ -532,6 +535,29 @@ class MarketSession:
             )
         except Exception as error:
             self.incidents.append(f"settlement watch failed: {type(error).__name__}: {error}")
+
+    async def write_latency_artifact(self, identity: dict[str, Any]) -> None:
+        """Keep the live latency before the market is released. Cold path, off the loop.
+
+        Written before eligibility is decided, because a market whose latency did not survive
+        cannot be P13 evidence — measuring live latency is most of what this phase is for.
+        """
+        try:
+            self.latency = await asyncio.to_thread(
+                write_latency,
+                self.latency_path,
+                self.analyzer,
+                identity={
+                    "slug": self.slug,
+                    "market_id": self.identity.market_id,
+                    "condition_id": self.identity.condition_id,
+                    "t0_ns": self.t0_ns,
+                    **identity,
+                },
+                hot_path_ns=list(self.hot_path_ns),
+            )
+        except Exception as error:
+            self.incidents.append(f"latency artifact failed: {type(error).__name__}: {error}")
 
     def close_store(self) -> None:
         """Write the settlement row, the metrics and the manifest, then digest the file.

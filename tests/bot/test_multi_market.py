@@ -8,6 +8,7 @@ from real captures, in the corpus, and from nowhere else.
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Any
 
@@ -93,6 +94,7 @@ def collected(
     clob: int = 5_000,
     spot: int = 300,
     warm: bool = True,
+    latency: bool = True,
 ) -> MarketSession:
     """A session in the state a clean real market leaves behind.
 
@@ -122,6 +124,16 @@ def collected(
             )
         )
     unit.analyzer.counters.actions = {"KEEP": 2 * decisions if actions is None else actions}
+    if latency:
+        # A real artifact, written by the real writer: the market's own live samples are what
+        # eligibility now turns on, so a fixture that faked one would be testing nothing.
+        for index in range(20):
+            unit.analyzer.latency.clob_receive_to_decide.add(100_000 + index)
+            unit.analyzer.latency.spot_receive_to_decide.add(90_000 + index)
+            unit.analyzer.latency.clob_receive_to_reconcile.add(140_000 + index)
+            unit.analyzer.latency.spot_receive_to_reconcile.add(130_000 + index)
+            unit.analyzer.latency.decide_duration.add(24_000 + index)
+        asyncio.run(unit.write_latency_artifact({"source_revision": "revision"}))
     if warm:
         ready_at_t0(unit, clob_since=20, spot_since=10)
     return unit

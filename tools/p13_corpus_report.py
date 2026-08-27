@@ -1,9 +1,18 @@
 """Aggregate the P13 corpus into the evidence a phase gate can be read from.
 
-**REAL MARKET DATA.** Every number here is summed from corpus entries, each of which was written
-by the supervisor from one real `btc-updown-5m` market: real Polymarket books, real Binance spot,
-real Polygon settlement reads, and shadow execution throughout. Nothing is modelled and nothing
-is sampled — the point of a two-hundred-market corpus is that it does not need to be.
+**REAL MARKET DATA.** Every number here comes from corpus entries and their latency artifacts,
+each written by the supervisor from one real `btc-updown-5m` market: real Polymarket books, real
+Binance spot, real Polygon settlement reads, and shadow execution throughout.
+
+What is exhaustive and what is sampled, stated once so no figure below has to be guessed at:
+
+* **classification is exhaustive** — every side of every decision, so the L3 denominator is the
+  market rather than a sample of it;
+* **actions are exhaustive** — the same denominator;
+* **latency is sampled**, under P8's accepted policy, and the artifacts hold every raw sample so
+  the merged quantiles here are exact over the samples that were taken;
+* **queue position is a `SHADOW_ESTIMATE`** — modelled, never a venue queue position, because no
+  order was ever sent.
 
 What this tool does not do is decide anything. It counts, it distributes, and it says which
 markets were eligible and why the others were not. Choosing a queue threshold, a stale bar or a
@@ -14,11 +23,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import lzma
 from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from maker5m.bot import CorpusIndex
+from maker5m.bot import CorpusIndex, read_latency
 from maker5m.bot.quality import QUALITY_LABELS, QUEUE_PROVENANCE
 from maker5m.telemetry.metrics import quantile
 
@@ -41,6 +51,69 @@ def _fractions(counts: Counter[str]) -> dict[str, float | None]:
     total = sum(counts.values())
     return {
         label: (None if total == 0 else counts.get(label, 0) / total) for label in QUALITY_LABELS
+    }
+
+
+def merged_latency(entries: list[dict[str, Any]]) -> dict[str, Any]:
+    """Exact quantiles over the concatenated live samples of every eligible market.
+
+    Concatenated, not averaged. A corpus p99 taken as the p99 of per-market p99s is not the p99
+    of anything — it discards the tail it exists to describe. The artifacts keep every raw
+    sample precisely so this can be done properly.
+
+    A market whose artifact is missing, unreadable or hashes differently from what its row
+    recorded contributes nothing and is named in `refused`.
+    """
+    series: dict[str, list[int]] = {}
+    hot_path: list[int] = []
+    per_market_hot_max: dict[str, int] = {}
+    used: list[str] = []
+    refused: list[dict[str, str]] = []
+    for entry in entries:
+        artifact = entry.get("latency_artifact") or {}
+        path = artifact.get("path")
+        slug = str(entry.get("slug"))
+        if not path:
+            refused.append({"slug": slug, "reason": "no latency artifact recorded"})
+            continue
+        try:
+            payload = read_latency(Path(str(path)), expected_sha256=artifact.get("sha256"))
+        except (OSError, ValueError, lzma.LZMAError) as error:
+            refused.append({"slug": slug, "reason": f"{type(error).__name__}: {error}"})
+            continue
+        for name, values in (payload.get("series_ns") or {}).items():
+            series.setdefault(str(name), []).extend(int(value) for value in values)
+        observed = [int(value) for value in payload.get("hot_path_observe_ns") or ()]
+        hot_path.extend(observed)
+        if observed:
+            per_market_hot_max[slug] = max(observed)
+        used.append(slug)
+
+    return {
+        "sampling": "SAMPLED — P8's accepted policy; every sample it took is here",
+        "markets_merged": len(used),
+        "markets_refused": refused,
+        "series_ns": {name: _quantiles(values) for name, values in sorted(series.items())},
+        "hot_path_observe_ns": _quantiles(hot_path),
+        "hot_path_observe_max_by_market": dict(sorted(per_market_hot_max.items())),
+        "note": (
+            "Merged from the raw live samples of every eligible market. CLOB and spot are kept "
+            "apart: they arrive at different rates through different sockets, and a combined "
+            "figure answers a question nobody asked."
+        ),
+    }
+
+
+def _quantiles(values: list[int]) -> dict[str, int | None]:
+    if not values:
+        return {"n": 0, "p50": None, "p95": None, "p99": None, "max": None}
+    ordered = sorted(values)
+    return {
+        "n": len(ordered),
+        "p50": quantile(ordered, 0.50),
+        "p95": quantile(ordered, 0.95),
+        "p99": quantile(ordered, 0.99),
+        "max": ordered[-1],
     }
 
 
@@ -211,6 +284,7 @@ def report(index: CorpusIndex, *, epoch: str | None = None) -> dict[str, Any]:
             "by_phase": {k: dict(sorted(v.items())) for k, v in sorted(by_phase.items())},
             "by_time_bucket": {k: dict(sorted(v.items())) for k, v in sorted(by_bucket.items())},
         },
+        "live_latency": merged_latency(eligible),
         "per_market_distributions": {
             "stale_fraction": _spread(stale_fractions),
             "at_front_fraction": _spread(at_front_fractions),

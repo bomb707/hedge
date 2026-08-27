@@ -394,6 +394,15 @@ class Supervisor:
         """Everything a closed market still owes, none of it on a trading path."""
         try:
             await session.write_journal()
+            await session.write_latency_artifact(
+                {
+                    "source_revision": str(self.identity.get("source_revision")),
+                    "source_tree_sha": str(self.identity.get("source_tree_sha")),
+                    "config_sha256": str(self.identity.get("config_sha256")),
+                    "epoch": self.config.epoch,
+                    "run_mode": self.run_mode,
+                }
+            )
             await session.settle(settle_market)
             await asyncio.to_thread(session.close_store)
             cold = await self._cold_result(session)
@@ -507,6 +516,19 @@ class Supervisor:
         action_total = sum(actions.values())
 
         operational_faults: list[str] = []
+        if session.latency is None:
+            operational_faults.append(
+                "OPERATIONAL: no live latency artifact; the market's own latency did not survive "
+                "the session and a replay cannot stand in for it"
+            )
+        elif not any(
+            session.latency.series.get(name) for name in ("clob_receive_to_decide",)
+        ) or not any(session.latency.series.get(name) for name in ("spot_receive_to_decide",)):
+            operational_faults.append(
+                "OPERATIONAL: the latency artifact has no samples for one of the two triggers "
+                f"(CLOB {session.latency.series.get('clob_receive_to_decide')}, "
+                f"spot {session.latency.series.get('spot_receive_to_decide')})"
+            )
         if classified != expected:
             operational_faults.append(
                 f"OPERATIONAL: {classified} side classifications for {stats.decisions_written} "
@@ -606,6 +628,7 @@ class Supervisor:
             # This is the whole of what the session adds to a cycle: P7's shadow reconcile plus
             # the P8 capture, timed around `InstrumentedRun.observe`.
             "hot_path_observe_ns": session.hot_path_tiers or _tiers(session.hot_path_ns),
+            "latency_artifact": None if session.latency is None else session.latency.summary(),
             "feed_counters": counters,
             "risk_states": dict(sorted(session.risk_states.items())),
             "places_by_risk_state": dict(sorted(session.places_by_state.items())),

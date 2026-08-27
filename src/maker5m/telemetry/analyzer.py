@@ -106,6 +106,27 @@ class LatencyBook:
     receive_to_reconcile: Distribution = field(
         default_factory=lambda: Distribution("receive_to_reconcile")
     )
+    """Every triggering kind together. Kept for continuity with the accepted P8 evidence."""
+
+    spot_receive_to_reconcile: Distribution = field(
+        default_factory=lambda: Distribution("spot_receive_to_reconcile")
+    )
+    clob_receive_to_reconcile: Distribution = field(
+        default_factory=lambda: Distribution("clob_receive_to_reconcile")
+    )
+    fill_receive_to_reconcile: Distribution = field(
+        default_factory=lambda: Distribution("fill_receive_to_reconcile")
+    )
+    phase_receive_to_reconcile: Distribution = field(
+        default_factory=lambda: Distribution("phase_receive_to_reconcile")
+    )
+    """Split by trigger, because a spot tick and a book update are not the same cycle.
+
+    Added downstream, from timestamps the observation already carries — no clock is read on
+    Plane 1 and the existing aggregate keeps its meaning. A merged CLOB-and-spot p99 answers a
+    question nobody asked: the two arrive at different rates, through different sockets, and
+    doing different work."""
+
     decide_duration: Distribution = field(default_factory=lambda: Distribution("decide_duration"))
     prepare_duration: Distribution = field(default_factory=lambda: Distribution("prepare_duration"))
     reconcile_duration: Distribution = field(
@@ -117,6 +138,8 @@ class LatencyBook:
 
     _by_kind: dict[str, Distribution] = field(default_factory=dict, repr=False)
 
+    _by_kind_reconcile: dict[str, Distribution] = field(default_factory=dict, repr=False)
+
     def by_kind(self, event_kind: str) -> Distribution:
         if not self._by_kind:
             self._by_kind = {
@@ -127,6 +150,16 @@ class LatencyBook:
             }
         return self._by_kind.get(event_kind, self.clob_receive_to_decide)
 
+    def by_kind_reconcile(self, event_kind: str) -> Distribution:
+        if not self._by_kind_reconcile:
+            self._by_kind_reconcile = {
+                "SpotTick": self.spot_receive_to_reconcile,
+                "BookUpdate": self.clob_receive_to_reconcile,
+                "OwnFill": self.fill_receive_to_reconcile,
+                "PhaseEvent": self.phase_receive_to_reconcile,
+            }
+        return self._by_kind_reconcile.get(event_kind, self.clob_receive_to_reconcile)
+
     def summary(self) -> dict[str, object]:
         return {
             d.label: d.summary()
@@ -136,6 +169,10 @@ class LatencyBook:
                 self.fill_receive_to_decide,
                 self.phase_receive_to_decide,
                 self.receive_to_reconcile,
+                self.spot_receive_to_reconcile,
+                self.clob_receive_to_reconcile,
+                self.fill_receive_to_reconcile,
+                self.phase_receive_to_reconcile,
                 self.decide_duration,
                 self.prepare_duration,
                 self.reconcile_duration,
@@ -366,6 +403,7 @@ class TelemetryAnalyzer:
 
         self.latency.by_kind(event_kind).add(decide_done - raw)
         self.latency.receive_to_reconcile.add(reconcile_done - raw)
+        self.latency.by_kind_reconcile(event_kind).add(reconcile_done - raw)
         self.latency.prepare_duration.add(prepare_done - decide_done)
         self.latency.reconcile_duration.add(reconcile_done - prepare_done)
 

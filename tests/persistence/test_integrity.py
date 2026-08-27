@@ -1574,3 +1574,113 @@ def test_a_null_risk_sequence_on_an_accepted_command_is_refused(tmp_path: Path) 
 
 def test_a_valid_halt_and_release_pair_still_passes(tmp_path: Path) -> None:
     assert verify_store(_control_market(tmp_path)).checks["control_audit_cross_links"] is True
+
+
+# -- §10-13: the indexed columns and the payload are one record ---------------------------------
+
+
+def _diverge(
+    path: Path, command_id: str, *, column: str = "", value: Any = None, **payload: Any
+) -> Path:
+    """Change one indexed column, or one payload field, on a stored control row.
+
+    Written through SQLite directly rather than through the writer: the point is a file whose
+    two representations of one record disagree, which the writer cannot produce and an editor,
+    a partial write or a later migration can.
+    """
+    connection = sqlite3.connect(path)
+    try:
+        if column:
+            connection.execute(
+                f"UPDATE control_audit SET {column} = ? WHERE command_id = ?", (value, command_id)
+            )
+        if payload:
+            row = connection.execute(
+                "SELECT payload FROM control_audit WHERE command_id = ?", (command_id,)
+            ).fetchone()
+            stored = json.loads(row[0])
+            stored.update(payload)
+            connection.execute(
+                "UPDATE control_audit SET payload = ? WHERE command_id = ?",
+                (json.dumps(stored), command_id),
+            )
+        connection.commit()
+    finally:
+        connection.close()
+    return path
+
+
+def _control_failure(path: Path) -> list[str]:
+    result = verify_store(path)
+    assert result.checks["control_audit_cross_links"] is False
+    assert result.status is not VerificationStatus.COMPLETE
+    return [f for f in result.failures if "operator-control" in f]
+
+
+def test_a_column_command_id_that_disagrees_with_its_payload_is_refused(tmp_path: Path) -> None:
+    """The table is queried by its columns, so this row answers differently by who asks."""
+    path = _diverge(_control_market(tmp_path), "halt-1", column="command_id", value="halt-2")
+    assert any("column command_id" in f for f in _control_failure(path))
+
+
+def test_a_column_kind_that_disagrees_with_its_payload_is_refused(tmp_path: Path) -> None:
+    path = _diverge(
+        _control_market(tmp_path), "halt-1", column="kind", value="RELEASE_OPERATOR_HALT"
+    )
+    assert any("column kind" in f for f in _control_failure(path))
+
+
+def test_a_column_accepted_that_disagrees_with_its_payload_is_refused(tmp_path: Path) -> None:
+    path = _diverge(_control_market(tmp_path), "halt-1", accepted=False)
+    assert any("column accepted" in f for f in _control_failure(path))
+
+
+def test_a_column_risk_sequence_that_disagrees_with_its_payload_is_refused(tmp_path: Path) -> None:
+    # Both name a stored OPERATOR_CONTROL row, so the only thing wrong is that they disagree —
+    # a verifier reading one representation would find nothing to complain about.
+    path = _diverge(_control_market(tmp_path), "halt-1", column="risk_sequence", value=1)
+    _diverge(path, "halt-1", risk_sequence=0)
+    assert any("column risk_sequence" in f for f in _control_failure(path))
+
+
+def test_a_column_schema_version_that_disagrees_with_its_payload_is_refused(tmp_path: Path) -> None:
+    path = _diverge(_control_market(tmp_path), "halt-1", schema_version=2)
+    assert any("schema" in f for f in _control_failure(path))
+
+
+def test_an_undefined_control_schema_version_is_refused(tmp_path: Path) -> None:
+    """§12. V1 is the whole defined domain. 0, -1 and 2 are not versions this build reads."""
+    for version in (0, -1, 2):
+        directory = tmp_path / f"v{version}"
+        directory.mkdir()
+        path = _diverge(
+            _control_market(directory), "halt-1", column="schema_version", value=version
+        )
+        _diverge(path, "halt-1", schema_version=version)
+        assert any("is not one this build defines" in f for f in _control_failure(path))
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value", "expected"),
+    [
+        ("schema_version", True, "schema_version"),
+        ("schema_version", "1", "schema_version"),
+        ("ingress_ordinal", True, "ingress_ordinal"),
+        ("issued_at_ns", 1.0, "issued_at_ns"),
+        ("source", 7, "source"),
+        ("risk_state", 1, "risk_state"),
+        ("market_id", 5, "market_id"),
+    ],
+)
+def test_a_control_field_of_the_wrong_type_is_refused(
+    tmp_path: Path, field_name: str, value: Any, expected: str
+) -> None:
+    """§11. `bool` is an `int` in Python and `True` is not a schema version."""
+    path = _diverge(_control_market(tmp_path), "halt-1", **{field_name: value})
+    assert any(expected in f for f in _control_failure(path))
+
+
+def test_two_commands_cannot_claim_the_same_risk_row(tmp_path: Path) -> None:
+    path = _diverge(_control_market(tmp_path), "release-1", column="risk_sequence", value=0)
+    _diverge(path, "release-1", risk_sequence=0)
+    assert any("claimed by more than one" in f for f in _control_failure(path))

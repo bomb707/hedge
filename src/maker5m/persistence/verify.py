@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Final
 
 from maker5m.persistence.schema import (
+    CONTROL_AUDIT_SCHEMA_VERSION,
     DECISION_SCHEMA_VERSION,
     MANIFEST_SCHEMA_VERSION,
     SUPPORTED_DECISION_SCHEMA_VERSIONS,
@@ -210,11 +211,27 @@ def verify_store(
             )
         ]
         log_total = len(log_sequences)
+        # Columns *and* payload. They are two representations of one record, and a verifier
+        # that reads only one cannot notice a file that contradicts itself — the audit table is
+        # queried by its columns, so a payload saying HALT under a column saying RELEASE would
+        # answer differently depending on who asked.
         control_rows = (
             [
-                json.loads(row[0])
+                (
+                    {
+                        "market_id": row[0],
+                        "command_id": row[1],
+                        "kind": row[2],
+                        "accepted": row[3],
+                        "risk_sequence": row[4],
+                        "schema_version": row[5],
+                    },
+                    json.loads(row[6]),
+                )
                 for row in connection.execute(
-                    "SELECT payload FROM control_audit WHERE market_id = ?", (found_id,)
+                    "SELECT market_id, command_id, kind, accepted, risk_sequence,"
+                    " schema_version, payload FROM control_audit WHERE market_id = ?",
+                    (found_id,),
                 )
             ]
             if _has_control_audit(connection)
@@ -540,7 +557,7 @@ def verify_store(
     control_problems: list[str] = []
     claimed: set[int] = set()
     seen_ids: set[str] = set()
-    for row in control_rows:
+    for columns, row in control_rows:
         command_id = row.get("command_id")
         if type(command_id) is not str or not command_id:
             control_problems.append(f"a control audit row has command_id {command_id!r}")
@@ -548,6 +565,60 @@ def verify_store(
         if command_id in seen_ids:
             control_problems.append(f"command {command_id} audited more than once")
         seen_ids.add(command_id)
+
+        # The indexed columns against the payload, before anything is believed. SQLite stores a
+        # boolean as an integer, so `accepted` is compared as the integer the column holds
+        # against the bool the payload holds — deliberately, and only after the payload value
+        # has been type-checked as a bool.
+        version = row.get("schema_version")
+        if type(version) is not int:
+            control_problems.append(
+                f"command {command_id}: payload schema_version is {version!r}, not an int"
+            )
+            continue
+        if version != CONTROL_AUDIT_SCHEMA_VERSION:
+            control_problems.append(
+                f"command {command_id}: control audit schema {version} is not one this build "
+                f"defines (known: {CONTROL_AUDIT_SCHEMA_VERSION}); refusing to guess at a "
+                "layout it does not define"
+            )
+            continue
+        if columns["schema_version"] != version:
+            control_problems.append(
+                f"command {command_id}: column schema_version {columns['schema_version']!r} "
+                f"against payload {version!r}"
+            )
+            continue
+
+        market_id = row.get("market_id")
+        if type(market_id) is not str:
+            control_problems.append(
+                f"command {command_id}: payload market_id is {market_id!r}, not a str"
+            )
+            continue
+        if market_id != found_id or columns["market_id"] != market_id:
+            control_problems.append(
+                f"command {command_id}: column market_id {columns['market_id']!r}, payload "
+                f"{market_id!r}, market {found_id!r}"
+            )
+            continue
+        if columns["command_id"] != command_id:
+            control_problems.append(
+                f"command {command_id}: column command_id {columns['command_id']!r} against "
+                f"payload {command_id!r}"
+            )
+            continue
+
+        issued_at_ns = row.get("issued_at_ns")
+        if type(issued_at_ns) is not int:
+            control_problems.append(
+                f"command {command_id}: issued_at_ns is {issued_at_ns!r}, not an int"
+            )
+            continue
+        source = row.get("source")
+        if type(source) is not str:
+            control_problems.append(f"command {command_id}: source is {source!r}, not a str")
+            continue
 
         kind = row.get("kind")
         required_flag = REQUIRED_CONTROL_FLAG.get(kind) if type(kind) is str else None
@@ -557,10 +628,21 @@ def verify_store(
             # been changed to the wrong flag.
             control_problems.append(f"command {command_id}: unknown kind {kind!r}")
             continue
+        if columns["kind"] != kind:
+            control_problems.append(
+                f"command {command_id}: column kind {columns['kind']!r} against payload {kind!r}"
+            )
+            continue
 
         accepted = row.get("accepted")
         if type(accepted) is not bool:
             control_problems.append(f"command {command_id}: accepted is {accepted!r}, not a bool")
+            continue
+        if columns["accepted"] != int(accepted):
+            control_problems.append(
+                f"command {command_id}: column accepted {columns['accepted']!r} against payload "
+                f"{accepted!r}"
+            )
             continue
         if not accepted:
             continue
@@ -584,10 +666,30 @@ def verify_store(
             )
             continue
 
+        risk_state = row.get("risk_state")
+        if type(risk_state) is not str:
+            control_problems.append(
+                f"command {command_id}: risk_state is {risk_state!r}, not a str"
+            )
+            continue
+
+        ordinal = row.get("ingress_ordinal")
+        if type(ordinal) is not int:
+            control_problems.append(
+                f"command {command_id}: ingress_ordinal is {ordinal!r}, not an int"
+            )
+            continue
+
         sequence = row.get("risk_sequence")
         if type(sequence) is not int:
             control_problems.append(
                 f"command {command_id}: risk_sequence is {sequence!r}, not an int"
+            )
+            continue
+        if columns["risk_sequence"] != sequence:
+            control_problems.append(
+                f"command {command_id}: column risk_sequence {columns['risk_sequence']!r} "
+                f"against payload {sequence!r}"
             )
             continue
 
@@ -598,11 +700,16 @@ def verify_store(
                 "OPERATOR_CONTROL record"
             )
             continue
+        if sequence in claimed:
+            control_problems.append(
+                f"risk_sequence {sequence} is claimed by more than one operator command"
+            )
+            continue
         claimed.add(sequence)
 
-        if verdict.get("as_of_ingress_ordinal") != row.get("ingress_ordinal"):
+        if verdict.get("as_of_ingress_ordinal") != ordinal:
             control_problems.append(
-                f"command {command_id}: audit says ingress {row.get('ingress_ordinal')}, risk "
+                f"command {command_id}: audit says ingress {ordinal}, risk "
                 f"row says {verdict.get('as_of_ingress_ordinal')}"
             )
         if verdict.get("signal_reason") != "OPERATOR_HALT":
@@ -614,9 +721,9 @@ def verify_store(
                 f"command {command_id}: audit flag {flag!r} against risk row flag "
                 f"{verdict.get('signal_flag')!r}"
             )
-        if verdict.get("state") != row.get("risk_state"):
+        if verdict.get("state") != risk_state:
             control_problems.append(
-                f"command {command_id}: audit state {row.get('risk_state')!r}, risk row "
+                f"command {command_id}: audit state {risk_state!r}, risk row "
                 f"{verdict.get('state')!r}"
             )
         if verdict.get("allows_place") is not allows_place:
@@ -624,8 +731,6 @@ def verify_store(
                 f"command {command_id}: allows_place {allows_place!r} against risk row "
                 f"{verdict.get('allows_place')!r}"
             )
-        if row.get("market_id") != found_id:
-            control_problems.append(f"command {command_id}: payload names another market")
 
     for sequence in sorted(set(control_risk_rows) - claimed):
         control_problems.append(

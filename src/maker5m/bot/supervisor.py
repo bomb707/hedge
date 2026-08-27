@@ -36,6 +36,7 @@ from multiprocessing import get_context
 from pathlib import Path
 from typing import Any
 
+from maker5m.bot.attempts import FAILED, FINISHED, AttemptLedger, LedgerWriteError
 from maker5m.bot.cold import ColdRequest, cold_finalize
 from maker5m.bot.config import PaperConfig, config_identity
 from maker5m.bot.corpus import CorpusIndex
@@ -84,7 +85,21 @@ MARKET_SECONDS = 300
 PREARM_LEAD_SECONDS = 75
 """How early discovery starts. The capture opens its own feeds at T0-30; this is the metadata."""
 
-MAX_COLD_BACKLOG = 3
+MAX_MARKET_LIFECYCLES = 6
+"""Markets that may owe finalisation at once. **A reservation, not a check.**
+
+The previous version tested `len(cold) < cap` at launch and let an already-running session add to
+the count when it closed, so with a cap of three the count could reach four: two live sessions
+plus a full cold queue, each of which still owed its own finalisation. A launch check that a
+running market can walk past is not a bound.
+
+A market now takes a slot *before* it is launched and holds it until its terminal attempt record
+and corpus row are written. Six covers the architecture's steady state — two live or warming
+sessions and up to four finalisations, since a settlement watch can run four hundred seconds
+before verification, replay and compression even begin — and nothing can exceed it, because
+nothing runs without a slot."""
+
+MAX_COLD_BACKLOG = MAX_MARKET_LIFECYCLES
 """Closed markets whose cold work may be in flight at once. **OPERATIONAL, and enforced.**
 
 A settlement watch can run for four hundred seconds before verification, replay and compression
@@ -160,6 +175,7 @@ class Supervisor:
 
     ui: UiPlane = field(init=False)
     corpus: CorpusIndex = field(init=False)
+    ledger: AttemptLedger = field(init=False)
     identity: dict[str, Any] = field(init=False)
     pool: ProcessPoolExecutor | None = None
     cold: set[asyncio.Task[None]] = field(default_factory=set)
@@ -173,7 +189,15 @@ class Supervisor:
     skipped: list[str] = field(default_factory=list)
     skipped_slots: list[dict[str, Any]] = field(default_factory=list)
     cold_high_water: int = 0
+    lifecycles: int = 0
+    """Markets that owe finalisation: launched-and-trading plus finalising.
+
+    Never exceeds the cap, because nothing runs without a slot."""
+
+    lifecycle_high_water: int = 0
     append_failures: int = 0
+    ledger_failures: int = 0
+    recovered_attempts: list[dict[str, Any]] = field(default_factory=list)
     gc_observer: GcObserver = field(default_factory=GcObserver)
     allow_dirty_requested: bool = False
     run_mode: str = field(init=False, default="ACCEPTANCE_CLEAN")
@@ -185,6 +209,7 @@ class Supervisor:
             raise RuntimeError("refusing to start a paper run while live trading is enabled")
         self.ui = UiPlane(directory=self.config.ui_dir)
         self.corpus = CorpusIndex(path=self.config.corpus_path)
+        self.ledger = AttemptLedger(path=self.config.corpus_path.with_name("attempts.jsonl"))
         self.identity = config_identity(self.config)
         # What kind of run this is, decided once and recorded on everything it produces. A run
         # against modified tracked source can collect, persist, replay and verify — it simply
@@ -196,6 +221,21 @@ class Supervisor:
             else "EXPLORATORY_DIRTY"
         )
         self.config.evidence_dir.mkdir(parents=True, exist_ok=True)
+
+    def _orphans(self, attempt: dict[str, Any]) -> dict[str, Any]:
+        """What an abandoned attempt left behind, so nothing sits on disk unreferenced."""
+        found: dict[str, Any] = {}
+        for key in ("expected_journal", "expected_store", "expected_latency"):
+            raw = attempt.get(key)
+            if not raw:
+                continue
+            for candidate in (Path(str(raw)), Path(str(raw) + ".xz")):
+                if candidate.exists():
+                    found[candidate.name] = {
+                        "path": str(candidate),
+                        "bytes": candidate.stat().st_size,
+                    }
+        return found
 
     def qualifying_now(self) -> int:
         """Durable rows already collected for this exact epoch, config, revision and tree."""
@@ -236,6 +276,14 @@ class Supervisor:
         pace_full_collections()
         context = get_context("spawn")
         self.pool = ProcessPoolExecutor(max_workers=2, mp_context=context)
+        # Anything a previous process died in the middle of, closed off and inventoried before
+        # this one starts. Nothing is presumed to have completed and nothing is deleted.
+        self.recovered_attempts = self.ledger.recover(inventory=self._orphans)
+        for attempt in self.recovered_attempts:
+            self.log(
+                f"    recovered abandoned attempt {attempt.get('slug')} "
+                f"({attempt.get('attempt_id')}): not collected"
+            )
         already = self.corpus.completed_slugs()
         self.completed_existing = self.qualifying_now()
         try:
@@ -270,25 +318,57 @@ class Supervisor:
                 continue
 
             await self._sleep_until(t0 - PREARM_LEAD_SECONDS)
-            if not await self._cold_capacity(deadline=t0 - LAUNCH_DEADLINE_SECONDS):
+            # The reservation is taken here, before the market exists, and released only when
+            # its terminal record is written. Waiting happens to a market that has not started;
+            # a running one is never made to wait on a closed one's settlement.
+            if not await self._reserve(deadline=t0 - LAUNCH_DEADLINE_SECONDS):
                 self._record_skip(
                     slug,
                     t0,
-                    "COLD_BACKLOG_CAP",
-                    f"{len(self.cold)} markets were still in cold work, at a cap of "
-                    f"{MAX_COLD_BACKLOG}; this slot was not collected",
+                    "COLD_CAPACITY_UNAVAILABLE",
+                    f"{self.lifecycles} markets still owed finalisation at a cap of "
+                    f"{MAX_MARKET_LIFECYCLES}; this slot was not collected",
                 )
-                self.log(f"[{time.strftime('%H:%M:%S')}] {slug} skipped: cold backlog at cap")
+                self.log(f"[{time.strftime('%H:%M:%S')}] {slug} skipped: no lifecycle capacity")
                 t0 += MARKET_SECONDS
                 continue
+
             market, prearm = await self.prearm(slug)
             if market is None:
+                self._release()
                 self._record_prearm_failure(prearm)
+                t0 += MARKET_SECONDS
+                continue
+
+            try:
+                attempt_id = self.ledger.start(
+                    slug=slug,
+                    t0_ns=t0 * NANOS_PER_SECOND,
+                    identity={
+                        "epoch": self.config.epoch,
+                        "config_sha256": self.identity.get("config_sha256"),
+                        "source_revision": self.identity.get("source_revision"),
+                        "source_tree_sha": self.identity.get("source_tree_sha"),
+                        "working_tree_clean": self.identity.get("working_tree_clean"),
+                        "run_mode": self.run_mode,
+                        "allow_dirty_requested": self.allow_dirty_requested,
+                    },
+                    prearm=prearm.summary(),
+                    expected_journal=str(self.config.evidence_dir / f"{slug}.journal.ndjson"),
+                    expected_store=str(self.config.evidence_dir / f"{slug}.p11.sqlite3"),
+                    expected_latency=str(self.config.evidence_dir / f"{slug}.latency.json.xz"),
+                )
+            except LedgerWriteError as error:
+                # Fail closed. A market nobody recorded is worse than a market nobody collected.
+                self._release()
+                self.log(f"[{time.strftime('%H:%M:%S')}] {slug} NOT launched: {error}")
+                self.ledger_failures += 1
                 t0 += MARKET_SECONDS
                 continue
 
             session = MarketSession(market=market, config=self.config, prearm=prearm, ui=self.ui)
             session.source_revision = str(self.identity.get("source_revision", ""))
+            session.attempt_id = attempt_id
             self.attempted += 1
             launched.add(slug)
             self.log(
@@ -373,18 +453,30 @@ class Supervisor:
         if len(self.cold) > self.cold_high_water:
             self.cold_high_water = len(self.cold)
 
-    async def _cold_capacity(self, *, deadline: float) -> bool:
-        """Wait for room in the cold queue, up to the last moment a market can still be launched.
+    async def _reserve(self, *, deadline: float) -> bool:
+        """Take a lifecycle slot for a market that has not started yet.
 
-        Waits **before** a market exists, never during one: an already-running session is never
-        made to wait on a closed market's settlement. Returns whether there is room.
+        Returns whether one was available before the last moment the market could still be
+        launched. A market that cannot reserve is not launched, and its slot is recorded as
+        skipped — an unbounded queue nobody is watching is worse than a five-minute gap that
+        says why.
         """
-        while len(self.cold) >= MAX_COLD_BACKLOG:
+        while self.lifecycles >= MAX_MARKET_LIFECYCLES:
             if time.time() >= deadline:
                 return False
-            await asyncio.wait(self.cold, timeout=1.0, return_when=asyncio.FIRST_COMPLETED)
-            self.cold = {task for task in self.cold if not task.done()}
+            if self.cold:
+                await asyncio.wait(self.cold, timeout=1.0, return_when=asyncio.FIRST_COMPLETED)
+                self.cold = {task for task in self.cold if not task.done()}
+            else:  # pragma: no cover - only if a live session is wedged
+                await asyncio.sleep(1.0)
+        self.lifecycles += 1
+        if self.lifecycles > self.lifecycle_high_water:
+            self.lifecycle_high_water = self.lifecycles
         return True
+
+    def _release(self) -> None:
+        """Give the slot back. Called once per reservation, after the terminal record."""
+        self.lifecycles = max(0, self.lifecycles - 1)
 
     async def _drain_cold(self) -> None:
         if self.cold:
@@ -392,6 +484,8 @@ class Supervisor:
 
     async def _finalize(self, session: MarketSession) -> None:
         """Everything a closed market still owes, none of it on a trading path."""
+        entry: dict[str, Any] = {}
+        appended = False
         try:
             await session.write_journal()
             await session.write_latency_artifact(
@@ -427,8 +521,24 @@ class Supervisor:
             )
         except Exception as error:  # pragma: no cover - the cold path never kills the run
             self.log(f"    {session.slug}: cold path failed: {type(error).__name__}: {error}")
+            session.incidents.append(f"cold path failed: {type(error).__name__}: {error}")
         finally:
             session.release()
+            # The terminal record, then the slot. A market owes finalisation until both its
+            # attempt and its corpus row are settled, and only then does another get to start.
+            self.ledger.finish(
+                session.attempt_id or "unknown",
+                event=FINISHED if appended else FAILED,
+                slug=session.slug,
+                verification_status=entry.get("verification_status"),
+                evidence_eligible=entry.get("evidence_eligible", False),
+                corpus_appended=appended,
+                journal_sha256=(entry.get("journal") or {}).get("sha256"),
+                store_sha256=(entry.get("store") or {}).get("sha256"),
+                latency_sha256=(entry.get("latency_artifact") or {}).get("sha256"),
+                incidents=list(session.incidents),
+            )
+            self._release()
 
     async def _cold_result(self, session: MarketSession) -> dict[str, Any]:
         if self.pool is None:  # pragma: no cover - only outside `run`
@@ -664,6 +774,7 @@ class Supervisor:
                 "redemption_enabled": False,
             },
             "commands": session.commands,
+            "attempt_id": session.attempt_id,
             "resources": {
                 "start": None
                 if session.started_resources is None
@@ -682,6 +793,9 @@ class Supervisor:
                 "cold_backlog": len(self.cold),
                 "cold_backlog_high_water": self.cold_high_water,
                 "cold_backlog_cap": MAX_COLD_BACKLOG,
+                "market_lifecycles": self.lifecycles,
+                "market_lifecycle_high_water": self.lifecycle_high_water,
+                "market_lifecycle_cap": MAX_MARKET_LIFECYCLES,
                 "gc": self.gc_observer.summary(),
             },
             "incidents": list(session.incidents),

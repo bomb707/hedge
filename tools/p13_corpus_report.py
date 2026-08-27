@@ -28,7 +28,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from maker5m.bot import CorpusIndex, read_latency
+from maker5m.bot import AttemptLedger, CorpusIndex, read_latency
+from maker5m.bot.attempts import ABORTED, FAILED, FINISHED, STARTED
 from maker5m.bot.quality import QUALITY_LABELS, QUEUE_PROVENANCE
 from maker5m.telemetry.metrics import quantile
 
@@ -117,7 +118,52 @@ def _quantiles(values: list[int]) -> dict[str, int | None]:
     }
 
 
-def report(index: CorpusIndex, *, epoch: str | None = None) -> dict[str, Any]:
+def accounting(index: CorpusIndex, ledger: Any, entries: list[dict[str, Any]]) -> dict[str, Any]:
+    """Every launched market accounted for: started, finished, aborted, skipped, collected.
+
+    The corpus alone cannot do this. It records markets that *finished*, so a process that died
+    mid-market leaves a gap that nothing in it describes — which is exactly what happened to two
+    of `p13-corpus-1`'s fourteen attempts.
+    """
+    events = ledger.events()
+    started = {
+        str(event.get("attempt_id")): event for event in events if event.get("event") == STARTED
+    }
+    terminal: dict[str, str] = {}
+    for event in events:
+        name = str(event.get("event"))
+        if name in {FINISHED, FAILED, ABORTED}:
+            terminal[str(event.get("attempt_id"))] = name
+
+    named = [str(entry.get("attempt_id")) for entry in entries if entry.get("attempt_id")]
+    unmatched = sorted({attempt for attempt in named if attempt not in started})
+    skipped = [
+        {"slug": row.get("slug"), "reason": row.get("skip_reason")}
+        for row in index.entries()
+        if row.get("verification_status") == "NOT_STARTED"
+    ]
+    return {
+        "attempts_started": len(started),
+        "attempts_terminal": len(terminal),
+        "attempts_by_outcome": {
+            name: sum(1 for value in terminal.values() if value == name)
+            for name in sorted(set(terminal.values()))
+        },
+        "aborted_by_process_exit": sum(1 for value in terminal.values() if value == ABORTED),
+        "open_attempts": len(started) - len(terminal),
+        "skipped_slots": skipped,
+        "final_corpus_rows": len(entries),
+        "rows_naming_an_absent_attempt": unmatched,
+        "every_row_joins_one_attempt": not unmatched,
+        "note": (
+            "A market with a start and no terminal record is one this collector was in the "
+            "middle of. It is recorded as aborted, counts toward nothing, and its artifacts are "
+            "inventoried rather than deleted."
+        ),
+    }
+
+
+def report(index: CorpusIndex, *, epoch: str | None = None, ledger: Any = None) -> dict[str, Any]:
     entries = index.entries()
     if epoch is not None:
         entries = [e for e in entries if e.get("epoch") == epoch]
@@ -252,6 +298,7 @@ def report(index: CorpusIndex, *, epoch: str | None = None) -> dict[str, Any]:
         "provenance": "REAL_PUBLIC_MARKET_DATA",
         "epoch": epoch,
         "attempted": len(entries),
+        "accounting": None if ledger is None else accounting(index, ledger, eligible),
         "status_counts": dict(sorted(status.items())),
         "evidence_eligible": len(eligible),
         "replay_status_counts": dict(sorted(replay_status.items())),
@@ -371,7 +418,12 @@ def main() -> None:
     parser.add_argument("--epoch", type=str, default=None)
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
-    evidence = report(CorpusIndex(path=args.corpus), epoch=args.epoch)
+    ledger_path = args.corpus.with_name("attempts.jsonl")
+    evidence = report(
+        CorpusIndex(path=args.corpus),
+        epoch=args.epoch,
+        ledger=AttemptLedger(path=ledger_path) if ledger_path.exists() else None,
+    )
     if args.out is not None:
         args.out.write_text(json.dumps(evidence, indent=2, sort_keys=True), encoding="utf-8")
     print(json.dumps(evidence, indent=2, sort_keys=True))

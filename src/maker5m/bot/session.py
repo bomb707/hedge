@@ -242,6 +242,7 @@ class MarketSession:
         self.journal_bytes = 0
         self.closing_sink_errors = 0
         self.source_revision = ""
+        self.attempt_id: str | None = None
         self.feed_counters: dict[str, Any] = {}
         self.warm: dict[str, int | None] = {
             "clob_first_ns": None,

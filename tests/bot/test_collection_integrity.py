@@ -16,7 +16,7 @@ from typing import Any
 import pytest
 
 from maker5m.bot import CorpusIndex, PaperConfig
-from maker5m.bot.supervisor import MAX_COLD_BACKLOG
+from maker5m.bot.supervisor import MAX_COLD_BACKLOG, MAX_MARKET_LIFECYCLES
 from tests.bot.test_multi_market import acceptance, clean_cold, collected, paper
 
 
@@ -54,37 +54,86 @@ def row(
 # -- §14-17: the cold backlog is bounded -------------------------------------------------------
 
 
-def test_the_launch_loop_waits_for_cold_capacity(tmp_path: Path) -> None:
-    """§17. Cold tasks that never finish must stop the collector launching more markets."""
+def test_a_market_cannot_launch_without_a_lifecycle_slot(tmp_path: Path) -> None:
+    """§17. A market reserves its finalisation before it exists, or it does not start."""
 
     async def scenario() -> tuple[bool, int]:
         supervisor = acceptance(paper(tmp_path))
         stuck = asyncio.Event()
-        for index in range(MAX_COLD_BACKLOG):
+        for index in range(MAX_MARKET_LIFECYCLES):
             supervisor.cold.add(_never(stuck, f"stuck-{index}"))
+            supervisor.lifecycles += 1
         try:
-            # A deadline already in the past: no capacity, and the answer must be "no".
-            allowed = await supervisor._cold_capacity(deadline=0.0)
-            return allowed, len(supervisor.cold)
+            allowed = await supervisor._reserve(deadline=0.0)
+            return allowed, supervisor.lifecycles
         finally:
             stuck.set()
             await asyncio.gather(*list(supervisor.cold), return_exceptions=True)
 
     allowed, held = asyncio.run(scenario())
     assert allowed is False
-    assert held == MAX_COLD_BACKLOG, "and nothing was launched on top of them"
+    assert held == MAX_MARKET_LIFECYCLES, "and nothing was reserved on top of them"
 
 
-def test_capacity_returns_when_a_cold_task_finishes(tmp_path: Path) -> None:
-    async def scenario() -> bool:
+def test_a_slot_becomes_available_when_a_finalisation_finishes(tmp_path: Path) -> None:
+    async def scenario() -> tuple[bool, int]:
         supervisor = acceptance(paper(tmp_path))
         release = asyncio.Event()
-        for index in range(MAX_COLD_BACKLOG):
+        for index in range(MAX_MARKET_LIFECYCLES):
             supervisor.cold.add(_never(release, f"cold-{index}"))
-        asyncio.get_running_loop().call_later(0.05, release.set)
-        return await supervisor._cold_capacity(deadline=time.time() + 100)
+            supervisor.lifecycles += 1
 
-    assert asyncio.run(scenario()) is True
+        async def finish() -> None:
+            await asyncio.sleep(0.05)
+            release.set()
+            await asyncio.sleep(0)
+            supervisor._release()
+
+        finisher = asyncio.ensure_future(finish())
+        allowed = await supervisor._reserve(deadline=time.time() + 100)
+        await finisher
+        return allowed, supervisor.lifecycles
+
+    allowed, held = asyncio.run(scenario())
+    assert allowed is True
+    assert held <= MAX_MARKET_LIFECYCLES
+
+
+def test_a_running_market_closing_cannot_push_past_the_cap(tmp_path: Path) -> None:
+    """§16, §19. The scenario the old check allowed: cap 3, two live sessions, count reaches 4.
+
+    Reserving before launch is what makes that impossible. A market that is already running has
+    *already* taken the slot its finalisation will need, so its transition to cold moves nothing.
+    """
+
+    async def scenario() -> list[int]:
+        supervisor = acceptance(paper(tmp_path))
+        stuck = asyncio.Event()
+        seen: list[int] = []
+        try:
+            # Fill every slot with markets that are "live" — reserved, not yet finalising.
+            for _ in range(MAX_MARKET_LIFECYCLES):
+                assert await supervisor._reserve(deadline=time.time() + 5) is True
+                seen.append(supervisor.lifecycles)
+
+            # Each one closes and starts its cold work. No new reservation is taken.
+            for index in range(MAX_MARKET_LIFECYCLES):
+                supervisor.cold.add(_never(stuck, f"cold-{index}"))
+                if len(supervisor.cold) > supervisor.cold_high_water:
+                    supervisor.cold_high_water = len(supervisor.cold)
+                seen.append(supervisor.lifecycles)
+
+            # And the next market cannot start while they are outstanding.
+            assert await supervisor._reserve(deadline=0.0) is False
+            seen.append(supervisor.lifecycles)
+            return seen
+        finally:
+            stuck.set()
+            await asyncio.gather(*list(supervisor.cold), return_exceptions=True)
+
+    counts = asyncio.run(scenario())
+    assert max(counts) == MAX_MARKET_LIFECYCLES
+    assert all(count <= MAX_MARKET_LIFECYCLES for count in counts)
 
 
 def test_a_skipped_slot_is_recorded_rather_than_silently_missing(tmp_path: Path) -> None:

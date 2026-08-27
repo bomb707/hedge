@@ -234,6 +234,29 @@ The renderer is now a named function a test drives with events built by the prod
 function, and its call site is guarded: this is evidence formatting running after the market has
 closed, and nothing it does should be able to end a run.
 
+## Compatibility
+
+Every store this project has accepted, re-opened and re-verified by the P12C code
+(`p12c-store-compatibility.json`):
+
+| Market | Store | Decision schema | Verdict |
+|---|---|---|---|
+| `1787748900` | V1 | V1 | UNSUPPORTED — pre-P11B layout, refused by the domain rule P11F closed |
+| `1787749500` | V1 | V1 | UNSUPPORTED — same |
+| `1787770200` | V2 | V2 | COMPLETE |
+| `1787771100` | V2 | V2 | INCOMPLETE — the controlled stalled-sink market; real bounded-buffer loss |
+| `1787780700` | V2 | V2 | COMPLETE |
+| `1787803500` | V2 | V2 | INCOMPLETE — the first P12 market's two unpublished operator RiskRecords |
+| `1787807700` | V3 | V2 | COMPLETE — P12B, two control rows |
+| `1787811600` | V3 | V2 | COMPLETE — P12C, two control rows |
+
+Four of the eight are expected not to verify COMPLETE, each for a reason already in the record. A
+verifier that passed all eight would be the defect.
+
+The pre-P12C verifier gives **the same verdict and the same failure text** on all eight, so the
+typed control-audit comparisons changed nothing about how existing stores read — they only refuse
+things no accepted store contains.
+
 ## Retained and superseded
 
 * **P12B's store is valid.** `btc-updown-5m-1787807700` verifies **COMPLETE** with 82,336

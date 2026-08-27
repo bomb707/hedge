@@ -127,6 +127,12 @@ class PersistenceWorker:
 
     analyzer: TelemetryAnalyzer | None = None
     metrics: MetricsAccumulator | None = None
+    on_record: Callable[[Any], None] | None = None
+    """An optional Plane-3 observer of each built record — the UI snapshot publisher uses it.
+
+    Called on this thread, after the row is written. It cannot reach Plane 1, and a failure in it
+    is counted like any other consume error rather than costing a decision."""
+
     """Folded here rather than by a second pass over stored rows, so a market that crashes has
     whatever was true when it stopped rather than nothing at all."""
 
@@ -396,6 +402,8 @@ class PersistenceWorker:
         self.store.write_decision(record)
         if self.metrics is not None:
             self.metrics.observe_decision(record)
+        if self.on_record is not None:
+            self.on_record(record)
         self.stats.decisions_written += 1
 
     def _estimate(self, side: str) -> Any:

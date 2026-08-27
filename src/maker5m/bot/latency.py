@@ -31,7 +31,13 @@ import lzma
 from pathlib import Path
 from typing import Any, Final
 
-__all__ = ["LATENCY_SCHEMA_VERSION", "LatencyArtifact", "read_latency", "write_latency"]
+__all__ = [
+    "LATENCY_SCHEMA_VERSION",
+    "LatencyArtifact",
+    "read_latency",
+    "validate_latency_identity",
+    "write_latency",
+]
 
 LATENCY_SCHEMA_VERSION: Final[int] = 1
 
@@ -125,12 +131,78 @@ def write_latency(
     )
 
 
-def read_latency(path: Path, *, expected_sha256: str | None = None) -> dict[str, Any]:
-    """Read one artifact back, refusing anything that is not the file that was written.
+IDENTITY: Final[tuple[str, ...]] = (
+    "slug",
+    "market_id",
+    "source_revision",
+    "source_tree_sha",
+    "config_sha256",
+    "epoch",
+    "run_mode",
+)
+"""What an artifact must agree with its corpus row about. All of them, exactly."""
 
-    A latency artifact whose bytes do not hash to what the corpus recorded is not this market's
-    latency. It is refused rather than parsed: the corpus row is the claim, and a file that
-    contradicts it cannot also satisfy it.
+OPTIONAL_IDENTITY: Final[tuple[str, ...]] = ("condition_id", "t0_ns")
+"""Compared when the row carries them. Present-and-different is a mismatch; absent is not."""
+
+
+def validate_latency_identity(payload: dict[str, Any], expected: dict[str, Any]) -> list[str]:
+    """Check that this artifact belongs to the market whose row names it.
+
+    A hash proves a file is the file that was written. It says nothing about *which market* it
+    was written for, so a row pointing at another market's artifact — by an edit, a copy, a
+    rebuilt index — passed every check P13C had while describing a different five minutes
+    entirely.
+
+    Exact equality, no coercion, and **missing is not equality**: an artifact that omits the
+    field cannot satisfy a comparison against it. Returns the mismatches; empty means it agrees.
+    """
+    problems: list[str] = []
+    if payload.get("schema_version") != LATENCY_SCHEMA_VERSION:
+        problems.append(
+            f"schema_version {payload.get('schema_version')!r}, expected {LATENCY_SCHEMA_VERSION}"
+        )
+    if payload.get("kind") != "P13_LIVE_LATENCY":
+        problems.append(f"kind {payload.get('kind')!r}")
+    if payload.get("provenance") != "REAL_PUBLIC_MARKET_DATA":
+        problems.append(f"provenance {payload.get('provenance')!r}")
+
+    for field_name in IDENTITY:
+        want = expected.get(field_name)
+        got = payload.get(field_name)
+        if field_name not in payload:
+            problems.append(f"{field_name} is absent from the artifact")
+        elif got != want:
+            problems.append(f"{field_name} {got!r}, the row says {want!r}")
+
+    for field_name in OPTIONAL_IDENTITY:
+        if field_name not in expected or field_name not in payload:
+            continue
+        if payload[field_name] != expected[field_name]:
+            problems.append(
+                f"{field_name} {payload[field_name]!r}, the row says {expected[field_name]!r}"
+            )
+
+    sample_every = expected.get("sample_every")
+    if sample_every is not None:
+        recorded = (payload.get("sampling") or {}).get("sample_every")
+        if recorded != sample_every:
+            problems.append(f"sample_every {recorded!r}, the run used {sample_every!r}")
+    return problems
+
+
+def read_latency(
+    path: Path,
+    *,
+    expected_sha256: str | None = None,
+    expected_identity: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Read one artifact back, refusing anything that is not this market's latency.
+
+    Two different claims are checked. The hash says the bytes are the bytes that were written;
+    the identity says they were written for *this* market, by *this* build. A file can satisfy
+    the first and fail the second, which is exactly the case a swapped or stale artifact
+    produces.
     """
     compressed = path.read_bytes()
     digest = hashlib.sha256(compressed).hexdigest()
@@ -145,4 +217,8 @@ def read_latency(path: Path, *, expected_sha256: str | None = None) -> dict[str,
             f"{path.name} declares latency schema {version!r}, this build reads "
             f"{LATENCY_SCHEMA_VERSION}"
         )
+    if expected_identity is not None:
+        problems = validate_latency_identity(parsed, expected_identity)
+        if problems:
+            raise ValueError(f"{path.name} is not this market's latency: {'; '.join(problems)}")
     return parsed

@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Any
 
 from maker5m.bot.config import PaperConfig
-from maker5m.bot.latency import LatencyArtifact, write_latency
+from maker5m.bot.latency import LatencyArtifact, read_latency, write_latency
 from maker5m.bot.quality import QualityAggregate
 from maker5m.bot.resources import LIVE_SESSIONS, ResourceSample, sample_resources, tiers
 from maker5m.execution import Executor, RecordingTransport, VenueAdapter
@@ -253,6 +253,7 @@ class MarketSession:
         self.at_t0: dict[str, Any] = {}
         self.latency_path = config.evidence_dir / f"{self.slug}.latency.json.xz"
         self.latency: LatencyArtifact | None = None
+        self.latency_faults: list[str] = []
 
     # -- Plane 3 observers -----------------------------------------------------------------
 
@@ -559,6 +560,26 @@ class MarketSession:
             )
         except Exception as error:
             self.incidents.append(f"latency artifact failed: {type(error).__name__}: {error}")
+
+    async def verify_latency_artifact(self, expected: dict[str, Any]) -> None:
+        """Read the artifact back and check it is this market's, before it becomes evidence.
+
+        Not the object that was just written — the *file*. What a corpus row points at is what a
+        later reader gets, and the two can differ: an edited index, a copied file, a rebuilt
+        directory. The hash proves the bytes; the identity proves the market.
+        """
+        if self.latency is None:
+            self.latency_faults.append("no latency artifact was written")
+            return
+        try:
+            await asyncio.to_thread(
+                read_latency,
+                self.latency.path,
+                expected_sha256=self.latency.sha256,
+                expected_identity=expected,
+            )
+        except Exception as error:
+            self.latency_faults.append(f"{type(error).__name__}: {error}")
 
     def close_store(self) -> None:
         """Write the settlement row, the metrics and the manifest, then digest the file.

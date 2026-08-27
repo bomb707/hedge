@@ -133,7 +133,7 @@ def collected(
             unit.analyzer.latency.clob_receive_to_reconcile.add(140_000 + index)
             unit.analyzer.latency.spot_receive_to_reconcile.add(130_000 + index)
             unit.analyzer.latency.decide_duration.add(24_000 + index)
-        asyncio.run(unit.write_latency_artifact({"source_revision": "revision"}))
+        asyncio.run(unit.write_latency_artifact(build_identity(unit.config)))
     if warm:
         ready_at_t0(unit, clob_since=20, spot_since=10)
     return unit
@@ -165,6 +165,19 @@ def ready_at_t0(
             "spot_ready_since_ns": spot,
         }
     )
+
+
+def build_identity(config: PaperConfig) -> dict[str, Any]:
+    """The build identity a clean acceptance run would stamp on everything it writes."""
+    from maker5m.bot import config_identity
+
+    return {
+        "source_revision": "revision",
+        "source_tree_sha": "tree",
+        "config_sha256": str(config_identity(config)["config_sha256"]),
+        "epoch": config.epoch,
+        "run_mode": "ACCEPTANCE_CLEAN",
+    }
 
 
 def acceptance(config: PaperConfig) -> Supervisor:

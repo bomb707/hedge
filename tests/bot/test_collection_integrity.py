@@ -195,31 +195,48 @@ def test_a_market_whose_row_cannot_be_written_does_not_count(tmp_path: Path) -> 
     assert supervisor.corpus.append_errors == 1
 
 
-def test_the_remaining_target_counts_what_the_corpus_already_holds(tmp_path: Path) -> None:
-    """§23. A restart after 150 collects 50 more, not 200 more."""
-    config = paper(tmp_path)
-    supervisor = acceptance(config)
-    supervisor.target_markets = 200
+def collected_row(supervisor: Any, slug: str, *, terminal: str | None = "ATTEMPT_FINISHED") -> None:
+    """A row with the attempt records a qualifying market must have."""
     identity = supervisor.identity
-    for index in range(150):
-        supervisor.corpus.append(
-            row(
-                f"btc-updown-5m-{index}",
-                epoch=config.epoch,
-                config=str(identity["config_sha256"]),
-                revision=str(identity["source_revision"]),
-                tree=str(identity["source_tree_sha"]),
-            )
-        )
+    build = {
+        "epoch": supervisor.config.epoch,
+        "config_sha256": str(identity["config_sha256"]),
+        "source_revision": str(identity["source_revision"]),
+        "source_tree_sha": str(identity["source_tree_sha"]),
+        "run_mode": "ACCEPTANCE_CLEAN",
+    }
+    attempt = supervisor.ledger.start(slug=slug, t0_ns=1, identity=build)
+    supervisor.corpus.append(
+        {
+            "slug": slug,
+            "attempt_id": attempt,
+            "verification_status": "COMPLETE",
+            "evidence_eligible": True,
+            "working_tree_clean": True,
+            **build,
+        }
+    )
+    if terminal is not None:
+        supervisor.ledger.finish(attempt, event=terminal, slug=slug, corpus_appended=True, **build)
 
-    supervisor.completed_existing = supervisor.qualifying_now()
-    assert supervisor.completed_existing == 150
-    assert supervisor.completed == 150
+
+def test_the_remaining_target_counts_what_the_corpus_already_holds(tmp_path: Path) -> None:
+    """§7, §23. 150 rows, 148 finished, one failed, one with no terminal: the count is 148."""
+    supervisor = acceptance(paper(tmp_path))
+    supervisor.target_markets = 200
+    for index in range(148):
+        collected_row(supervisor, f"btc-updown-5m-{index}")
+    collected_row(supervisor, "btc-updown-5m-148", terminal="ATTEMPT_FAILED")
+    collected_row(supervisor, "btc-updown-5m-149", terminal=None)
+
+    supervisor.completed_existing = supervisor.qualifying_now(verify_latency=False)
+    assert supervisor.completed_existing == 148, "a row is not finished until its attempt is"
+    assert supervisor.completed == 148
     assert supervisor._keep_going(launched=0) is True
 
-    supervisor.completed_this_process = 50
+    supervisor.completed_this_process = 52
     assert supervisor.completed == 200
-    assert supervisor._keep_going(launched=0) is False, "stops at exactly 200 durable rows"
+    assert supervisor._keep_going(launched=0) is False, "stops at exactly 200 joined rows"
 
 
 def test_rows_from_another_epoch_config_or_build_do_not_count(tmp_path: Path) -> None:

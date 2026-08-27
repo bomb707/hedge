@@ -28,8 +28,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from maker5m.bot import AttemptLedger, CorpusIndex, read_latency
-from maker5m.bot.attempts import ABORTED, FAILED, FINISHED, STARTED
+from maker5m.bot import AttemptIndex, AttemptLedger, CorpusIndex, qualifying_rows, read_latency
 from maker5m.bot.quality import QUALITY_LABELS, QUEUE_PROVENANCE
 from maker5m.telemetry.metrics import quantile
 
@@ -78,7 +77,25 @@ def merged_latency(entries: list[dict[str, Any]]) -> dict[str, Any]:
             refused.append({"slug": slug, "reason": "no latency artifact recorded"})
             continue
         try:
-            payload = read_latency(Path(str(path)), expected_sha256=artifact.get("sha256"))
+            payload = read_latency(
+                Path(str(path)),
+                expected_sha256=artifact.get("sha256"),
+                # Identity, not just integrity. A hash proves the bytes are the bytes that were
+                # written; it says nothing about which market they were written for, and a row
+                # pointing at another market's artifact would otherwise merge its samples in.
+                expected_identity={
+                    "slug": entry.get("slug"),
+                    "market_id": entry.get("market_id"),
+                    "condition_id": entry.get("condition_id"),
+                    "t0_ns": entry.get("t0_ns"),
+                    "source_revision": entry.get("source_revision"),
+                    "source_tree_sha": entry.get("source_tree_sha"),
+                    "config_sha256": entry.get("config_sha256"),
+                    "epoch": entry.get("epoch"),
+                    "run_mode": entry.get("run_mode"),
+                    "sample_every": entry.get("sample_every"),
+                },
+            )
         except (OSError, ValueError, lzma.LZMAError) as error:
             refused.append({"slug": slug, "reason": f"{type(error).__name__}: {error}"})
             continue
@@ -94,6 +111,7 @@ def merged_latency(entries: list[dict[str, Any]]) -> dict[str, Any]:
         "sampling": "SAMPLED — P8's accepted policy; every sample it took is here",
         "markets_merged": len(used),
         "markets_refused": refused,
+        "all_markets_merged": not refused,
         "series_ns": {name: _quantiles(values) for name, values in sorted(series.items())},
         "hot_path_observe_ns": _quantiles(hot_path),
         "hot_path_observe_max_by_market": dict(sorted(per_market_hot_max.items())),
@@ -118,60 +136,93 @@ def _quantiles(values: list[int]) -> dict[str, int | None]:
     }
 
 
-def accounting(index: CorpusIndex, ledger: Any, entries: list[dict[str, Any]]) -> dict[str, Any]:
-    """Every launched market accounted for: started, finished, aborted, skipped, collected.
+def accounting(
+    rows: list[dict[str, Any]],
+    judgements: list[Any],
+    ledger: Any,
+) -> dict[str, Any]:
+    """Audit **every** row for the epoch, not only the ones that passed.
 
-    The corpus alone cannot do this. It records markets that *finished*, so a process that died
-    mid-market leaves a gap that nothing in it describes — which is exactly what happened to two
-    of `p13-corpus-1`'s fourteen attempts.
+    Auditing the eligible list is auditing the answer. A row that failed is exactly the row worth
+    accounting for, so the join runs over all of them and reports what each one was missing.
     """
-    events = ledger.events()
-    started = {
-        str(event.get("attempt_id")): event for event in events if event.get("event") == STARTED
-    }
-    terminal: dict[str, str] = {}
-    for event in events:
-        name = str(event.get("event"))
-        if name in {FINISHED, FAILED, ABORTED}:
-            terminal[str(event.get("attempt_id"))] = name
-
-    named = [str(entry.get("attempt_id")) for entry in entries if entry.get("attempt_id")]
-    unmatched = sorted({attempt for attempt in named if attempt not in started})
-    skipped = [
-        {"slug": row.get("slug"), "reason": row.get("skip_reason")}
-        for row in index.entries()
-        if row.get("verification_status") == "NOT_STARTED"
+    attempts = AttemptIndex.build(ledger.events())
+    counts = attempts.counts()
+    without_start = [
+        str(row.get("slug"))
+        for row in rows
+        if row.get("attempt_id") and str(row.get("attempt_id")) not in attempts.starts
     ]
+    no_attempt = [str(row.get("slug")) for row in rows if not row.get("attempt_id")]
+    without_terminal = [
+        str(row.get("slug"))
+        for row in rows
+        if row.get("attempt_id")
+        and str(row.get("attempt_id")) in attempts.starts
+        and not attempts.terminals.get(str(row.get("attempt_id")))
+    ]
+    identity_problems = {
+        judgement.slug: list(judgement.reasons)
+        for judgement in judgements
+        if not judgement.qualifies
+    }
     return {
-        "attempts_started": len(started),
-        "attempts_terminal": len(terminal),
-        "attempts_by_outcome": {
-            name: sum(1 for value in terminal.values() if value == name)
-            for name in sorted(set(terminal.values()))
-        },
-        "aborted_by_process_exit": sum(1 for value in terminal.values() if value == ABORTED),
-        "open_attempts": len(started) - len(terminal),
-        "skipped_slots": skipped,
-        "final_corpus_rows": len(entries),
-        "rows_naming_an_absent_attempt": unmatched,
-        "every_row_joins_one_attempt": not unmatched,
+        **counts,
+        "duplicate_terminal_detail": attempts.duplicates(),
+        "corpus_rows": len(rows),
+        "qualifying_rows": sum(1 for judgement in judgements if judgement.qualifies),
+        "rows_without_attempt_id": no_attempt,
+        "rows_without_start": without_start,
+        "rows_without_finished_terminal": without_terminal,
+        "rows_refused_with_reasons": identity_problems,
+        "every_row_joins_one_attempt": not (no_attempt or without_start or without_terminal),
+        "ledger": ledger.summary(),
         "note": (
-            "A market with a start and no terminal record is one this collector was in the "
-            "middle of. It is recorded as aborted, counts toward nothing, and its artifacts are "
-            "inventoried rather than deleted."
+            "Every row for this epoch, judged by the same rule the collector counts with. A "
+            "market with a start and no terminal record is one the collector was in the middle "
+            "of; it counts toward nothing and its artifacts are inventoried, not deleted."
         ),
     }
 
 
-def report(index: CorpusIndex, *, epoch: str | None = None, ledger: Any = None) -> dict[str, Any]:
+def report(
+    index: CorpusIndex,
+    *,
+    epoch: str | None = None,
+    ledger: Any = None,
+    identity: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     entries = index.entries()
     if epoch is not None:
         entries = [e for e in entries if e.get("epoch") == epoch]
-    eligible = [
-        e
-        for e in entries
-        if e.get("evidence_eligible") is True and e.get("verification_status") == "COMPLETE"
-    ]
+
+    # The same join the collector counts with. An epoch's own rows carry its identity, so the
+    # expectation is taken from them rather than invented here; a corpus that disagrees with
+    # itself about which build made it fails the join and says so.
+    reference = identity or (entries[0] if entries else {})
+    judgements = (
+        qualifying_rows(
+            entries,
+            ledger.events() if ledger is not None else (),
+            epoch=str(reference.get("epoch")),
+            config_sha256=str(reference.get("config_sha256")),
+            source_revision=str(reference.get("source_revision")),
+            source_tree_sha=reference.get("source_tree_sha"),
+            run_mode=str(reference.get("run_mode", "ACCEPTANCE_CLEAN")),
+        )
+        if ledger is not None
+        else []
+    )
+    qualified = {judgement.slug for judgement in judgements if judgement.qualifies}
+    eligible = (
+        [entry for entry in entries if str(entry.get("slug")) in qualified]
+        if ledger is not None
+        else [
+            e
+            for e in entries
+            if e.get("evidence_eligible") is True and e.get("verification_status") == "COMPLETE"
+        ]
+    )
 
     status = Counter(str(e.get("verification_status")) for e in entries)
     replay_status = Counter(str((e.get("replay") or {}).get("status")) for e in entries)
@@ -298,7 +349,7 @@ def report(index: CorpusIndex, *, epoch: str | None = None, ledger: Any = None) 
         "provenance": "REAL_PUBLIC_MARKET_DATA",
         "epoch": epoch,
         "attempted": len(entries),
-        "accounting": None if ledger is None else accounting(index, ledger, eligible),
+        "accounting": None if ledger is None else accounting(entries, judgements, ledger),
         "status_counts": dict(sorted(status.items())),
         "evidence_eligible": len(eligible),
         "replay_status_counts": dict(sorted(replay_status.items())),

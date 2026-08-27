@@ -14,6 +14,7 @@ from maker5m.bot.attempts import AttemptLedger
 from maker5m.bot.config import OperationalThresholds, PaperConfig, config_identity
 from maker5m.bot.corpus import CorpusIndex, CorpusStats
 from maker5m.bot.latency import LATENCY_SCHEMA_VERSION, LatencyArtifact, read_latency, write_latency
+from maker5m.bot.qualify import AttemptIndex, Qualification, qualification_of, qualifying_rows
 from maker5m.bot.quality import QUALITY_LABELS, QUEUE_PROVENANCE, QualityAggregate
 from maker5m.bot.resources import ResourceSample, sample_resources
 from maker5m.bot.session import MarketSession, PrearmRecord
@@ -24,6 +25,7 @@ __all__ = [
     "LATENCY_SCHEMA_VERSION",
     "QUALITY_LABELS",
     "QUEUE_PROVENANCE",
+    "AttemptIndex",
     "AttemptLedger",
     "CorpusIndex",
     "CorpusStats",
@@ -32,11 +34,14 @@ __all__ = [
     "OperationalThresholds",
     "PaperConfig",
     "PrearmRecord",
+    "Qualification",
     "QualityAggregate",
     "ResourceSample",
     "Supervisor",
     "UiPlane",
     "config_identity",
+    "qualification_of",
+    "qualifying_rows",
     "read_latency",
     "sample_resources",
     "settle_market",

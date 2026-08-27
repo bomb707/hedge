@@ -1,17 +1,36 @@
 {
   "accounting": {
-    "aborted_by_process_exit": 0,
-    "attempts_by_outcome": {
-      "ATTEMPT_FINISHED": 4
-    },
+    "attempts_aborted": 0,
+    "attempts_failed": 0,
+    "attempts_finished": 4,
     "attempts_started": 4,
     "attempts_terminal": 4,
+    "corpus_rows": 4,
+    "duplicate_terminal_attempts": 0,
+    "duplicate_terminal_detail": {},
     "every_row_joins_one_attempt": true,
-    "final_corpus_rows": 4,
-    "note": "A market with a start and no terminal record is one this collector was in the middle of. It is recorded as aborted, counts toward nothing, and its artifacts are inventoried rather than deleted.",
+    "ledger": {
+      "attempts_started": 4,
+      "attempts_terminal": 4,
+      "by_event": {
+        "ATTEMPT_FINISHED": 4,
+        "ATTEMPT_STARTED": 4
+      },
+      "duplicate_terminals": {},
+      "events": 8,
+      "open_attempts": 0,
+      "path": "/home/hr/p13c-pilot/attempts.jsonl",
+      "recovery_failures": [],
+      "write_errors": []
+    },
+    "note": "Every row for this epoch, judged by the same rule the collector counts with. A market with a start and no terminal record is one the collector was in the middle of; it counts toward nothing and its artifacts are inventoried, not deleted.",
     "open_attempts": 0,
-    "rows_naming_an_absent_attempt": [],
-    "skipped_slots": []
+    "qualifying_rows": 4,
+    "rows_refused_with_reasons": {},
+    "rows_without_attempt_id": [],
+    "rows_without_finished_terminal": [],
+    "rows_without_start": [],
+    "terminal_without_start": 0
   },
   "action_counts": {
     "BLOCKED": 564410,
@@ -149,6 +168,7 @@
   },
   "last_slug": "btc-updown-5m-1787846400",
   "live_latency": {
+    "all_markets_merged": true,
     "hot_path_observe_max_by_market": {
       "btc-updown-5m-1787845500": 6902304,
       "btc-updown-5m-1787845800": 16330866,

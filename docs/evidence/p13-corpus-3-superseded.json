@@ -1,0 +1,175 @@
+{
+  "attempts_index_sha256": "530271cc73ac954d3bfd20897d4f1045f6f64bc12e1d9bd4cf1382372217bdc2",
+  "config_sha256": "e179e137ad621799a32a17566852aa449ff600999d13ee486bc30ae93145a012",
+  "corpus_index_sha256": "d5f680b562907694349ae3ccddd1638ea75c64a9e620f4029fd5f664f7ba4a1a",
+  "epoch": "p13-corpus-3",
+  "kind": "P13_CORPUS_3_SUPERSEDED",
+  "markets": [
+    {
+      "archive_sha256": "487f9f2157bb1025af2d96a7e98bc5cf1e911e8850050b952b9e99e25a577fb5",
+      "attempt_id": "3b545d58f7bd4ed99cf9fae40009494a",
+      "decisions": 90441,
+      "journal_sha256": "13af6d82a42d72bd0e8ed86abc4f5a02273a1444c6cc5b5778cf4b6f87b057fa",
+      "latency_sha256": "58dedbff69f401752aecf871bb5f4d674ce49322b77c7bfd44f0369d37186af2",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787848800",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "b2e55562692d12a6be5e61861b983442dfdcca3122dc1e8c966f43534fa04822",
+      "attempt_id": "fef46010f2b2433697fb10f58776a705",
+      "decisions": 111215,
+      "journal_sha256": "4864b52c643ddb01c1ba35a34883d63db915d60b54956516b20684c8a9c429a1",
+      "latency_sha256": "a40071f8939608587d65388558faef36f7e3a677e4b91513167cf20a937e8e01",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787849100",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "23f3b1f28245ec34321b7eddfa5eabf3a9adf038396397f2ea5fb55586764ca4",
+      "attempt_id": "dc675cdea42f44f7abe5e225a6bb22ff",
+      "decisions": 162105,
+      "journal_sha256": "358b7ff0163edf236ed3a9a053f6563ee203d61f56b646b882bd19db5eb1a0f0",
+      "latency_sha256": "e1efb50f64c8da84fd44e278379cecd6158f28bd2620a55c130a27ba447acb3b",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787849400",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "edc90500ca43e6a69ea396fbf38a1d7ea177e762e6ef1f248234a5ed7402b147",
+      "attempt_id": "42ec6b6dab434d91abaad09b0f83345a",
+      "decisions": 125503,
+      "journal_sha256": "eeb665869b916e2a4c1e9de2b0c04a1eb4453c8d797f4a205172eb64959726af",
+      "latency_sha256": "c00b3fd676d5ee0f13e927c43212474f146a7bf9d5085a4a236334d5d4dc48fa",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787849700",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "78190f1f32ceef717caec8202bea64556abe7411736a4c6926a9409d2b3e7d6a",
+      "attempt_id": "62d243ae313344ce897224a3e2e92643",
+      "decisions": 104471,
+      "journal_sha256": "20970c08a2d02bec749e842cb1f34193b6ded619cd6af5dfed9a7ec86a32be5c",
+      "latency_sha256": "c2d3f04a62a9c534dba3e5daf663042785731d729efba413cf0e3698410db225",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787850000",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "4ee14c85a4977000847978b41857404e7595d682ebbc4d8b5e432cb70259acc7",
+      "attempt_id": "192686246c3a4449b6f6bbb803de3d56",
+      "decisions": 109070,
+      "journal_sha256": "e84fbe9957bb07351535b0b268d6d1d2ee5a1c3b9e2741f197722a4cae2c7f1c",
+      "latency_sha256": "0be8b6206f6164acb6e71999e117ffe488174b42e8a2c0020f675520f7d2ebe9",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787850300",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "a149b58e145004529c1f959c8a0b696d9e65a66c00963c438e855ffd557eefce",
+      "attempt_id": "50a42bc24a2449da810e18eef03ef0f6",
+      "decisions": 133244,
+      "journal_sha256": "db76269380e664d4a0d88ae251db93eb9c38fe3a8b8b9e9fdac65be1d667ce5a",
+      "latency_sha256": "fef900b846d16cc36498cd502c692ae786f463c77b405087906ad776dc2c20c3",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787850600",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "036443adf20eaac3b87bc1f850ff3f1722101f088a9faf8991336beb40282732",
+      "attempt_id": "c12114c145b8439e993e6ac08e957ef4",
+      "decisions": 138756,
+      "journal_sha256": "a82d02135dd1897279b01b1ef838cbd2b869cc6635de360b547870381d821eca",
+      "latency_sha256": "7f77b20736c992de6b525bc0d967fa6d0b8e3de5ec4113a0724a54f141cc4aa3",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787850900",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "e4c0eb8cba2b934822d08ae5ba9e20b6929b780db5aacdc57f318c37a2328bf6",
+      "attempt_id": "1e60937be6b846c58780395b1bcc9dfa",
+      "decisions": 148941,
+      "journal_sha256": "be0066fc52b616ee4095ae4918789bac97a43f0b1f6f7986653eef2de0e0d45f",
+      "latency_sha256": "1095ce60e786205013244c9589173bbfd184c0f301670586af6b3f72e0e896ac",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787851200",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "f2ffd344bd5c3bce57c943af00cc5428f55f19a2e24adc0668928c70aeff1173",
+      "attempt_id": "76faec667a624858965843c5009bb112",
+      "decisions": 201139,
+      "journal_sha256": "d15b5583c17e17805d66067f3889eca8b5357bbcc6ba8d5be4d049759a9229d4",
+      "latency_sha256": "5f9ad2fc47c036cd29b826d13c68db57ca5229658259e26f4a8767060e04e67d",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787851500",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "2ffd2a75a1c48449cf97f5344e8169ff824c8689b62fbe97e84828e0c07399a7",
+      "attempt_id": "868b4593082d41799e7c6467348c848a",
+      "decisions": 158750,
+      "journal_sha256": "dbe1572c123185d326d5db24de93dd9a4ab5c74261e3d9d2149969a83f2864a1",
+      "latency_sha256": "a640102ca7bc8c770e64c254c5e757e8cff8b0768f540147271762ba071c194d",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787851800",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "0bd9c27f1c1d7df2cac5aa8709b49956c5c1b4a7ce8c7c8480b9c593dce095ae",
+      "attempt_id": "ea38634b61544e97a06ecfd0b5f30b19",
+      "decisions": 150195,
+      "journal_sha256": "6cea085f2dabbdf7529191aa6bb73b7a8f258098c9e289fc47092708f22c775d",
+      "latency_sha256": "6e74f4821acc0a39c429b1567dc1a0a2060ba672a407fe75c4896bd6affcd462",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787852100",
+      "verification_status": "COMPLETE"
+    }
+  ],
+  "note": "Nothing deleted, rewritten or reclassified. Retained as exploratory and revalidation evidence; excluded from the >=200 acceptance count.",
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "read_side_audit": {
+    "attempts_aborted": 0,
+    "attempts_failed": 0,
+    "attempts_finished": 12,
+    "attempts_started": 14,
+    "attempts_terminal": 12,
+    "corpus_rows": 12,
+    "duplicate_terminal_attempts": 0,
+    "duplicate_terminal_detail": {},
+    "every_row_joins_one_attempt": true,
+    "ledger": {
+      "attempts_started": 14,
+      "attempts_terminal": 12,
+      "by_event": {
+        "ATTEMPT_FINISHED": 12,
+        "ATTEMPT_STARTED": 14
+      },
+      "duplicate_terminals": {},
+      "events": 26,
+      "open_attempts": 2,
+      "path": "/home/hr/p13-corpus-3/attempts.jsonl",
+      "recovery_failures": [],
+      "write_errors": []
+    },
+    "note": "Every row for this epoch, judged by the same rule the collector counts with. A market with a start and no terminal record is one the collector was in the middle of; it counts toward nothing and its artifacts are inventoried, not deleted.",
+    "open_attempts": 2,
+    "qualifying_rows": 12,
+    "rows_refused_with_reasons": {},
+    "rows_without_attempt_id": [],
+    "rows_without_finished_terminal": [],
+    "rows_without_start": [],
+    "terminal_without_start": 0
+  },
+  "root": "/home/hr/p13-corpus-3",
+  "source_revision": "d20d3c9744d4e8e91430c8f73c4bce60d47bf047",
+  "source_tree_sha": "74c73d81f5e487fb87f0f498d1db18c7c74f160e",
+  "status": "SUPERSEDED_FOR_FINAL_P13_ACCEPTANCE",
+  "stopped_by": "SIGTERM to PID 90635, verified by /proc cwd and command line as this root's runner",
+  "stopped_utc": "2026-08-27T17:47:00Z",
+  "what_the_stronger_audit_says": "Re-read with the corrected rules, all 12 rows join exactly one started and one finished attempt, and all 12 latency artifacts are identity-valid. The two attempts open at the stop are the two markets in flight when it was signalled \u2014 visible as open, which is the point of the ledger.",
+  "why_it_cannot_count": [
+    "Final target accounting could count a corpus row whose terminal attempt event failed to persist: the ledger's return value was ignored, so a market the collector could not prove it finished would still have incremented the total.",
+    "Latency artifact identity was not cross-validated: the hash proved the bytes, nothing proved they were written for the market whose row named them."
+  ]
+}

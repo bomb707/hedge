@@ -54,6 +54,8 @@ class AttemptLedger:
     path: Path
     appended: int = 0
     errors: list[str] = field(default_factory=list)
+    recovery_failures: list[str] = field(default_factory=list)
+    """Attempts that could not be closed off. They remain open, and are reported as open."""
 
     def _append(self, record: dict[str, Any]) -> None:
         line = json.dumps(record, sort_keys=True, default=str, separators=(",", ":")) + "\n"
@@ -166,9 +168,10 @@ class AttemptLedger:
         store is recorded where somebody will find it instead of sitting on disk unreferenced.
         """
         recovered: list[dict[str, Any]] = []
+        self.recovery_failures = []
         for attempt in self.open_attempts():
             found = {} if inventory is None else inventory(attempt)
-            self.finish(
+            closed = self.finish(
                 str(attempt.get("attempt_id")),
                 event=ABORTED,
                 slug=attempt.get("slug"),
@@ -181,6 +184,11 @@ class AttemptLedger:
                 started_by_pid=attempt.get("pid"),
                 orphan_artifacts=found,
             )
+            if not closed:
+                # It is still open, and saying otherwise would be the one thing recovery exists
+                # to prevent: an attempt nobody can account for, reported as accounted for.
+                self.recovery_failures.append(str(attempt.get("attempt_id")))
+                continue
             recovered.append({**attempt, "orphan_artifacts": found})
         return recovered
 
@@ -198,4 +206,15 @@ class AttemptLedger:
             "attempts_terminal": sum(counts.get(name, 0) for name in TERMINAL),
             "open_attempts": len(self.open_attempts()),
             "write_errors": list(self.errors),
+            "recovery_failures": list(self.recovery_failures),
+            "duplicate_terminals": self.duplicate_terminals(),
         }
+
+    def duplicate_terminals(self) -> dict[str, list[str]]:
+        """Attempts with more than one terminal event. A ledger inconsistency, never hidden."""
+        seen: dict[str, list[str]] = {}
+        for event in self.events():
+            name = str(event.get("event"))
+            if name in TERMINAL:
+                seen.setdefault(str(event.get("attempt_id")), []).append(name)
+        return {attempt: names for attempt, names in seen.items() if len(names) > 1}

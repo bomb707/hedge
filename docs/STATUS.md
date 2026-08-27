@@ -75,6 +75,45 @@ production.
 
 ---
 
+## P13D: final evidence binding
+
+Full evidence in [`evidence/P13D-EVIDENCE-BINDING.md`](evidence/P13D-EVIDENCE-BINDING.md).
+`p13-corpus-3` is stopped, preserved and **SUPERSEDED_FOR_FINAL_P13_ACCEPTANCE** — 12 COMPLETE
+replay-exact rows from 14 attempts, the two in flight left open in the ledger, which is what a
+ledger is for.
+
+**A row could count before its terminal record was durable.** `_finalize` appended the row,
+incremented the total, and then called `ledger.finish(...)` in a `finally` block, discarding the
+`False` that means the terminal event never reached the disk. A market the collector cannot prove
+it finished is not an accounting rounding error. Both must now be durable before a market counts,
+and a ledger write failure is a collector-integrity fault: the slot is released so nothing
+deadlocks, and an ACCEPTANCE_CLEAN run stops launching. `recover()` had the same shape and now
+leaves an unclosable attempt open rather than reporting it recovered.
+
+**One definition of "counts".** `maker5m.bot.qualify` holds it and the collector, the resume
+arithmetic and the final report all call it — corpus row, exactly one start, exactly one terminal
+and that terminal `ATTEMPT_FINISHED` with `corpus_appended`, identity agreeing across all three,
+and a valid latency artifact. 150 rows with 148 finished, one failed and one open count **148**.
+Duplicate terminals are indexed as a list, because last-one-wins would hide a FINISHED sitting
+beside an ABORTED.
+
+**A hash-valid artifact is not necessarily this market's artifact.** The hash proved the bytes;
+nothing proved which market they were written for. `validate_latency_identity` requires exact
+equality on slug, market id, revision, tree, config, epoch, run mode, condition id, T0 and
+sample_every, with missing never counting as equal. The session reads its own artifact back off
+the disk before eligibility, and the report validates identity before merging a single sample.
+
+### Revalidation — no new pilot needed
+
+Nothing changed in feeds, capture timing, strategy, execution, risk, P8 timestamps, the latency
+formulas or P11. The P13C pilot re-read under the stricter rules: **4 rows, 4 qualifying, 4
+start/finish pairs, 0 open, 0 duplicates, 4 latency artifacts identity-valid, 0 refused**, with
+merged live latency unchanged — CLOB receive→decide p50 112,618 ns / p99 862,348 ns over 63,478
+samples; spot p50 86,288 ns / p99 606,447 ns over 2,101. The controlled restart re-read as 2
+attempts, 1 finished, 1 aborted, 1 qualifying row.
+
+---
+
 ## P13C: final corpus foundation
 
 Full evidence in
@@ -1590,9 +1629,9 @@ orders, which P8 does not place. Both stay OPEN.
 | | |
 |---|---|
 | **Current phase** | **P13 — live shadow / paper mode** |
-| P13 implementation gate | **PASSED** (P13C) — durable attempt ledger, reservation-safe lifecycle cap, readiness proved at T0, dirty rows refused, live latency durable and hash-bound |
-| P13 pilot gate | **PASSED** (P13C) — four consecutive real markets plus a controlled restart on a real market; earlier pilots retained and superseded |
-| P13 ≥200-market corpus gate | **IN PROGRESS** — `p13-corpus-3`, from the P13C build. `p13-corpus-1` and `p13-corpus-2` are preserved and excluded |
+| P13 implementation gate | **PASSED** (P13D) — completion bound to terminal durability, one shared joined qualification, latency artifacts identity-bound to their rows |
+| P13 pilot gate | **PASSED** (P13C, revalidated by P13D) — four consecutive real markets plus a controlled restart, all four rows joining their attempts and latency artifacts under the stricter rules |
+| P13 ≥200-market corpus gate | **IN PROGRESS** — `p13-corpus-4`, from the P13D build. Corpora 1, 2 and 3 are preserved and excluded |
 | P12 implementation gate | **PASSED** — Plane-3 UI, immutable snapshot, ordered control, no trading reference |
 | P12 real-market gate | **PASSED** — UI killed mid-market, trading continued |
 | P12 Plane-3 isolation gate | **PASSED** (P12C) — no synchronous I/O of any kind on the ingress path, stdout included |
@@ -1669,7 +1708,8 @@ orders, which P8 does not place. Both stay OPEN.
 | P13 corpus epoch (superseded) | `p13-corpus-1`, source `bb67b18` — 12 COMPLETE rows preserved, excluded from the count |
 | P13B branch | `fix/p13-corpus-integrity` |
 | P13C branch | `fix/p13-final-corpus-foundation` |
-| P13 corpus epochs superseded | `p13-corpus-1` (12 rows), `p13-corpus-2` (10 rows) — preserved, excluded |
+| P13D branch | `fix/p13-final-evidence-binding` |
+| P13 corpus epochs superseded | `p13-corpus-1` (12 rows), `p13-corpus-2` (10 rows), `p13-corpus-3` (12 rows) — preserved, excluded |
 | P12C final snapshot | retained unedited; its `decide_ns` label is corrected in `p12d-p12c-snapshot-latency-correction.json`, not in the file |
 | P12B final snapshot | **known-inaccurate read-model artifact**, retained unedited; see `p12c-p12b-revalidation-btc-updown-5m-1787807700.json` |
 | P11 store size | 5,230 B/decision raw → **95.7 B archived**; engineered in P11B, not deferred |

@@ -32,17 +32,43 @@ def analyzer_with(clob: list[int], spot: list[int], decide: list[int]) -> Teleme
     return unit
 
 
+BUILD: dict[str, Any] = {
+    "source_revision": "rev",
+    "source_tree_sha": "tree",
+    "config_sha256": "cfg",
+    "epoch": "p13c-pilot-1",
+    "run_mode": "ACCEPTANCE_CLEAN",
+}
+
+
 def written(
-    tmp_path: Path, name: str, clob: list[int], spot: list[int], decide: list[int]
+    tmp_path: Path,
+    name: str,
+    clob: list[int],
+    spot: list[int],
+    decide: list[int],
+    **identity: Any,
 ) -> dict[str, Any]:
+    fields = {
+        "slug": name,
+        "market_id": f"0x{name}",
+        "condition_id": f"0xcond-{name}",
+        "t0_ns": 1_787_811_600_000_000_000,
+        **BUILD,
+        **identity,
+    }
     artifact = write_latency(
         tmp_path / f"{name}.latency.json.xz",
         analyzer_with(clob, spot, decide),
-        identity={"slug": name, "market_id": f"0x{name}", "source_revision": "rev"},
+        identity=fields,
         hot_path_ns=[10, 20, 30],
     )
     return {
         "slug": name,
+        "market_id": f"0x{name}",
+        "condition_id": f"0xcond-{name}",
+        "t0_ns": 1_787_811_600_000_000_000,
+        **BUILD,
         "latency_artifact": artifact.summary(),
         "verification_status": "COMPLETE",
         "evidence_eligible": True,
@@ -55,6 +81,7 @@ def test_every_sample_survives_the_round_trip(tmp_path: Path) -> None:
     payload = read_latency(
         Path(entry["latency_artifact"]["path"]),
         expected_sha256=entry["latency_artifact"]["sha256"],
+        expected_identity=entry,
     )
 
     assert payload["schema_version"] == LATENCY_SCHEMA_VERSION
@@ -121,6 +148,73 @@ def test_a_missing_artifact_is_named_rather_than_skipped_silently(tmp_path: Path
     merged = merged_latency([entry])
     assert merged["markets_merged"] == 0
     assert "FileNotFoundError" in merged["markets_refused"][0]["reason"]
+
+
+def test_a_row_pointing_at_another_markets_artifact_is_refused(tmp_path: Path) -> None:
+    """§16. The file is perfectly hash-valid and perfectly schema-valid. It is the wrong market.
+
+    A hash proves the bytes are the bytes that were written. It says nothing about *which* market
+    they were written for, so an edited index, a copied file or a rebuilt directory could point a
+    row at another market's latency and satisfy every check P13C had.
+    """
+    first = written(tmp_path, "market-a", [100] * 5, [200] * 5, [5])
+    second = written(tmp_path, "market-b", [900] * 5, [800] * 5, [9])
+
+    # A's row now names B's artifact — path and hash both consistent with each other.
+    swapped = {**first, "latency_artifact": second["latency_artifact"]}
+
+    with pytest.raises(ValueError, match="not this market's latency"):
+        read_latency(
+            Path(swapped["latency_artifact"]["path"]),
+            expected_sha256=swapped["latency_artifact"]["sha256"],
+            expected_identity=swapped,
+        )
+
+    merged = merged_latency([swapped])
+    assert merged["markets_merged"] == 0
+    assert merged["all_markets_merged"] is False
+    reason = merged["markets_refused"][0]["reason"]
+    assert "slug" in reason and "market_id" in reason
+    assert merged["series_ns"] == {}, "and not one of its samples was merged in"
+
+
+@pytest.mark.parametrize(
+    "field_name", ["source_revision", "config_sha256", "source_tree_sha", "epoch", "run_mode"]
+)
+def test_an_artifact_from_another_build_is_refused(tmp_path: Path, field_name: str) -> None:
+    """§17. Right market, wrong build. Not this row's evidence."""
+    entry = written(tmp_path, "market-a", [1, 2], [3], [4], **{field_name: "something-else"})
+
+    with pytest.raises(ValueError, match=field_name):
+        read_latency(
+            Path(entry["latency_artifact"]["path"]),
+            expected_sha256=entry["latency_artifact"]["sha256"],
+            expected_identity=entry,
+        )
+    assert merged_latency([entry])["markets_merged"] == 0
+
+
+def test_an_artifact_missing_an_identity_field_is_refused(tmp_path: Path) -> None:
+    """Missing is not equality. An artifact that omits the field cannot satisfy it."""
+    from maker5m.bot.latency import validate_latency_identity
+
+    entry = written(tmp_path, "market-a", [1], [2], [3])
+    payload = read_latency(Path(entry["latency_artifact"]["path"]))
+    del payload["source_tree_sha"]
+
+    problems = validate_latency_identity(payload, entry)
+    assert problems == ["source_tree_sha is absent from the artifact"]
+
+
+def test_a_sample_every_that_differs_from_the_run_is_refused(tmp_path: Path) -> None:
+    from maker5m.bot.latency import validate_latency_identity
+
+    entry = written(tmp_path, "market-a", [1], [2], [3])
+    payload = read_latency(Path(entry["latency_artifact"]["path"]))
+    assert validate_latency_identity(payload, {**entry, "sample_every": 10}) == []
+    assert validate_latency_identity(payload, {**entry, "sample_every": 25}) == [
+        "sample_every 10, the run used 25"
+    ]
 
 
 def test_an_unknown_schema_version_is_refused(tmp_path: Path) -> None:

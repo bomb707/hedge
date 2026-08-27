@@ -443,11 +443,12 @@ both earlier markets' stores remain valid.
 
 | Gate | Status |
 |---|---|
-| Implementation | **PASSED** (P13C) — every attempt durably registered before launch, lifecycle capacity reserved rather than checked, readiness proved at T0, dirty source refused, and the live latency kept in a hash-bound artifact |
-| Pilot | **PASSED** (P13C) — four consecutive real markets in one process, plus a controlled restart on a real market that recovered its abandoned attempt |
-| ≥200-market corpus | **IN PROGRESS** — `p13-corpus-3`, from the P13C build. `p13-corpus-1`, `p13-corpus-2` and every earlier pilot are retained, superseded, and excluded |
+| Implementation | **PASSED** (P13D) — a market counts only when its corpus row and its terminal attempt record are both durable, judged by one shared rule, with each latency artifact bound by identity to the row that names it |
+| Pilot | **PASSED** (P13C, revalidated by P13D) — four consecutive real markets plus a controlled restart, re-judged under the stricter rules with every join intact |
+| ≥200-market corpus | **IN PROGRESS** — `p13-corpus-4`, from the P13D build. Corpora 1-3 and every earlier pilot are retained, superseded, and excluded |
 
-Evidence: [`evidence/P13C-FINAL-CORPUS-FOUNDATION.md`](evidence/P13C-FINAL-CORPUS-FOUNDATION.md),
+Evidence: [`evidence/P13D-EVIDENCE-BINDING.md`](evidence/P13D-EVIDENCE-BINDING.md),
+[`evidence/P13C-FINAL-CORPUS-FOUNDATION.md`](evidence/P13C-FINAL-CORPUS-FOUNDATION.md),
 then [`evidence/P13B-CORPUS-INTEGRITY.md`](evidence/P13B-CORPUS-INTEGRITY.md) and
 [`evidence/P13-PILOT.md`](evidence/P13-PILOT.md). All retained; each supersedes the one before it
 for the final gate.

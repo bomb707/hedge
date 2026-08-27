@@ -40,6 +40,7 @@ from maker5m.bot.attempts import FAILED, FINISHED, AttemptLedger, LedgerWriteErr
 from maker5m.bot.cold import ColdRequest, cold_finalize
 from maker5m.bot.config import PaperConfig, config_identity
 from maker5m.bot.corpus import CorpusIndex
+from maker5m.bot.qualify import qualifying_rows
 from maker5m.bot.resources import GcObserver, pace_full_collections
 from maker5m.bot.session import MarketSession, PrearmRecord
 from maker5m.bot.settle import settle_market
@@ -198,6 +199,8 @@ class Supervisor:
     append_failures: int = 0
     ledger_failures: int = 0
     recovered_attempts: list[dict[str, Any]] = field(default_factory=list)
+    integrity_faults: list[str] = field(default_factory=list)
+    halted_for_integrity: bool = False
     gc_observer: GcObserver = field(default_factory=GcObserver)
     allow_dirty_requested: bool = False
     run_mode: str = field(init=False, default="ACCEPTANCE_CLEAN")
@@ -237,13 +240,28 @@ class Supervisor:
                     }
         return found
 
-    def qualifying_now(self) -> int:
-        """Durable rows already collected for this exact epoch, config, revision and tree."""
-        return self.corpus.qualifying(
-            epoch=self.config.epoch,
-            config_sha256=str(self.identity.get("config_sha256")),
-            source_revision=str(self.identity.get("source_revision")),
-            source_tree_sha=str(self.identity.get("source_tree_sha")),
+    def qualifying_now(self, *, verify_latency: bool = True) -> int:
+        """Durable rows that count, by the one definition everything else uses.
+
+        The corpus alone cannot answer this: a row whose terminal attempt record never reached
+        the disk describes a market this collector cannot prove it finished, and a latency
+        artifact belonging to another market is not this market's latency. So the join lives in
+        `maker5m.bot.qualify` and the runtime count, the resume arithmetic and the final report
+        all call it. One definition, or the collector says 200 while the report says 198.
+        """
+        return sum(
+            1
+            for judgement in qualifying_rows(
+                self.corpus.entries(),
+                self.ledger.events(),
+                epoch=self.config.epoch,
+                config_sha256=str(self.identity.get("config_sha256")),
+                source_revision=str(self.identity.get("source_revision")),
+                source_tree_sha=str(self.identity.get("source_tree_sha")),
+                run_mode=self.run_mode,
+                verify_latency=verify_latency,
+            )
+            if judgement.qualifies
         )
 
     # -- prearm --------------------------------------------------------------------------
@@ -283,6 +301,13 @@ class Supervisor:
             self.log(
                 f"    recovered abandoned attempt {attempt.get('slug')} "
                 f"({attempt.get('attempt_id')}): not collected"
+            )
+        if self.ledger.recovery_failures:
+            # An acceptance run whose audit ledger cannot be written is not healthy enough to
+            # collect. Reported, and not started.
+            self._integrity_fault(
+                f"{len(self.ledger.recovery_failures)} abandoned attempt(s) could not be closed "
+                "off durably; they remain open"
             )
         already = self.corpus.completed_slugs()
         self.completed_existing = self.qualifying_now()
@@ -404,6 +429,8 @@ class Supervisor:
         return self.completed_existing + self.completed_this_process
 
     def _keep_going(self, launched: int) -> bool:
+        if self.halted_for_integrity:
+            return False
         if self.launch_limit is not None and launched >= self.launch_limit:
             return False
         return self.target_markets is None or self.completed < self.target_markets
@@ -474,6 +501,20 @@ class Supervisor:
             self.lifecycle_high_water = self.lifecycles
         return True
 
+    def _integrity_fault(self, detail: str) -> None:
+        """The audit trail failed. Record it, and stop collecting *acceptance* evidence.
+
+        The policy, stated so it is not inferred: the in-memory slot is released so markets
+        already running finish normally and nothing deadlocks, but an ACCEPTANCE_CLEAN run stops
+        launching new markets. A corpus whose ledger cannot be written is not a corpus — an
+        exploratory run says so and carries on, because nothing there is being counted.
+        """
+        self.ledger_failures += 1
+        self.integrity_faults.append(detail)
+        self.log(f"    COLLECTOR INTEGRITY FAULT: {detail}")
+        if self.run_mode == "ACCEPTANCE_CLEAN":
+            self.halted_for_integrity = True
+
     def _release(self) -> None:
         """Give the slot back. Called once per reservation, after the terminal record."""
         self.lifecycles = max(0, self.lifecycles - 1)
@@ -488,19 +529,30 @@ class Supervisor:
         appended = False
         try:
             await session.write_journal()
-            await session.write_latency_artifact(
-                {
-                    "source_revision": str(self.identity.get("source_revision")),
-                    "source_tree_sha": str(self.identity.get("source_tree_sha")),
-                    "config_sha256": str(self.identity.get("config_sha256")),
-                    "epoch": self.config.epoch,
-                    "run_mode": self.run_mode,
-                }
-            )
+            build = {
+                "source_revision": str(self.identity.get("source_revision")),
+                "source_tree_sha": str(self.identity.get("source_tree_sha")),
+                "config_sha256": str(self.identity.get("config_sha256")),
+                "epoch": self.config.epoch,
+                "run_mode": self.run_mode,
+            }
+            await session.write_latency_artifact(build)
             await session.settle(settle_market)
             await asyncio.to_thread(session.close_store)
             cold = await self._cold_result(session)
             session.publish_close(cold)
+            # The persisted artifact, read back and checked against the identity this market's
+            # row is about to claim. Not the object that was written a moment ago.
+            await session.verify_latency_artifact(
+                {
+                    **build,
+                    "slug": session.slug,
+                    "market_id": session.identity.market_id,
+                    "condition_id": session.identity.condition_id,
+                    "t0_ns": session.t0_ns,
+                    "sample_every": self.config.sample_every,
+                }
+            )
             session.finish()
             entry = self._entry(session, cold)
             # Durability first. A market counts when its row is on the disk, not when the
@@ -524,12 +576,19 @@ class Supervisor:
             session.incidents.append(f"cold path failed: {type(error).__name__}: {error}")
         finally:
             session.release()
-            # The terminal record, then the slot. A market owes finalisation until both its
-            # attempt and its corpus row are settled, and only then does another get to start.
-            self.ledger.finish(
+            # Corpus row first, then the terminal record, then the count. A market that verified
+            # perfectly and whose terminal record did not reach the disk is not an accounting
+            # rounding error: it is a market this collector cannot prove it finished, and the
+            # ledger's answer is checked rather than assumed.
+            terminal = self.ledger.finish(
                 session.attempt_id or "unknown",
                 event=FINISHED if appended else FAILED,
                 slug=session.slug,
+                epoch=self.config.epoch,
+                config_sha256=self.identity.get("config_sha256"),
+                source_revision=self.identity.get("source_revision"),
+                source_tree_sha=self.identity.get("source_tree_sha"),
+                run_mode=self.run_mode,
                 verification_status=entry.get("verification_status"),
                 evidence_eligible=entry.get("evidence_eligible", False),
                 corpus_appended=appended,
@@ -537,6 +596,23 @@ class Supervisor:
                 store_sha256=(entry.get("store") or {}).get("sha256"),
                 latency_sha256=(entry.get("latency_artifact") or {}).get("sha256"),
                 incidents=list(session.incidents),
+            )
+            if not terminal:
+                self._integrity_fault(
+                    f"the terminal attempt record for {session.slug} could not be written; "
+                    "the market is retained and cannot count"
+                )
+            elif (
+                appended
+                and entry.get("verification_status") == "COMPLETE"
+                and entry.get("evidence_eligible")
+            ):
+                self.completed_this_process += 1
+            self.log(
+                f"    {session.slug}: {entry.get('verification_status')} "
+                f"replay={entry.get('replay', {}).get('status')} "
+                f"eligible={entry.get('evidence_eligible')} appended={appended} "
+                f"terminal={terminal} ({self.completed} durable)"
             )
             self._release()
 
@@ -626,6 +702,8 @@ class Supervisor:
         action_total = sum(actions.values())
 
         operational_faults: list[str] = []
+        for fault in session.latency_faults:
+            operational_faults.append(f"OPERATIONAL: latency artifact rejected — {fault}")
         if session.latency is None:
             operational_faults.append(
                 "OPERATIONAL: no live latency artifact; the market's own latency did not survive "
@@ -708,6 +786,7 @@ class Supervisor:
             "working_tree_clean": self.identity.get("working_tree_clean"),
             "run_mode": self.run_mode,
             "allow_dirty_requested": self.allow_dirty_requested,
+            "sample_every": self.config.sample_every,
             "provenance": session.identity.provenance,
             "live_trading_enabled": LIVE_TRADING_ENABLED,
             "orders_sent": 0,

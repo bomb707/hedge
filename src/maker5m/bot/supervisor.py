@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Callable
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 from multiprocessing import get_context
@@ -119,6 +120,8 @@ class Supervisor:
     identity: dict[str, Any] = field(init=False)
     pool: ProcessPoolExecutor | None = None
     cold: set[asyncio.Task[None]] = field(default_factory=set)
+    sessions: set[asyncio.Task[None]] = field(default_factory=set)
+    activations: set[asyncio.Task[None]] = field(default_factory=set)
     attempted: int = 0
     completed: int = 0
     skipped: list[str] = field(default_factory=list)
@@ -172,56 +175,93 @@ class Supervisor:
             self.pool = None
 
     async def _loop(self, already: set[str]) -> None:
-        pending: tuple[Any, PrearmRecord] | None = None
+        """Launch each market in time to prearm it, and never wait on a closed one.
+
+        The cadence is the market's, not ours. A capture opens its own feeds at T0-30 and runs
+        to T0+305, which is five seconds *past* the next market's T0 — so sessions must be
+        launched while the previous one is still trading. Waiting for market N to return before
+        looking at N+1 would skip N+1 entirely, every time. The first version of this loop did
+        exactly that.
+        """
+        launched: dict[str, MarketSession] = {}
+        t0 = self._first_t0()
         while self.target_markets is None or self.completed < self.target_markets:
-            slug = self._next_slug()
-            if slug in already:
-                # Resume: this market is already collected and a five-minute market cannot be
-                # re-run, so nothing is retried and nothing prior is rewritten.
-                self.skipped.append(slug)
-                await asyncio.sleep(1.0)
+            slug = slug_for(t0)
+            if slug in already or slug in launched:
+                t0 += MARKET_SECONDS
                 continue
 
-            if pending is not None and pending[1].slug == slug:
-                market, prearm = pending
-            else:
-                market, prearm = await self.prearm(slug)
-            pending = None
-
+            await self._sleep_until(t0 - PREARM_LEAD_SECONDS)
+            market, prearm = await self.prearm(slug)
             if market is None:
                 self._record_prearm_failure(prearm)
-                await asyncio.sleep(5.0)
+                t0 += MARKET_SECONDS
                 continue
 
             session = MarketSession(market=market, config=self.config, prearm=prearm, ui=self.ui)
             session.source_revision = str(self.identity.get("source_revision", ""))
             self.attempted += 1
-            self.ui.active_slug = slug
-            self.log(f"[{time.strftime('%H:%M:%S')}] {slug} trading (attempt {self.attempted})")
-
-            trading = asyncio.create_task(session.run(), name=f"session-{slug}")
-            follower = asyncio.create_task(
-                self.prearm(slug_for(t0_of_slug(slug) + MARKET_SECONDS)),
-                name=f"prearm-{slug}",
-            )
-            await trading
-            pending = await follower
-
+            launched[slug] = session
             self.log(
-                f"[{time.strftime('%H:%M:%S')}] {slug} closed: "
-                f"{session.worker.stats.decisions_written} decisions, "
-                f"{session.buffer.dropped} dropped"
+                f"[{time.strftime('%H:%M:%S')}] {slug} launched "
+                f"(prearm lead {prearm.lead_seconds:.1f}s, attempt {self.attempted})"
             )
-            self._start_cold(session)
-            await self._bound_cold()
 
-    def _next_slug(self) -> str:
-        """The next market with enough lead to prearm it properly."""
+            task = asyncio.create_task(session.run(), name=f"session-{slug}")
+            self.sessions.add(task)
+            task.add_done_callback(self.sessions.discard)
+            task.add_done_callback(self._closer(session))
+            # The handoff instant, decided by the market's clock rather than by whichever
+            # session's tick happens to run first. Operator commands follow this.
+            self.activations.add(asyncio.create_task(self._activate_at(slug, t0)))
+            if len(self.cold) > MAX_COLD_BACKLOG:
+                # Recorded, never waited on. A slow chain must not cost a market.
+                self.log(f"    cold backlog is {len(self.cold)} markets")
+            t0 += MARKET_SECONDS
+
+        await self._drain_sessions()
+
+    def _closer(self, session: MarketSession) -> Callable[[asyncio.Task[None]], None]:
+        def done(_task: asyncio.Task[None]) -> None:
+            self._closed(session)
+
+        return done
+
+    def _closed(self, session: MarketSession) -> None:
+        """A session's trading window ended. Everything it still owes is cold from here."""
+        self.log(
+            f"[{time.strftime('%H:%M:%S')}] {session.slug} closed: "
+            f"{session.worker.stats.decisions_written} decisions, "
+            f"{session.buffer.dropped} dropped, {session.worker.store.sink_errors} sink errors"
+        )
+        self._start_cold(session)
+
+    async def _activate_at(self, slug: str, t0_seconds: int) -> None:
+        """Make this market the one operator commands apply to, at its own T0."""
+        await self._sleep_until(t0_seconds)
+        self.ui.active_slug = slug
+
+    async def _sleep_until(self, when_seconds: float) -> None:
+        remaining = when_seconds - time.time()
+        while remaining > 0:
+            await asyncio.sleep(min(remaining, 5.0))
+            remaining = when_seconds - time.time()
+
+    def _first_t0(self) -> int:
+        """The first market with enough lead to discover and prearm it properly."""
         now = int(time.time())
         t0 = ((now // MARKET_SECONDS) + 1) * MARKET_SECONDS
-        if t0 - now < 45:
+        while t0 - now < PREARM_LEAD_SECONDS:
             t0 += MARKET_SECONDS
-        return slug_for(t0)
+        return t0
+
+    async def _drain_sessions(self) -> None:
+        if self.sessions:
+            await asyncio.gather(*list(self.sessions), return_exceptions=True)
+        if self.activations:
+            for task in list(self.activations):
+                task.cancel()
+            await asyncio.gather(*list(self.activations), return_exceptions=True)
 
     # -- cold path -----------------------------------------------------------------------
 

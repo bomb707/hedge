@@ -19,6 +19,7 @@ from typing import Any
 
 import pytest
 
+from maker5m.market.timebase import TimestampNs
 from maker5m.persistence import (
     STORE_SCHEMA_VERSION,
     MarketIdentity,
@@ -392,16 +393,23 @@ def test_the_operator_snapshot_never_lists_a_refused_control_row(tmp_path: Path)
     assert publisher.accepted_commands == [{"command_id": "cmd-1", "kind": "OPERATOR_HALT"}]
 
 
+def _risk_controller() -> Any:
+    """A real P9 controller, so the operator path under test is the production one."""
+    from maker5m.risk import RiskConfig, RiskEngine, RiskProvenance
+    from maker5m.risk.trace import RiskController
+
+    return RiskController(
+        engine=RiskEngine(config=RiskConfig()), provenance=RiskProvenance.SUPPORTING_UNIT_TEST
+    )
+
+
 def _risk_record(sequence: int) -> Any:
     """One real P9 RiskRecord, produced by the risk controller rather than hand-built."""
     from maker5m.market.events import HealthStatus
     from maker5m.market.timebase import TimestampNs
-    from maker5m.risk import RiskConfig, RiskEngine, RiskProvenance
-    from maker5m.risk.trace import HealthFrame, RiskController
+    from maker5m.risk.trace import HealthFrame
 
-    control = RiskController(
-        engine=RiskEngine(config=RiskConfig()), provenance=RiskProvenance.SUPPORTING_UNIT_TEST
-    )
+    control = _risk_controller()
     frame = HealthFrame(
         clob_status=HealthStatus.HEALTHY,
         clob_awaiting_snapshot=False,
@@ -450,3 +458,251 @@ def test_a_refused_risk_row_is_not_counted_or_published(tmp_path: Path) -> None:
         assert next(iter(stored.execute("SELECT COUNT(*) FROM risk_records")))[0] == 1
     finally:
         stored.close()
+
+
+# -- the commit boundary -----------------------------------------------------------------------
+
+
+class FailingCommit:
+    """A real sqlite3 connection whose COMMIT fails. Everything else is the genuine article.
+
+    Wrapping the connection rather than patching the store: the inserts must actually reach
+    SQLite and succeed, because the defect being tested is precisely the gap between a statement
+    the transaction accepted and a transaction that committed. Faking the insert would test the
+    wrong half.
+    """
+
+    def __init__(self, connection: Any, fail_after: int = 0) -> None:
+        self._connection = connection
+        self._seen = 0
+        self.fail_after = fail_after
+        self.commits_attempted = 0
+        self.rollbacks = 0
+
+    def execute(self, statement: str, parameters: Any = ()) -> Any:
+        head = statement.strip().split(" ", 1)[0].upper()
+        if head == "COMMIT":
+            self.commits_attempted += 1
+            self._seen += 1
+            if self._seen > self.fail_after:
+                raise sqlite3.OperationalError("disk I/O error")
+        if head == "ROLLBACK":
+            self.rollbacks += 1
+        return self._connection.execute(statement, parameters)
+
+    def close(self) -> None:
+        self._connection.close()
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._connection, name)
+
+
+def _with_failing_commit(unit: PersistenceWorker, fail_after: int = 0) -> FailingCommit:
+    unit.store.open()
+    wrapper = FailingCommit(unit.store._connection, fail_after=fail_after)
+    unit.store._connection = wrapper  # type: ignore[assignment]
+    return wrapper
+
+
+def test_a_failed_commit_announces_nothing_and_counts_nothing(tmp_path: Path) -> None:
+    """§11. The inserts succeed; the COMMIT does not. P12D would have called the row durable."""
+    from maker5m.persistence import BoundedChannel
+
+    channel = BoundedChannel(capacity=8)
+    unit = worker(tmp_path, risk=channel)
+    published: list[Any] = []
+    unit.on_risk_record = published.append
+    wrapper = _with_failing_commit(unit)
+
+    channel.publish(_risk_record(0))
+    unit.drain_side_channels()
+    assert unit.stats.rows_accepted_into_transaction == 1, "the transaction took the row"
+    assert unit.store.rows_written >= 2, "envelope and row both reached SQLite"
+
+    before = unit.store.sink_errors
+    committed = unit.store.flush()
+
+    assert committed is False
+    assert wrapper.commits_attempted == 1
+    assert published == [], "no persisted callback for a transaction that did not commit"
+    assert unit.stats.risk_written == 0, "and nothing counted as written"
+    # One *row* was lost, carried by two statements: the row and its storage-order envelope.
+    assert unit.stats.rows_lost_to_failed_commit == 1
+    assert unit.store.uncommitted_rows == 2
+    assert unit.stats.failed_commits == 1
+    assert unit.store.sink_errors > before
+    assert unit.store.commit_failures == 1
+    assert unit.store.committed_rows == 0
+
+
+def test_a_failed_commit_never_reaches_the_producer(tmp_path: Path) -> None:
+    """§11. Plane 1 must not learn about a disk problem by having an exception thrown at it."""
+    from maker5m.persistence import BoundedChannel
+
+    channel = BoundedChannel(capacity=8)
+    unit = worker(tmp_path, risk=channel)
+    _with_failing_commit(unit)
+    for sequence in range(3):
+        channel.publish(_risk_record(sequence))
+    # Producing and draining both continue; the failure is absorbed and counted, as every other
+    # sink failure is.
+    unit.drain_side_channels()
+    unit.store.flush()
+    unit.buffer.capture(observation(0))
+    unit.drain_once()
+    unit.store.flush()
+    assert unit.stats.risk_written == 0
+    assert unit.stats.decisions_written == 0
+    assert unit.stats.rows_lost_to_failed_commit > 0
+
+
+def test_a_market_whose_commit_failed_cannot_verify_complete(tmp_path: Path) -> None:
+    """§11. The storage sequences those rows held are not reissued, so the hole stands."""
+    unit = worker(tmp_path, capacity=64)
+    wrapper = _with_failing_commit(unit, fail_after=1)
+    for sequence in range(40):
+        unit.buffer.capture(observation(sequence))
+    unit.drain_once()
+    unit.store.flush()  # succeeds: fail_after=1
+    for sequence in range(40, 80):
+        unit.buffer.capture(observation(sequence))
+    unit.drain_once()
+    unit.store.flush()  # fails
+    unit.store._connection = wrapper._connection
+    unit.store.close()
+
+    assert unit.stats.decisions_written < 80
+    result = verify_store(tmp_path / "telemetry.sqlite3")
+    assert result.status is not VerificationStatus.COMPLETE
+
+
+def test_an_operator_command_lost_to_a_failed_commit_is_never_shown_as_durable(
+    tmp_path: Path,
+) -> None:
+    """§12. The halt still happened; the *audit* of it did not, and neither may claim otherwise.
+
+    Trading safety does not depend on telemetry: `ControlIngress` changes the risk state on the
+    ingress owner's thread and nothing about persistence can undo that. What the durable record
+    and the operator's history may not do is claim a row that is not in the file.
+    """
+    from maker5m.persistence import BoundedChannel
+    from maker5m.strategy import default_config
+    from maker5m.ui import ControlIngress, SnapshotPublisher
+
+    risk_channel = BoundedChannel(capacity=8)
+    audit_channel = BoundedChannel(capacity=8)
+    unit = worker(tmp_path, risk=risk_channel, control_audit=audit_channel)
+    publisher = SnapshotPublisher(identity=identity(), config=default_config(), bridge=None)
+    unit.on_control_record = lambda row: publisher.deliver(
+        "control_persisted", {"command_id": row.command_id, "kind": row.kind}
+    )
+    control_records: list[Any] = []
+    unit.on_control_record = control_records.append
+    wrapper = _with_failing_commit(unit)
+
+    control = _risk_controller()
+    ingress = ControlIngress(
+        controller=control,
+        publish=risk_channel.publish,
+        audit=lambda command, outcome: audit_channel.publish((command, outcome)),
+    )
+    outcome = ingress.apply(_operator_command("cmd-1"), ingress_ordinal=10, now_ns=TimestampNs(11))
+
+    # Plane 1 got its answer, from the risk authority, with no store involved.
+    assert outcome.accepted is True
+    assert outcome.risk_state == "HALTED"
+    assert control.state.value == "HALTED"
+    assert control.trace.records[-1].allows_place is False
+
+    unit.drain_side_channels()  # writes the risk row and the control row, then flushes
+    assert wrapper.commits_attempted >= 1
+    assert control_records == [], "no durable announcement for an uncommitted audit row"
+    assert unit.stats.control_records_written == 0
+    assert unit.stats.risk_written == 0
+    assert unit.store.sink_errors > 0
+
+    # The read model is fed exactly as the runner feeds it: what the channel accepted against
+    # what the worker durably wrote. One accepted, none persisted, so the audit is incomplete.
+    publisher.deliver(
+        "audit_counts",
+        {
+            "accepted": audit_channel.accepted,
+            "persisted": unit.stats.control_records_written,
+            "dropped": audit_channel.dropped,
+        },
+    )
+    publisher._drain_inbox()
+    assert publisher.accepted_commands == [], "no command history for an uncommitted row"
+    assert publisher._audit_complete() is False
+
+
+def test_a_successful_batch_promotes_every_row_exactly_once(tmp_path: Path) -> None:
+    """§13. Nothing before the commit, everything after it, in storage order and once each."""
+    from maker5m.persistence import BoundedChannel
+
+    risk_channel = BoundedChannel(capacity=32)
+    unit = worker(tmp_path, risk=risk_channel, capacity=64)
+    decisions: list[Any] = []
+    risks: list[Any] = []
+    unit.on_decision_record = lambda record, observation: decisions.append(record)
+    unit.on_risk_record = risks.append
+    unit.store.open()
+
+    for sequence in range(5):
+        risk_channel.publish(_risk_record(sequence))
+    unit.drain_side_channels()
+    for sequence in range(7):
+        unit.buffer.capture(observation(sequence))
+    unit.drain_once()
+
+    assert decisions == [] and risks == [], "nothing is durable before the commit"
+    assert unit.stats.decisions_written == 0
+    assert unit.stats.risk_written == 0
+
+    assert unit.store.flush() is True
+    assert len(risks) == 5
+    assert len(decisions) == 7
+    assert [record.persistence_sequence for record in decisions] == sorted(
+        record.persistence_sequence for record in decisions
+    )
+    assert unit.stats.decisions_written == 7
+    assert unit.stats.risk_written == 5
+
+    unit.store.flush()  # nothing pending; must not announce anything twice
+    assert len(decisions) == 7
+    assert len(risks) == 5
+    unit.store.close()
+
+    stored = sqlite3.connect(tmp_path / "telemetry.sqlite3")
+    try:
+        assert next(iter(stored.execute("SELECT COUNT(*) FROM decisions")))[0] == 7
+        assert next(iter(stored.execute("SELECT COUNT(*) FROM risk_records")))[0] == 5
+    finally:
+        stored.close()
+
+
+def test_the_final_partial_batch_commits_at_close(tmp_path: Path) -> None:
+    """§14. A tail shorter than `batch_size` must not vanish for never having filled one."""
+    from maker5m.persistence import BoundedChannel
+
+    risk_channel = BoundedChannel(capacity=32)
+    unit = worker(tmp_path, risk=risk_channel, capacity=64)
+    unit.store.open()
+    for sequence in range(3):
+        risk_channel.publish(_risk_record(sequence))
+    unit.drain_side_channels()
+    for sequence in range(9):
+        unit.buffer.capture(observation(sequence))
+    unit.drain_once()
+    assert unit.stats.decisions_written == 0, "still inside the open transaction"
+
+    assert unit.store.close() is True
+
+    stored = sqlite3.connect(tmp_path / "telemetry.sqlite3")
+    try:
+        decisions = next(iter(stored.execute("SELECT COUNT(*) FROM decisions")))[0]
+        risks = next(iter(stored.execute("SELECT COUNT(*) FROM risk_records")))[0]
+    finally:
+        stored.close()
+    assert unit.stats.decisions_written == decisions == 9
+    assert unit.stats.risk_written == risks == 3

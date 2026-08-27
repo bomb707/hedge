@@ -474,3 +474,52 @@ def _control_row(unit: MarketSession) -> Any:
         allows_place=False,
         signal_flag=True,
     )
+
+
+# -- what a closed market lets go of, and what it must not ------------------------------------
+
+
+class _Counters:
+    def summary(self) -> dict[str, int]:
+        return {"clob_messages": 486_028, "spot_messages": 26_404}
+
+
+class _Capture:
+    counters = _Counters()
+
+    def __init__(self) -> None:
+        self.journal = object()
+
+
+def test_dropping_the_recorded_steps_keeps_the_feed_counts(tmp_path: Path) -> None:
+    """The steps are two hundred megabytes; the counters are two integers.
+
+    An earlier version dropped the capture result whole, which would have recorded zero CLOB
+    and zero BTC messages for every market in the corpus — a number nobody would have
+    questioned, because zero is what an unpopulated counter looks like.
+    """
+    ui = UiPlane(directory=tmp_path / "ui")
+    unit = session(tmp_path, ui, T0_A, "a")
+    unit.capture = _Capture()
+
+    unit._drop_recorded_steps()
+
+    assert unit.capture is None
+    assert unit.feed_counters == {"clob_messages": 486_028, "spot_messages": 26_404}
+
+    supervisor = Supervisor(config=paper(tmp_path))
+    entry = supervisor._entry(unit, {"verification_status": "COMPLETE", "replay": {}})
+    assert entry["feed_counters"]["clob_messages"] == 486_028
+
+
+def test_the_hot_path_cost_is_recorded_per_market(tmp_path: Path) -> None:
+    """The session's own addition to a cycle, measured on the market rather than replayed."""
+    ui = UiPlane(directory=tmp_path / "ui")
+    unit = session(tmp_path, ui, T0_A, "a")
+    unit.hot_path_ns.extend([100, 200, 300, 400])
+    supervisor = Supervisor(config=paper(tmp_path))
+    entry = supervisor._entry(unit, {"verification_status": "COMPLETE", "replay": {}})
+    tiers = entry["worker"]
+    assert entry["hot_path_observe_ns"]["n"] == 4
+    assert entry["hot_path_observe_ns"]["max"] == 400
+    assert isinstance(tiers, dict)

@@ -204,6 +204,7 @@ class MarketSession:
         self.journal_bytes = 0
         self.closing_sink_errors = 0
         self.source_revision = ""
+        self.feed_counters: dict[str, Any] = {}
 
     # -- Plane 3 observers -----------------------------------------------------------------
 
@@ -376,6 +377,26 @@ class MarketSession:
             self.journal_bytes = len(raw)
         except Exception as error:
             self.incidents.append(f"journal write failed: {type(error).__name__}: {error}")
+        finally:
+            self._drop_recorded_steps()
+
+    def _drop_recorded_steps(self) -> None:
+        """Let go of the recorded event stream as soon as it is on disk.
+
+        `IngressMerger.steps` holds every step with its complete `DecisionResult` — two hundred
+        megabytes for a busy market — and the settlement watch that follows can run for minutes.
+        Holding it until the whole cold path finishes made two markets' streams coexist for no
+        reason: the journal file is written, and everything downstream reads that. The pipeline
+        itself stays, because the closing metrics still need its ledger. What the capture result
+        still had to say — the feed's own message counts — is taken first: the first version of
+        this dropped it whole and would have recorded zero CLOB and zero BTC messages for every
+        market in the corpus.
+        """
+        if self.capture is not None and hasattr(self.capture.counters, "summary"):
+            self.feed_counters = dict(self.capture.counters.summary())
+        self.capture = None
+        for run in self.runs:
+            run.pipeline.merger.steps.clear()
 
     @staticmethod
     def _write_bytes(path: Path, raw: bytes) -> None:

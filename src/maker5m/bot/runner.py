@@ -36,8 +36,8 @@ def build(root: Path, *, keep_raw_store: bool = False, epoch: str = "p13-corpus-
     )
 
 
-async def _run(config: PaperConfig, markets: int | None) -> Supervisor:
-    supervisor = Supervisor(config=config, target_markets=markets)
+async def _run(config: PaperConfig, markets: int | None, launches: int | None) -> Supervisor:
+    supervisor = Supervisor(config=config, target_markets=markets, launch_limit=launches)
     identity = config_identity(config)
     print(
         json.dumps(
@@ -52,6 +52,7 @@ async def _run(config: PaperConfig, markets: int | None) -> Supervisor:
                 "corpus": str(config.corpus_path),
                 "ui": str(config.ui_dir),
                 "target_markets": markets,
+                "launch_limit": launches,
                 "already_complete": len(supervisor.corpus.completed_slugs()),
             },
             indent=2,
@@ -66,6 +67,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("root", type=Path, help="where journals, stores and the corpus live")
     parser.add_argument("--markets", type=int, default=None, help="stop after this many COMPLETE")
+    parser.add_argument(
+        "--launch-limit", type=int, default=None, help="stop after launching this many markets"
+    )
     parser.add_argument("--epoch", type=str, default="p13-corpus-1")
     parser.add_argument(
         "--keep-raw-store",
@@ -78,7 +82,7 @@ def main() -> None:
 
     config = build(args.root, keep_raw_store=args.keep_raw_store, epoch=args.epoch)
     started = time.time()
-    supervisor = asyncio.run(_run(config, args.markets))
+    supervisor = asyncio.run(_run(config, args.markets, args.launch_limit))
     stats = supervisor.corpus.stats()
     print(
         json.dumps(

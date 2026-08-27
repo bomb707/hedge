@@ -44,6 +44,7 @@ from maker5m.bot.settle import settle_market
 from maker5m.feeds.discovery import discover_market, slug_for, t0_of_slug
 from maker5m.market.timebase import NANOS_PER_SECOND
 from maker5m.safety import LIVE_TRADING_ENABLED
+from maker5m.telemetry.metrics import quantile
 from maker5m.ui import (
     CommandBridge,
     CommandInbox,
@@ -53,6 +54,30 @@ from maker5m.ui import (
 )
 
 __all__ = ["Supervisor", "UiPlane"]
+
+
+def _tiers(samples: list[int]) -> dict[str, int | None]:
+    ordered = sorted(samples)
+    if not ordered:
+        return {"n": 0, "p50": None, "p95": None, "p99": None, "max": None}
+    return {
+        "n": len(ordered),
+        "p50": quantile(ordered, 0.50),
+        "p95": quantile(ordered, 0.95),
+        "p99": quantile(ordered, 0.99),
+        "max": ordered[-1],
+    }
+
+
+def _flushed_print(message: str) -> None:
+    """Progress that survives a kill. Plane 3, on the supervisor's own coroutine.
+
+    Flushed because a redirected stdout is block-buffered, and a run log that only appears if
+    the process exits cleanly is not much use during a run that is meant to last hours. The
+    durable record is the corpus index either way; this is for the operator watching.
+    """
+    print(message, flush=True)
+
 
 MARKET_SECONDS = 300
 PREARM_LEAD_SECONDS = 75
@@ -115,6 +140,13 @@ class Supervisor:
 
     config: PaperConfig
     target_markets: int | None = None
+    launch_limit: int | None = None
+    """Stop launching after this many markets, whatever the cold path has finished.
+
+    Separate from `target_markets` because completion lags: settlement can take minutes, so a
+    run that stopped only on completed markets would launch two or three more while waiting.
+    A pilot wants exactly the markets it asked for."""
+
     ui: UiPlane = field(init=False)
     corpus: CorpusIndex = field(init=False)
     identity: dict[str, Any] = field(init=False)
@@ -125,7 +157,7 @@ class Supervisor:
     attempted: int = 0
     completed: int = 0
     skipped: list[str] = field(default_factory=list)
-    log: Any = print
+    log: Any = _flushed_print
     restarted: bool = False
 
     def __post_init__(self) -> None:
@@ -185,7 +217,7 @@ class Supervisor:
         """
         launched: dict[str, MarketSession] = {}
         t0 = self._first_t0()
-        while self.target_markets is None or self.completed < self.target_markets:
+        while self._keep_going(len(launched)):
             slug = slug_for(t0)
             if slug in already or slug in launched:
                 t0 += MARKET_SECONDS
@@ -226,6 +258,11 @@ class Supervisor:
             self._closed(session)
 
         return done
+
+    def _keep_going(self, launched: int) -> bool:
+        if self.launch_limit is not None and launched >= self.launch_limit:
+            return False
+        return self.target_markets is None or self.completed < self.target_markets
 
     def _closed(self, session: MarketSession) -> None:
         """A session's trading window ended. Everything it still owes is cold from here."""
@@ -348,12 +385,7 @@ class Supervisor:
     def _entry(self, session: MarketSession, cold: dict[str, Any]) -> dict[str, Any]:
         manifest = session.manifest
         stats = session.worker.stats
-        capture = session.capture
-        counters = (
-            capture.counters.summary()
-            if capture is not None and hasattr(capture.counters, "summary")
-            else {}
-        )
+        counters = session.feed_counters
         replay = dict(cold.get("replay") or {})
         settlement = session.settlement
         decision = None if settlement is None else settlement.decision
@@ -419,6 +451,10 @@ class Supervisor:
             "sequence_gaps": stats.sequence_gaps,
             "sink_errors": session.worker.store.sink_errors + session.closing_sink_errors,
             "worker": stats.summary(),
+            # The ingress owner's own cost, measured on the real market rather than replayed.
+            # This is the whole of what the session adds to a cycle: P7's shadow reconcile plus
+            # the P8 capture, timed around `InstrumentedRun.observe`.
+            "hot_path_observe_ns": _tiers(session.hot_path_ns),
             "feed_counters": counters,
             "risk_states": dict(sorted(session.risk_states.items())),
             "places_by_risk_state": dict(sorted(session.places_by_state.items())),

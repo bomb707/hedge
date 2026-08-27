@@ -815,6 +815,14 @@ P12C adds a third, found by rebuilding a closed market's snapshot from its store
   durable risk row should carry the health it was evaluated against is left OPEN for the phase
   that owns the schema.
 
+P12D adds a fourth, from the metric contract:
+
+* **A UI metric may not rename a measurement.** `decide_ns` published receive-to-decide for two
+  rounds and nobody could see it, because both numbers are real, both are P8's, and only the name
+  was wrong — a mislabel is invisible in a way a missing value is not. Every latency the read
+  model publishes now names the P8 definition it carries, and a replay compares all four against
+  `TelemetryAnalyzer` on real cycles rather than asserting they match.
+
 ---
 
 ## Summary table

@@ -75,7 +75,50 @@ production.
 
 ---
 
-## P12C: snapshot coherence closure
+## P12D: final contract closure
+
+Full evidence in
+[`evidence/P12D-FINAL-CONTRACT-CLOSURE.md`](evidence/P12D-FINAL-CONTRACT-CLOSURE.md). Four narrow
+contracts the independent review of P12C left open. No new live market: nothing here touches the
+trading path, and `hotpath.py`, `tools/p12_market.py`, `feeds/`, `strategy/`, `market/`,
+`execution/` and `telemetry/` are byte-identical to the reviewed boundary.
+
+**`decide_ns` meant receive-to-decide.** P8's `decide_duration` is `decide_stage - reduce_stage`;
+the UI published `decide_done - raw_receive`, which is ingress, reduction, dispatch and the
+strategy call together. That market's own analyzer puts decide at p50 50,956 ns and
+receive-to-decide at p50 200,416 ns, and the snapshot published 268,302 ns. One metric, one
+meaning: `decide_ns` is now P8's, and receive-to-decide is published under its own name rather
+than dropped. 4,883 stage-sampled cycles from a real capture agree with `TelemetryAnalyzer` figure
+by figure. A cycle timed end to end without stage stamps keeps what it measured and has no
+`decide_ns` — absent, never zero.
+
+**A callback did not prove persistence.** `TelemetryStore` absorbs SQLite errors by design, so
+`write_control_audit(row); written += 1; on_control_record(row)` counted a refused row as written
+and published it to the operator. The append-only writers now report whether the write path took
+the row — envelope and row both — and counters and Plane-3 callbacks are gated on that. This
+immediately found a test that opened the store on one thread and drained from another: every
+write raised, and 20,480 of 40,000 "written" decisions were counted while never reaching the file.
+
+**The audit columns were not checked against the payload.** A row whose column said RELEASE while
+its payload said HALT cross-linked perfectly and answered differently depending on who asked.
+Both representations are now compared, the V1 control-schema domain is explicit, and every type
+is exact — `bool` is an `int` in Python and is not a schema version.
+
+**The browser's clock ordered commands.** Pending files were named `{issued_at_ns}-{command_id}`
+and read sorted, so a UI wall clock decided which command reached ingress first. The inbox now
+allocates its own transport sequence, and a restarted UI continues above what is already pending.
+Transport order is not causality: `ingress_ordinal` and `risk_sequence` still decide that, and
+the transport sequence enters neither the command nor the audit row.
+
+`btc-updown-5m-1787811600` re-read through the verified archive by the corrected code: COMPLETE,
+124,272 decisions, 124,274 risk records, 2 control rows, 0 drops/gaps/sink errors, PLACE SAFE 646
+/ HALTED 0 / RECOVERING 0, RESOLVED UP at block 92,737,974 with payouts [1,0] — identical to the
+P12C read in every field. All eight accepted stores give the same verdicts and the same failure
+text as before.
+
+---
+
+## P12C: snapshot coherence closure (superseded for the metric and transport contracts)
 
 Full evidence in [`evidence/P12C-SNAPSHOT-COHERENCE.md`](evidence/P12C-SNAPSHOT-COHERENCE.md).
 P12B's market is **retained and valid**; P12B's *architecture* and *final snapshot* are
@@ -1340,6 +1383,7 @@ orders, which P8 does not place. Both stay OPEN.
 | P12 real-market gate | **PASSED** — UI killed mid-market, trading continued |
 | P12 Plane-3 isolation gate | **PASSED** (P12C) — no synchronous I/O of any kind on the ingress path, stdout included |
 | P12 snapshot coherence gate | **PASSED** (P12C) — every published figure joined to the observation it describes; final frame equals the manifest |
+| P12 ordering/metric-contract gate | **PASSED** (P12D) — `decide_ns` is P8's decide_duration; "written" means durably written; audit columns equal their payload; delivery order is the transport's, not a wall clock's |
 | P12 control-audit gate | **PASSED** — command id durably cross-linked to its RiskRow |
 | P11 implementation gate | **PASSED** — versioned schemas, non-blocking worker, exact analytics, verifier |
 | P11 real-market gate | **PASSED** — P11B healthy market + controlled stalled sink |
@@ -1403,6 +1447,8 @@ orders, which P8 does not place. Both stay OPEN.
 | P12 branch | `feature/p12-ui-control-plane` |
 | P12B branch | `fix/p12-plane3-isolation` |
 | P12C branch | `fix/p12-snapshot-coherence` |
+| P12D branch | `fix/p12-final-contract-closure` |
+| P12C final snapshot | retained unedited; its `decide_ns` label is corrected in `p12d-p12c-snapshot-latency-correction.json`, not in the file |
 | P12B final snapshot | **known-inaccurate read-model artifact**, retained unedited; see `p12c-p12b-revalidation-btc-updown-5m-1787807700.json` |
 | P11 store size | 5,230 B/decision raw → **95.7 B archived**; engineered in P11B, not deferred |
 | Remote | `origin` → `https://github.com/bomb707/hedge.git` |

@@ -37,7 +37,11 @@ def build(root: Path, *, keep_raw_store: bool = False, epoch: str = "p13-corpus-
 
 
 async def _run(
-    config: PaperConfig, markets: int | None, launches: int | None, allow_dirty: bool
+    config: PaperConfig,
+    markets: int | None,
+    launches: int | None,
+    allow_dirty: bool,
+    slow_audit_s: float = 0.0,
 ) -> Supervisor:
     supervisor = Supervisor(
         config=config,
@@ -45,6 +49,7 @@ async def _run(
         launch_limit=launches,
         allow_dirty_requested=allow_dirty,
     )
+    supervisor.audit.slowdown_s = slow_audit_s
     identity = config_identity(config)
     print(
         json.dumps(
@@ -58,6 +63,7 @@ async def _run(
                 # The real durable count, not the field before `run` has filled it in.
                 "already_qualifying_this_epoch": supervisor.qualifying_now(),
                 "run_mode": supervisor.run_mode,
+                "slow_audit_seconds": slow_audit_s,
                 "live_trading_enabled": LIVE_TRADING_ENABLED,
                 "redemption_enabled": REDEMPTION_ENABLED,
                 "evidence_dir": str(config.evidence_dir),
@@ -84,6 +90,15 @@ def main() -> None:
     )
     parser.add_argument("--epoch", type=str, default="p13-corpus-1")
     parser.add_argument(
+        "--slow-audit-seconds",
+        type=float,
+        default=0.0,
+        help=(
+            "CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET: delay every audit operation by this many "
+            "seconds, to demonstrate that the trading loop does not wait for it"
+        ),
+    )
+    parser.add_argument(
         "--allow-dirty",
         action="store_true",
         help="permit an exploratory run with modified tracked source; never for acceptance",
@@ -109,7 +124,9 @@ def main() -> None:
             f"{modified}\ncommit them, or pass --allow-dirty for an exploratory run"
         )
     started = time.time()
-    supervisor = asyncio.run(_run(config, args.markets, args.launch_limit, args.allow_dirty))
+    supervisor = asyncio.run(
+        _run(config, args.markets, args.launch_limit, args.allow_dirty, args.slow_audit_seconds)
+    )
     stats = supervisor.corpus.stats()
     print(
         json.dumps(

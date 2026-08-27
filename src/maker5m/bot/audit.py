@@ -27,9 +27,11 @@ because the filesystem work is happening on another thread.
 from __future__ import annotations
 
 import asyncio
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from functools import partial
+from time import perf_counter_ns
 from typing import Any
 
 from maker5m.bot.attempts import AttemptLedger
@@ -47,6 +49,12 @@ class AuditIO:
     ledger: AttemptLedger
     _pool: ThreadPoolExecutor | None = field(default=None, repr=False)
     calls: dict[str, int] = field(default_factory=dict)
+    durations_ns: dict[str, int] = field(default_factory=dict)
+    slowdown_s: float = 0.0
+    """Controlled local fault injection: an artificial delay inside the audit thread.
+
+    Present so a real market can be run with the audit path deliberately slow, which is the only
+    way to show that its slowness costs the trading loop nothing. Zero in every normal run."""
 
     def start(self) -> None:
         if self._pool is None:
@@ -60,10 +68,23 @@ class AuditIO:
     async def _run(self, name: str, work: Any) -> Any:
         """Run one audit operation on the audit thread and await it without holding the loop."""
         self.calls[name] = self.calls.get(name, 0) + 1
+        delay = self.slowdown_s
+
+        def timed() -> Any:
+            started = perf_counter_ns()
+            try:
+                if delay:
+                    time.sleep(delay)
+                return work()
+            finally:
+                self.durations_ns[name] = max(
+                    self.durations_ns.get(name, 0), perf_counter_ns() - started
+                )
+
         if self._pool is None:  # pragma: no cover - only outside a started collector
-            return work()
+            return timed()
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(self._pool, work)
+        return await loop.run_in_executor(self._pool, timed)
 
     # -- the attempt ledger ------------------------------------------------------------------
 
@@ -122,6 +143,8 @@ class AuditIO:
         return {
             "owner": "single dedicated audit thread",
             "calls": dict(sorted(self.calls.items())),
+            "max_duration_ns": dict(sorted(self.durations_ns.items())),
+            "injected_slowdown_s": self.slowdown_s,
             "note": (
                 "Every corpus, ledger and latency-artifact operation runs here, off the event "
                 "loop that consumes market data. One worker, because these are append-only "

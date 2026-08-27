@@ -992,6 +992,7 @@ class Supervisor:
                 "market_lifecycle_high_water": self.lifecycle_high_water,
                 "market_lifecycle_cap": MAX_MARKET_LIFECYCLES,
                 "gc": self.gc_observer.summary(),
+                "audit_io": self.audit.summary(),
             },
             "incidents": list(session.incidents),
             "operational_faults": operational_faults,

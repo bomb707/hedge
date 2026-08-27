@@ -75,6 +75,55 @@ production.
 
 ---
 
+## P13E: counter integrity
+
+Full evidence in [`evidence/P13E-COUNTER-INTEGRITY.md`](evidence/P13E-COUNTER-INTEGRITY.md).
+`p13-corpus-4` is stopped, preserved and **SUPERSEDED_FOR_FINAL_P13_ACCEPTANCE**.
+
+**Successful markets were counted twice.** P13D added the correct increment after the terminal
+record and did not remove the old one after the corpus append, so a `--markets 200` run would have
+stopped at about a hundred. The collector's own log says it: **eight completion lines over four
+corpus rows**, preserved unedited. Worse than the arithmetic, production was deciding completion
+with a fourth simplified copy of the rule while P13D's whole point was that there is one.
+
+The counter is no longer incremented. After the terminal record it is re-derived from the corpus
+and the ledger by the shared qualifier, and the runtime total is compared against the durable
+count at every boundary; disagreement is a collector-integrity fault that stops an acceptance run.
+The new tests call `Supervisor._finalize` itself — P13D's recreated the intended sequence by hand
+and passed while the shipped code counted twice.
+
+**Duplicate starts were collapsed.** `starts` was a dict keyed by attempt id while terminals, three
+lines away, were a list precisely so duplicates could be seen. Both are lists now.
+
+**Absence was read as agreement.** Identity fields were compared only `if name in start`, so a
+record missing `source_tree_sha` satisfied the comparison against it. Both records must now carry
+every required field. This is why the **P13C pilot no longer qualifies**: its terminals predate the
+fields P13D added. Its stores, replays and latency artifacts are all still valid; the records
+simply do not carry what the contract now requires, so it is retained and superseded.
+
+**"Exact equality" was a comment.** `True == 1` and `1.0 == 1` in Python, so an artifact declaring
+`schema_version = True` passed. Typed comparisons now, and `condition_id` and `t0_ns` are required
+rather than compared-if-present.
+
+### Revalidation — `p13d-pilot-1`, four consecutive real markets
+
+```text
+1787856000  COMPLETE EXACT  108,892 dec  (runtime 1 / durable 1)
+1787856300  COMPLETE EXACT  103,783 dec  (runtime 2 / durable 2)
+1787856600  COMPLETE EXACT  183,625 dec  (runtime 3 / durable 3)
+1787856900  COMPLETE EXACT  113,603 dec  (runtime 4 / durable 4)
+```
+
+4 rows, 4 joined-qualifying, 4 starts, 4 finished, 0 open, 0 duplicate starts, 0 duplicate
+terminals, 4 identity-valid latency artifacts, 0 refused. 1,019,806 side opportunities classified
+and actioned exhaustively; both feeds warm at T0 on every handoff; 0 drops, gaps and sink errors;
+PLACE only under SAFE (2,125); four settlements RESOLVED. Merged live latency: CLOB receive→decide
+p50 125,610 ns / p99 728,844 ns over 50,023 samples; spot p50 85,008 ns / p99 246,908 ns over 990.
+
+No market-facing code changed, so the existing P8C regressions stand and no new benchmark was run.
+
+---
+
 ## P13D: final evidence binding
 
 Full evidence in [`evidence/P13D-EVIDENCE-BINDING.md`](evidence/P13D-EVIDENCE-BINDING.md).
@@ -1629,9 +1678,9 @@ orders, which P8 does not place. Both stay OPEN.
 | | |
 |---|---|
 | **Current phase** | **P13 — live shadow / paper mode** |
-| P13 implementation gate | **PASSED** (P13D) — completion bound to terminal durability, one shared joined qualification, latency artifacts identity-bound to their rows |
-| P13 pilot gate | **PASSED** (P13C, revalidated by P13D) — four consecutive real markets plus a controlled restart, all four rows joining their attempts and latency artifacts under the stricter rules |
-| P13 ≥200-market corpus gate | **IN PROGRESS** — `p13-corpus-4`, from the P13D build. Corpora 1, 2 and 3 are preserved and excluded |
+| P13 implementation gate | **PASSED** (P13E) — one derived completion count, exactly one start and one terminal per market, required identity present on both, typed latency identity |
+| P13 pilot gate | **PASSED** (P13E) — four consecutive real markets on the corrected build, 4/4 joined-qualifying with runtime and durable counts equal at every boundary. The P13C pilot is retained and superseded: its terminals predate the identity fields |
+| P13 ≥200-market corpus gate | **IN PROGRESS** — `p13-corpus-5`, from the P13E build. Corpora 1-4 are preserved and excluded |
 | P12 implementation gate | **PASSED** — Plane-3 UI, immutable snapshot, ordered control, no trading reference |
 | P12 real-market gate | **PASSED** — UI killed mid-market, trading continued |
 | P12 Plane-3 isolation gate | **PASSED** (P12C) — no synchronous I/O of any kind on the ingress path, stdout included |
@@ -1709,7 +1758,8 @@ orders, which P8 does not place. Both stay OPEN.
 | P13B branch | `fix/p13-corpus-integrity` |
 | P13C branch | `fix/p13-final-corpus-foundation` |
 | P13D branch | `fix/p13-final-evidence-binding` |
-| P13 corpus epochs superseded | `p13-corpus-1` (12 rows), `p13-corpus-2` (10 rows), `p13-corpus-3` (12 rows) — preserved, excluded |
+| P13E branch | `fix/p13-final-counter-integrity` |
+| P13 corpus epochs superseded | `p13-corpus-1` (12), `p13-corpus-2` (10), `p13-corpus-3` (12), `p13-corpus-4` (4) — all preserved, all excluded |
 | P12C final snapshot | retained unedited; its `decide_ns` label is corrected in `p12d-p12c-snapshot-latency-correction.json`, not in the file |
 | P12B final snapshot | **known-inaccurate read-model artifact**, retained unedited; see `p12c-p12b-revalidation-btc-updown-5m-1787807700.json` |
 | P11 store size | 5,230 B/decision raw → **95.7 B archived**; engineered in P11B, not deferred |

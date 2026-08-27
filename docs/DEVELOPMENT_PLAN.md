@@ -443,11 +443,12 @@ both earlier markets' stores remain valid.
 
 | Gate | Status |
 |---|---|
-| Implementation | **PASSED** (P13D) — a market counts only when its corpus row and its terminal attempt record are both durable, judged by one shared rule, with each latency artifact bound by identity to the row that names it |
-| Pilot | **PASSED** (P13C, revalidated by P13D) — four consecutive real markets plus a controlled restart, re-judged under the stricter rules with every join intact |
-| ≥200-market corpus | **IN PROGRESS** — `p13-corpus-4`, from the P13D build. Corpora 1-3 and every earlier pilot are retained, superseded, and excluded |
+| Implementation | **PASSED** (P13E) — the completion total is derived from the durable record by the one shared qualifier, never incremented; exactly one start and one terminal per market, both carrying the identity they are joined on; latency identity typed rather than merely equal |
+| Pilot | **PASSED** (P13E) — four consecutive real markets on the corrected build, 4/4 joined-qualifying, runtime and durable counts equal at every boundary |
+| ≥200-market corpus | **IN PROGRESS** — `p13-corpus-5`, from the P13E build. Corpora 1-4 and every earlier pilot are retained, superseded, and excluded |
 
-Evidence: [`evidence/P13D-EVIDENCE-BINDING.md`](evidence/P13D-EVIDENCE-BINDING.md),
+Evidence: [`evidence/P13E-COUNTER-INTEGRITY.md`](evidence/P13E-COUNTER-INTEGRITY.md),
+[`evidence/P13D-EVIDENCE-BINDING.md`](evidence/P13D-EVIDENCE-BINDING.md),
 [`evidence/P13C-FINAL-CORPUS-FOUNDATION.md`](evidence/P13C-FINAL-CORPUS-FOUNDATION.md),
 then [`evidence/P13B-CORPUS-INTEGRITY.md`](evidence/P13B-CORPUS-INTEGRITY.md) and
 [`evidence/P13-PILOT.md`](evidence/P13-PILOT.md). All retained; each supersedes the one before it

@@ -145,7 +145,13 @@ def render_dashboard(
                 f"{_esc(snapshot.get('clob_status'))}</span>",
             ),
             ("awaiting snapshot", _flag(snapshot.get("clob_awaiting_snapshot"))),
-            ("BTC spot", _esc(snapshot.get("spot_status"))),
+            (
+                "BTC spot",
+                f'<span class="{_status_class(snapshot.get("spot_status"))}">'
+                f"{_esc(snapshot.get('spot_status'))}</span>",
+            ),
+            ("order stream", _esc(snapshot.get("order_stream_status") or "—")),
+            ("control channel", _channel(snapshot.get("control_channel_available"))),
         ]
     )
 
@@ -198,6 +204,8 @@ def render_dashboard(
             ("risk records persisted", _esc(snapshot.get("risk_records_persisted"))),
             ("dropped", _esc(snapshot.get("dropped_records"))),
             ("sink errors", _esc(snapshot.get("sink_errors"))),
+            ("verification", _esc(snapshot.get("verification_status") or "—")),
+            ("control audit", _flag(snapshot.get("control_audit_complete"))),
             (
                 "telemetry complete",
                 _na("decided at close")
@@ -205,6 +213,26 @@ def render_dashboard(
                 else _flag(snapshot.get("telemetry_complete")),
             ),
         ]
+    )
+
+    latency = _rows(
+        [
+            ("decide", _ns(snapshot.get("decide_ns"))),
+            ("reduce", _ns(snapshot.get("reduce_ns"))),
+            ("prepare", _ns(snapshot.get("prepare_ns"))),
+            ("reconcile", _ns(snapshot.get("reconcile_ns"))),
+            ("receive → reconcile", _ns(snapshot.get("receive_to_reconcile_ns"))),
+            ("sampled at ordinal", _esc(snapshot.get("latency_sample_ordinal") or "—")),
+        ]
+    )
+    points = snapshot.get("observation_points") or {}
+    coherence = (
+        '<p class="note">observation points — '
+        + " &middot; ".join(
+            f"{_esc(k)}: {_esc(v if v is not None else 'latest')}" for k, v in points.items()
+        )
+        + ". P8 samples, so a latency figure may come from an earlier cycle than the decision "
+        "beside it; the ordinal above says which.</p>"
     )
 
     return _page(
@@ -220,6 +248,7 @@ def render_dashboard(
         + f"<h2>execution</h2>{_sides(up, down)}"
         + f'<div class="grid"><div><h2>settlement</h2>{settlement}</div>'
         + f"<div><h2>telemetry</h2>{telemetry}</div></div>"
+        + f"<h2>latency (P8 measurements)</h2>{latency}{coherence}"
         + f"<h2>strategy parameters</h2>{_parameters(snapshot.get('parameters') or [])}"
         + f"<h2>operator commands</h2>{_commands(snapshot.get('accepted_commands') or [])}",
     )
@@ -338,6 +367,21 @@ def _commands(entries: list[dict[str, Any]]) -> str:
         for e in entries
     )
     return f"<table>{header}{rows}</table>"
+
+
+def _ns(value: object) -> str:
+    """Nanoseconds, formatted. Absent means unsampled, and says so rather than showing zero."""
+    if not isinstance(value, int):
+        return _na("not sampled")
+    return f"{value:,} ns"
+
+
+def _channel(value: object) -> str:
+    if value is None:
+        return _na("no bridge")
+    if value:
+        return '<span class="ok">available</span>'
+    return '<span class="bad">CONTROL CHANNEL UNAVAILABLE</span>'
 
 
 def _flag(value: object) -> str:

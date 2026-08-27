@@ -105,7 +105,11 @@ def source_timestamp_of(event_kind: str) -> int | None:
 
 
 async def main(
-    out: Path, stall_window: tuple[int, int] | None, buffer_capacity: int, ui_dir: Path
+    out: Path,
+    stall_window: tuple[int, int] | None,
+    buffer_capacity: int,
+    ui_dir: Path,
+    bridge_stall: tuple[int, int] | None = None,
 ) -> None:
     if LIVE_TRADING_ENABLED:  # pragma: no cover - defensive
         raise SystemExit("refusing to run while live trading is enabled")
@@ -201,13 +205,33 @@ async def main(
     snapshot_channel = SnapshotChannel(ui_dir / "snapshot.json")
     inbox = CommandInbox(ui_dir / "inbox")
     hot_commands = HotCommandChannel()
-    bridge = CommandBridge(inbox=inbox, channel=hot_commands, snapshot=snapshot_channel)
+    bridge_stalling = {"active": False}
+    bridge = CommandBridge(
+        inbox=inbox,
+        channel=hot_commands,
+        snapshot=snapshot_channel,
+        stall=(lambda: bool(bridge_stalling["active"])) if bridge_stall else None,
+    )
     publisher = SnapshotPublisher(identity=identity, config=config, bridge=bridge, t0_ns=t0_ns)
     control_ingress = ControlIngress(
         controller=controller,
         publish=risk_channel.publish,
         audit=lambda command, outcome: audit_channel.publish((command, outcome)),
     )
+
+    def _latency_sample(run: Any) -> dict[str, int] | None:
+        """P8's own stage timings for the cycle just captured, when it was sampled.
+
+        Read from the merger's recorded stage clocks — the same numbers P8's analyzer uses. No
+        second timer: a dashboard that measured its own latency would be measuring itself.
+        """
+        merger = run.pipeline.merger
+        if not merger.stages_measured or not merger.last_decide_ns:
+            return None
+        return {
+            "decide_ns": int(merger.last_decide_ns - merger.last_reduce_ns),
+            "reduce_ns": int(merger.last_reduce_ns),
+        }
 
     def _verdict_for(records: Any, risk_sequence: int | None) -> Any:
         """The exact RiskRecord this decision names, not merely the newest one.
@@ -228,6 +252,9 @@ async def main(
         publisher.observe(
             record, controller.trace.records[-1] if controller.trace.records else None
         )
+        sample = _latency_sample(runs[0])
+        if sample is not None:
+            publisher.observe_latency(record.ingress_ordinal, sample)
         publisher.deliver(
             "counters",
             {
@@ -333,9 +360,19 @@ async def main(
                 flush=True,
             )
 
+        offset = (int(now_ns) - int(t0_ns)) / NANOS_PER_SECOND
+        if bridge_stall:
+            begin, end = bridge_stall
+            active = begin <= offset < end
+            if active != bridge_stalling["active"]:
+                bridge_stalling["active"] = active
+                print(
+                    f"    [+{offset:.0f}s] UI bridge "
+                    f"{'stalled (controlled local fault)' if active else 'resumed'}",
+                    flush=True,
+                )
         if not stall_window:
             return
-        offset = (int(now_ns) - int(t0_ns)) / NANOS_PER_SECOND
         begin, end = stall_window
         if not stalling["active"] and begin <= offset < end:
             stalling["active"] = True
@@ -702,10 +739,19 @@ if __name__ == "__main__":
     parser.add_argument("--stall-to", type=int)
     parser.add_argument("--buffer", type=int, default=320_000)
     parser.add_argument("--ui", type=Path, help="directory for the snapshot and command inbox")
+    parser.add_argument(
+        "--stall-bridge-from", type=int, help="seconds after T0 to stall the Plane-3 UI bridge"
+    )
+    parser.add_argument("--stall-bridge-to", type=int)
     args = parser.parse_args()
     window = (
         (args.stall_from, args.stall_to)
         if args.stall_from is not None and args.stall_to is not None
         else None
     )
-    asyncio.run(main(args.out, window, args.buffer, args.ui or (args.out / "ui")))
+    bridge_window = (
+        (args.stall_bridge_from, args.stall_bridge_to)
+        if args.stall_bridge_from is not None and args.stall_bridge_to is not None
+        else None
+    )
+    asyncio.run(main(args.out, window, args.buffer, args.ui or (args.out / "ui"), bridge_window))

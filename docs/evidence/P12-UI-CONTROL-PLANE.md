@@ -1,5 +1,12 @@
 # P12 — operator UI and control plane
 
+> **SUPERSEDED FOR FINAL ARCHITECTURAL ACCEPTANCE.** Everything below happened and is retained:
+> HALT/RELEASE semantics worked, the UI process dying did not stop the bot, the UI restarted into
+> a running market, and P11 caught a missing operator RiskRecord. What it does not establish is
+> Plane-3 isolation — synchronous filesystem polling and snapshot writing existed inside
+> `on_tick`, the single ingress consumer, when this market ran. The accepted evidence is
+> **[P12B](P12B-PLANE3-ISOLATION.md)**.
+
 **Provenance: `REAL_PUBLIC_MARKET_DATA`.** Real Polymarket CLOB, real BTC spot, real Polygon
 settlement, with the operator UI running as a separate process throughout. The operator commands
 are local and operational — that is what an operator command is — but the pipeline and the market

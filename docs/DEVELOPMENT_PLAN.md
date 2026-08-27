@@ -399,7 +399,9 @@ Evidence: [`evidence/P11-TELEMETRY-PERSISTENCE.md`](evidence/P11-TELEMETRY-PERSI
 | Gate | Status |
 |---|---|
 | Implementation | **PASSED** — Plane-3 UI, immutable snapshot, ordered control channel |
-| Real-market | **PASSED** — UI SIGKILLed mid-market; +18,113 events and +17,631 decisions in the next 47 s |
+| Real-market | **PASSED** (P12B) — UI SIGKILLed mid-market; +13,728 events and +13,440 decisions in the next 47 s |
+| Plane-3 isolation | **PASSED** (P12B) — zero filesystem work on the ingress path, proved by removing the filesystem |
+| Control audit | **PASSED** (P12B) — command id durably cross-linked to its RiskRow, both directions |
 
 The acceptance gate below asks that the UI be killed mid-market with trading uninterrupted and no
 journal gap. Both held on `btc-updown-5m-1787803500`, whose telemetry verifies COMPLETE with zero

@@ -75,7 +75,67 @@ production.
 
 ---
 
-## P12: operator UI and control plane
+## P12B: Plane-3 isolation closure
+
+Full evidence in [`evidence/P12B-PLANE3-ISOLATION.md`](evidence/P12B-PLANE3-ISOLATION.md). The
+first P12 market is **retained and superseded for architectural acceptance**.
+
+**"Does not wait for the UI process" is not "cannot block the trading loop."** P12's first
+version polled the command inbox and wrote the snapshot from inside `on_tick` — the single
+ingress consumer. Nothing there waited on the UI and nothing needed to: a `listdir`, a `stat`, a
+`read_text` or a `rename` can stall on the *filesystem* with no UI involved. I19 is about
+latency, so wrapping the calls would have changed nothing.
+
+```
+BEFORE   on_tick -> glob, stat, read_text, unlink, mkstemp, write, rename
+AFTER    on_tick -> deque.popleft()
+```
+
+`CommandBridge` owns a thread and is the only thing in P12 that touches a file. Overflow does not
+drop — telemetry may lose a record, a safety command may not — so a full hot channel refuses the
+push and the bridge leaves the file on disk. `SnapshotPublisher` is single-owner again;
+everything crosses into it as an immutable message through one bounded inbox.
+
+Three more, each a place the dashboard was telling an operator something nobody measured:
+
+* **risk** — `risk_active` and `risk_latched` were hardcoded empty; health was inferred from
+  whether data existed, so a STALE spot feed with a recent price read HEALTHY. All of it now
+  comes from the `RiskRecord` the decision *names*, found by sequence rather than by being
+  newest, with an `observation_points` map where the parts genuinely differ.
+* **latency** — four fields defined and always `None`. Now P8's own timings with the ordinal they
+  were sampled at; an unsampled cycle reads "not sampled", never `0 ns`.
+* **settlement** — fields existed, runner never filled them. Now published after P10 resolves.
+
+**Command identity is durably linked.** A `RiskRow` says an `OPERATOR_CONTROL` signal happened,
+not which command caused it, so the link lives in a `control_audit` table with `command_id` as a
+column — not parsed out of a detail string. Store V3; reading accepts {2, 3} so every accepted
+P11 archive stays readable. The verifier cross-links both directions and refuses an orphan either
+way. Idempotency moved from the transport to `ControlIngress`, which is the only thing that
+decides whether a command changes the risk state.
+
+### Real market — `btc-updown-5m-1787807700`
+
+82,336 decisions · 82,338 risk records · 2 control-audit rows · bridge 4,728 polls / 1,012
+snapshots / 0 errors · hot channel high-water **1** of 32 · bridge deliberately stalled +200→+240 s
+· 0 drops, gaps, sink errors · verification **COMPLETE**.
+
+```text
+halt     20976c37536b498c  ordinal 988   risk_seq 964   HALTED   place=False cancel=True
+release  d8fa82dbcedd4a0f  ordinal 5001  risk_seq 4878  RECOVERING -> SAFE
+kill     SIGKILL at ordinal 5008 -> +13,728 events, +13,440 decisions in 47s, risk SAFE
+restart  same market, both commands shown, no new command
+final    RESOLVED DOWN, block 92,735,374, payout [0,1], REDEMPTION DISABLED
+```
+
+**PLACE while HALTED: 0. PLACE while RECOVERING: 0** — with 4,109 decisions under the halt.
+
+Overhead against the accepted P11 stack: decide p50 **+300 ns (+1.28 %)**, full cycle **+768 ns
+(+1.46 %)**; semantics identical across modes. A **stalled** bridge measures **−21 ns** against
+P11-only — indistinguishable from having no UI at all, which is the claim.
+
+---
+
+## P12: operator UI and control plane (SUPERSEDED for architecture)
 
 Full evidence in [`evidence/P12-UI-CONTROL-PLANE.md`](evidence/P12-UI-CONTROL-PLANE.md).
 
@@ -1211,6 +1271,8 @@ orders, which P8 does not place. Both stay OPEN.
 | **Current phase** | **P12 — operator UI and control plane** |
 | P12 implementation gate | **PASSED** — Plane-3 UI, immutable snapshot, ordered control, no trading reference |
 | P12 real-market gate | **PASSED** — UI killed mid-market, trading continued |
+| P12 Plane-3 isolation gate | **PASSED** — zero filesystem work on the ingress path |
+| P12 control-audit gate | **PASSED** — command id durably cross-linked to its RiskRow |
 | P11 implementation gate | **PASSED** — versioned schemas, non-blocking worker, exact analytics, verifier |
 | P11 real-market gate | **PASSED** — P11B healthy market + controlled stalled sink |
 | P11 durability-integrity gate | **PASSED** — every V2 decision names and matches its governing RiskRow; exact risk and storage order; real, self-consistent event ids; self-consistent schema version drawn from a defined domain; append-only audit rows; verified archive reads |
@@ -1271,6 +1333,7 @@ orders, which P8 does not place. Both stay OPEN.
 | P11E branch | `fix/p11-schema-contract-integrity` |
 | P11F branch | `fix/p11-supported-schema-domain` |
 | P12 branch | `feature/p12-ui-control-plane` |
+| P12B branch | `fix/p12-plane3-isolation` |
 | P11 store size | 5,230 B/decision raw → **95.7 B archived**; engineered in P11B, not deferred |
 | Remote | `origin` → `https://github.com/bomb707/hedge.git` |
 

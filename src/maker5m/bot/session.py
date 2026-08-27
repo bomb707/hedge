@@ -30,7 +30,7 @@ from typing import Any
 
 from maker5m.bot.config import PaperConfig
 from maker5m.bot.quality import QualityAggregate
-from maker5m.bot.resources import ResourceSample, sample_resources, tiers
+from maker5m.bot.resources import LIVE_SESSIONS, ResourceSample, sample_resources, tiers
 from maker5m.execution import Executor, RecordingTransport, VenueAdapter
 from maker5m.feeds import MarketDataPipeline
 from maker5m.feeds.capture import capture_market
@@ -73,6 +73,8 @@ def _lead(t0_ns: int, when_ns: int | None) -> float | None:
 
 
 DEFAULT_RISK_CAPACITY = 400_000
+STEP_RELEASE_CHUNK = 4_096
+"""How many recorded steps to free before yielding to the loop. Bounds the pause, not the work."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -223,6 +225,7 @@ class MarketSession:
         self.finished_resources: ResourceSample | None = None
         self.released_resources: ResourceSample | None = None
         self.hot_path_tiers: dict[str, int | None] = {}
+        LIVE_SESSIONS.add(self)
         self.capture: Any = None
         self.settlement: Any = None
         self.manifest: Manifest | None = None
@@ -450,9 +453,9 @@ class MarketSession:
         except Exception as error:
             self.incidents.append(f"journal write failed: {type(error).__name__}: {error}")
         finally:
-            self._drop_recorded_steps()
+            await self._drop_recorded_steps()
 
-    def _drop_recorded_steps(self) -> None:
+    async def _drop_recorded_steps(self) -> None:
         """Let go of the recorded event stream as soon as it is on disk.
 
         `IngressMerger.steps` holds every step with its complete `DecisionResult` — two hundred
@@ -468,7 +471,16 @@ class MarketSession:
             self.feed_counters = dict(self.capture.counters.summary())
         self.capture = None
         for run in self.runs:
-            run.pipeline.merger.steps.clear()
+            steps = run.pipeline.merger.steps
+            while steps:
+                # In chunks, yielding between them. Freeing 150,000 step graphs is one C-level
+                # traversal with no bytecode boundary in it, so the loop cannot service the
+                # market that is *currently trading* until it finishes — the corrected pilot
+                # measured a single 480 ms `observe` against a 25 microsecond median, and a
+                # 2,535-observation buffer high-water on the market that was live at the time.
+                # Nothing may stall the ingress owner, including this.
+                del steps[-STEP_RELEASE_CHUNK:]
+                await asyncio.sleep(0)
 
     @staticmethod
     def _write_bytes(path: Path, raw: bytes) -> None:

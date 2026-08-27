@@ -656,11 +656,13 @@ def test_dropping_the_recorded_steps_keeps_the_feed_counts(tmp_path: Path) -> No
     and zero BTC messages for every market in the corpus — a number nobody would have
     questioned, because zero is what an unpopulated counter looks like.
     """
+    import asyncio
+
     ui = UiPlane(directory=tmp_path / "ui")
     unit = session(tmp_path, ui, T0_A, "a")
     unit.capture = _Capture()
 
-    unit._drop_recorded_steps()
+    asyncio.run(unit._drop_recorded_steps())
 
     assert unit.capture is None
     assert unit.feed_counters == {"clob_messages": 486_028, "spot_messages": 26_404}
@@ -668,6 +670,51 @@ def test_dropping_the_recorded_steps_keeps_the_feed_counts(tmp_path: Path) -> No
     supervisor = Supervisor(config=paper(tmp_path))
     entry = supervisor._entry(unit, {"verification_status": "COMPLETE", "replay": {}})
     assert entry["feed_counters"]["clob_messages"] == 486_028
+
+
+def test_the_recorded_steps_are_freed_in_chunks_that_yield(tmp_path: Path) -> None:
+    """Freeing 150,000 step graphs in one C traversal stalled the market that was trading.
+
+    The corrected pilot measured a single 480 ms `observe` against a 25 microsecond median, with
+    a 2,535-observation buffer high-water on the live market at the time. Nothing may stall the
+    ingress owner — not even letting go of a closed market.
+    """
+    import asyncio
+
+    from maker5m.bot.session import STEP_RELEASE_CHUNK
+
+    ui = UiPlane(directory=tmp_path / "ui")
+    unit = session(tmp_path, ui, T0_A, "a")
+    unit.capture = _Capture()
+
+    class Merger:
+        def __init__(self) -> None:
+            self.steps = list(range(3 * STEP_RELEASE_CHUNK + 7))
+
+    class Pipeline:
+        def __init__(self) -> None:
+            self.merger = Merger()
+
+    class Run:
+        def __init__(self) -> None:
+            self.pipeline = Pipeline()
+
+    run = Run()
+    unit.runs.append(run)  # type: ignore[arg-type]
+
+    yields = 0
+
+    async def drive() -> None:
+        nonlocal yields
+        task = asyncio.ensure_future(unit._drop_recorded_steps())
+        while not task.done():
+            await asyncio.sleep(0)
+            yields += 1
+        await task
+
+    asyncio.run(drive())
+    assert run.pipeline.merger.steps == []
+    assert yields >= 4, "it gave the loop the chance to run between chunks"
 
 
 def test_the_hot_path_cost_is_recorded_per_market(tmp_path: Path) -> None:

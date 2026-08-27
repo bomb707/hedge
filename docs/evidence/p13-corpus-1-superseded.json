@@ -1,0 +1,161 @@
+{
+  "attempted": 14,
+  "complete_rows": 12,
+  "corpus_index_sha256": "3a9934cadc44de52247015a4eed9d58ae3f0a693d35bec6e0cb5f949dfdebbd2",
+  "durable_rows": 12,
+  "epoch": "p13-corpus-1",
+  "in_flight_at_stop": 2,
+  "kind": "P13_CORPUS_1_SUPERSEDED",
+  "markets": [
+    {
+      "archive_sha256": "6801322227eabf34c75c68f54bfe3ed4ead2dd5c5e7ea557b5d33c96714cf770",
+      "classified_sides_recorded": 19542,
+      "decisions": 92719,
+      "discovery_ready_ns_under_old_schema": 1787827425144617236,
+      "exhaustive_sides_required": 185438,
+      "journal_sha256": "ca578133892e135cc6efd13d2c48b2690403c934fa836ad80f6ec7a9c402c5ae",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787827500",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "c575b1a3c599b7e9d0ba3fe4a7fa63481eb5d2036ef42e4014132774bdc4572d",
+      "classified_sides_recorded": 29760,
+      "decisions": 138738,
+      "discovery_ready_ns_under_old_schema": 1787827725103512747,
+      "exhaustive_sides_required": 277476,
+      "journal_sha256": "613b40adbaaa90d71ade8cc24089eacaefa1ea0ced27b0e929c8836adbf288f1",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787827800",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "e0b38e9c64fb35b960496528dbd7284e381846c8db807faee90362fbaab5d653",
+      "classified_sides_recorded": 37620,
+      "decisions": 167387,
+      "discovery_ready_ns_under_old_schema": 1787828025088912190,
+      "exhaustive_sides_required": 334774,
+      "journal_sha256": "8909bea896ddafee8705d243b8aafd189dbda1f3cc1747c81a019a71bb2b349b",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787828100",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "582d97f1d71534ddae8dafbcccac0d966cb570d14a694f5a3c9e8405064771f5",
+      "classified_sides_recorded": 30952,
+      "decisions": 142810,
+      "discovery_ready_ns_under_old_schema": 1787828325099823284,
+      "exhaustive_sides_required": 285620,
+      "journal_sha256": "ed6c1972126db963c17111a67fcba1035a4328956ce727d518d61bdf681068c4",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787828400",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "ea6dfe34b9e86fe5d20755556c4c10f851da71faa7be64023a50d7ae5b2c6d11",
+      "classified_sides_recorded": 36274,
+      "decisions": 165075,
+      "discovery_ready_ns_under_old_schema": 1787828625153422279,
+      "exhaustive_sides_required": 330150,
+      "journal_sha256": "0ea0a6ad2c79b5be726df6a44b001f818c73083c302fc05637a3ce418c17abd1",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787828700",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "e7cefb2fd147976b356d567099453dad091cad92dc142df8e43e2349a02bb0a2",
+      "classified_sides_recorded": 33042,
+      "decisions": 150631,
+      "discovery_ready_ns_under_old_schema": 1787828925129752277,
+      "exhaustive_sides_required": 301262,
+      "journal_sha256": "71270086c127d4a3534aaa0fef34e922773fa812406ae03163a77213687eeba7",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787829000",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "a8e05920e7f913407bbd950b5c66aa2458af8883da48a898978f6cd689059458",
+      "classified_sides_recorded": 25378,
+      "decisions": 118577,
+      "discovery_ready_ns_under_old_schema": 1787829225120312786,
+      "exhaustive_sides_required": 237154,
+      "journal_sha256": "c48296363cba7b19c9c0682ddd891294128341230cc9379636493edc8515175e",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787829300",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "9206bf067dc53b3834e3eb97c5ae3b2d0406a4a8b4acd0aa8babb28e4766cf92",
+      "classified_sides_recorded": 21844,
+      "decisions": 100422,
+      "discovery_ready_ns_under_old_schema": 1787829525134279085,
+      "exhaustive_sides_required": 200844,
+      "journal_sha256": "f77552d65b4837b47cb656692910c41a6b6fbb923d11004a37200fb032d46604",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787829600",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "046b09bc9cb06028af56d943e2647dff43648974b6eafe0c70d710fb78d9123d",
+      "classified_sides_recorded": 17664,
+      "decisions": 84240,
+      "discovery_ready_ns_under_old_schema": 1787829825142522793,
+      "exhaustive_sides_required": 168480,
+      "journal_sha256": "3e1230659d3911236f644243bf7f3291b4b03f3976b21da6c94c9c3b37beb2ec",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787829900",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "bd7a1ce54ec2a279d6fc621456f1f222dfe025c8ee0803a622e2dcb5cb4eebfb",
+      "classified_sides_recorded": 39746,
+      "decisions": 179855,
+      "discovery_ready_ns_under_old_schema": 1787830125098275946,
+      "exhaustive_sides_required": 359710,
+      "journal_sha256": "a2f458396e95a0543563f313f316d2cfd4a487cc08508f7281393b6ce31d013a",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787830200",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "05b93e8a3496f53d72067bc76c675c099c273466cf823cfc928e8082da2e0577",
+      "classified_sides_recorded": 21588,
+      "decisions": 102348,
+      "discovery_ready_ns_under_old_schema": 1787830425109829324,
+      "exhaustive_sides_required": 204696,
+      "journal_sha256": "a528c634b0f9d3c4ff6c29dae911ed91b2a96db4b51b63246846d4ee3882fe34",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787830500",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "archive_sha256": "62c9891f42c2272920a839631b6bf7ce8d4e93480327955c5c8f1463f3a1f434",
+      "classified_sides_recorded": 33068,
+      "decisions": 150555,
+      "discovery_ready_ns_under_old_schema": 1787830725091827085,
+      "exhaustive_sides_required": 301110,
+      "journal_sha256": "1c54c01e1c12192bdc340c399cb9c840ea96c5de6b65bd786cd32a1013792268",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787830800",
+      "verification_status": "COMPLETE"
+    }
+  ],
+  "note": "Nothing in this epoch was deleted, rewritten or reclassified. It is retained for exploratory engineering, replay work and store-durability evidence, and is excluded from the >=200 acceptance count.",
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "read_prearm_ready_ns_as": "DISCOVERY_READY_NS",
+  "replay_exact_rows": 12,
+  "root": "/home/hr/p13-corpus",
+  "status": "SUPERSEDED_FOR_FINAL_P13_ACCEPTANCE",
+  "stopped_by": "SIGTERM to PID 3397985, verified as this root's runner before signalling",
+  "stopped_utc": "2026-08-27T11:49:00Z",
+  "what_remains_valid": [
+    "Real Polymarket, Binance and Polygon data throughout.",
+    "12 stores verified COMPLETE and 12 journals replaying EXACT under P5.",
+    "Composition, market overlap, settlement overlap and shadow-execution evidence."
+  ],
+  "why_it_cannot_count": [
+    "L3 classification was not exhaustive: only cycles that acted or were latency-sampled were classified, so the recorded fractions mix 100% of acting cycles with 1-in-10 of the rest.",
+    "prearm.ready_ns is DISCOVERY_READY_NS: it records when discover_market returned, not when a book or a BTC price existed. The warm-feed timestamps were never recorded and cannot be reconstructed from these rows.",
+    "The event-stream release fix was committed after the three v1 pilot markets, so this corpus was launched on a change no real market had exercised."
+  ]
+}

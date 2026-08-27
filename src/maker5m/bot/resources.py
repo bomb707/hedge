@@ -14,11 +14,22 @@ from __future__ import annotations
 
 import os
 import threading
+import weakref
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-__all__ = ["ResourceSample", "sample_resources", "tiers"]
+__all__ = ["LIVE_SESSIONS", "ResourceSample", "sample_resources", "tiers"]
+
+
+LIVE_SESSIONS: weakref.WeakSet[Any] = weakref.WeakSet()
+"""Every market session that still exists, held weakly so this cannot itself be the leak.
+
+RSS is the operating system's view and glibc does not hand freed arenas back promptly, so a
+process that has released everything can still read high. This counts the objects: if a market's
+session is gone from here, its pipeline, its recorded stream and its analyzer are gone with it,
+whatever the resident-set number says.
+"""
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,6 +40,7 @@ class ResourceSample:
     threads: int
     open_fds: int | None
     pending_tasks: int | None
+    live_sessions: int = 0
 
     def summary(self) -> dict[str, Any]:
         return {
@@ -36,6 +48,7 @@ class ResourceSample:
             "threads": self.threads,
             "open_fds": self.open_fds,
             "pending_tasks": self.pending_tasks,
+            "live_sessions": self.live_sessions,
         }
 
 
@@ -93,4 +106,5 @@ def sample_resources() -> ResourceSample:
         threads=threading.active_count(),
         open_fds=_open_fds(),
         pending_tasks=_pending_tasks(),
+        live_sessions=len(LIVE_SESSIONS),
     )

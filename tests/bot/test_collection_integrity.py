@@ -279,3 +279,27 @@ def test_finish_measures_after_the_market_has_been_let_go(tmp_path: Path) -> Non
     assert session.released_resources is not None
     assert session.released_resources.threads >= 1
     assert os.getpid() > 0
+
+
+def test_a_released_session_stops_being_live(tmp_path: Path) -> None:
+    """§31. "Released" is a fact about objects, not a reading of the resident set.
+
+    glibc does not hand freed arenas back promptly, so a process that has let go of everything
+    still reads high. This counts what exists: if a market's session is gone from the weak set,
+    its pipeline, recorded stream and analyzer went with it.
+    """
+    import gc
+
+    from maker5m.bot import UiPlane
+    from maker5m.bot.resources import LIVE_SESSIONS, sample_resources
+
+    gc.collect()
+    before = sample_resources().live_sessions
+    session = collected(tmp_path, UiPlane(directory=tmp_path / "ui"))
+    assert sample_resources().live_sessions == before + 1
+
+    session.finish()
+    del session
+    gc.collect()
+    assert sample_resources().live_sessions == before
+    assert len(LIVE_SESSIONS) == before

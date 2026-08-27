@@ -78,6 +78,12 @@ class WorkerStats:
     consume_errors: int = 0
     risk_written: int = 0
     control_records_written: int = 0
+    write_failures: int = 0
+    """Rows the SQLite write path refused. Each one also counted a `sink_errors`.
+
+    Separate from `consume_errors`: this is the store declining a row, not the worker throwing
+    on the way to it. Every written counter beside it means *durably accepted*."""
+
     fills_written: int = 0
     error_samples: list[str] = field(default_factory=list)
     """A few distinct failure descriptions, kept so a silent count is never the only clue.
@@ -99,6 +105,7 @@ class WorkerStats:
             "consume_errors": self.consume_errors,
             "risk_written": self.risk_written,
             "control_records_written": self.control_records_written,
+            "write_failures": self.write_failures,
             "fills_written": self.fills_written,
             "error_samples": list(self.error_samples),
         }
@@ -348,13 +355,20 @@ class PersistenceWorker:
             taken += 1
             try:
                 self._persistence_sequence += 1
-                self.store.write_risk(
+                stored = self.store.write_risk(
                     risk_row(
                         record,
                         market_id=self.identity.market_id,
                         persistence_sequence=self._persistence_sequence,
                     )
                 )
+                if not stored:
+                    # The write path refused the row and counted a sink error. Calling it
+                    # written here would put a record in the manifest that is not in the file,
+                    # and telling the read model it persisted would show an operator a row the
+                    # store does not have.
+                    self.stats.write_failures += 1
+                    continue
                 self.stats.risk_written += 1
                 if self.on_risk_record is not None:
                     self.on_risk_record(record)
@@ -383,7 +397,9 @@ class PersistenceWorker:
                     market_id=self.identity.market_id,
                     persistence_sequence=self._persistence_sequence,
                 )
-                self.store.write_control_audit(row)
+                if not self.store.write_control_audit(row):
+                    self.stats.write_failures += 1
+                    continue
                 self.stats.control_records_written += 1
                 if self.on_control_record is not None:
                     self.on_control_record(row)
@@ -408,7 +424,9 @@ class PersistenceWorker:
                 record = build_fill_record(
                     capture, self.identity, persistence_sequence=self._persistence_sequence
                 )
-                self.store.write_fill(record)
+                if not self.store.write_fill(record):
+                    self.stats.write_failures += 1
+                    continue
                 if self.metrics is not None:
                     self.metrics.observe_fill(record)
                 self.stats.fills_written += 1
@@ -449,7 +467,9 @@ class PersistenceWorker:
         if self.first_ingress_ordinal is None:
             self.first_ingress_ordinal = record.ingress_ordinal
         self.last_ingress_ordinal = record.ingress_ordinal
-        self.store.write_decision(record)
+        if not self.store.write_decision(record):
+            self.stats.write_failures += 1
+            return
         if self.metrics is not None:
             self.metrics.observe_decision(record)
         if self.on_record is not None:

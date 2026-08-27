@@ -255,11 +255,19 @@ class TelemetryStore:
 
     # -- writing ---------------------------------------------------------------------------
 
-    def _execute(self, statement: str, parameters: tuple[Any, ...]) -> None:
+    def _execute(self, statement: str, parameters: tuple[Any, ...]) -> bool:
+        """Run one statement. Returns whether the write path actually took the row.
+
+        Errors still stop here — a failing disk must not reach Plane 1 — but "absorbed" is not
+        "accepted", and a caller that increments a written counter or tells the operator a row
+        is persisted needs to know which of the two happened. Before this returned the answer,
+        `write_control_audit` could count a rejected duplicate as written and publish it to the
+        dashboard, with only `sink_errors` quietly disagreeing.
+        """
         connection = self._connection
         if connection is None:
             self._record_closed()
-            return
+            return False
         try:
             connection.execute(statement, parameters)
         except sqlite3.IntegrityError as error:
@@ -268,14 +276,15 @@ class TelemetryStore:
             # replace what actually happened. Counted, so the market cannot verify complete.
             self._record_error(error)
             self.duplicate_writes += 1
-            return
+            return False
         except sqlite3.Error as error:
             self._record_error(error)
-            return
+            return False
         self.rows_written += 1
         self._pending += 1
         if self._pending >= self.batch_size:
             self._flush()
+        return True
 
     def _record_closed(self) -> None:
         """A write that arrived when there was no connection to take it.
@@ -325,7 +334,7 @@ class TelemetryStore:
             (market_id, slug, condition_id, provenance, market_id),
         )
 
-    def _log(self, sequence: int, market_id: str, record_type: str, key: str) -> None:
+    def _log(self, sequence: int, market_id: str, record_type: str, key: str) -> bool:
         """One row per stored event-like record, in a single total storage order.
 
         The typed tables each have their own primary key, so nothing in them can show that the
@@ -335,17 +344,17 @@ class TelemetryStore:
         Storage order, not causality. `ingress_ordinal`, `risk_sequence` and the settlement
         block remain the orders that mean something.
         """
-        self._execute(
+        return self._execute(
             "INSERT INTO persistence_log"
             " (persistence_sequence, market_id, record_type, record_key) VALUES (?, ?, ?, ?)",
             (sequence, market_id, record_type, key),
         )
 
-    def write_decision(self, record: DecisionRecord) -> None:
-        self._log(
+    def write_decision(self, record: DecisionRecord) -> bool:
+        logged = self._log(
             record.persistence_sequence, record.market_id, "decision", str(record.ingress_ordinal)
         )
-        self._execute(
+        stored = self._execute(
             "INSERT INTO decisions (persistence_sequence, market_id,"
             " ingress_ordinal, capture_sequence, event_id, event_kind, schema_version, payload)"
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -360,10 +369,11 @@ class TelemetryStore:
                 _payload(record),
             ),
         )
+        return logged and stored
 
-    def write_fill(self, record: FillRecord) -> None:
-        self._log(record.persistence_sequence, record.market_id, "fill", record.event_id)
-        self._execute(
+    def write_fill(self, record: FillRecord) -> bool:
+        logged = self._log(record.persistence_sequence, record.market_id, "fill", record.event_id)
+        stored = self._execute(
             "INSERT INTO fills (persistence_sequence, market_id, ingress_ordinal,"
             " event_id, provenance, liquidity, schema_version, payload)"
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -378,10 +388,13 @@ class TelemetryStore:
                 _payload(record),
             ),
         )
+        return logged and stored
 
-    def write_risk(self, record: RiskRow) -> None:
-        self._log(record.persistence_sequence, record.market_id, "risk", str(record.risk_sequence))
-        self._execute(
+    def write_risk(self, record: RiskRow) -> bool:
+        logged = self._log(
+            record.persistence_sequence, record.market_id, "risk", str(record.risk_sequence)
+        )
+        stored = self._execute(
             "INSERT INTO risk_records (persistence_sequence, market_id,"
             " risk_sequence, as_of_ingress_ordinal, schema_version, payload)"
             " VALUES (?, ?, ?, ?, ?, ?)",
@@ -394,10 +407,13 @@ class TelemetryStore:
                 _payload(record),
             ),
         )
+        return logged and stored
 
-    def write_settlement(self, record: SettlementRow) -> None:
-        self._log(record.persistence_sequence, record.market_id, "settlement", record.condition_id)
-        self._execute(
+    def write_settlement(self, record: SettlementRow) -> bool:
+        logged = self._log(
+            record.persistence_sequence, record.market_id, "settlement", record.condition_id
+        )
+        stored = self._execute(
             "INSERT INTO settlements (persistence_sequence, market_id, condition_id,"
             " resolution_state, schema_version, payload) VALUES (?, ?, ?, ?, ?, ?)",
             (
@@ -409,11 +425,14 @@ class TelemetryStore:
                 _payload(record),
             ),
         )
+        return logged and stored
 
-    def write_control_audit(self, record: ControlAuditRow) -> None:
+    def write_control_audit(self, record: ControlAuditRow) -> bool:
         """Append-only, like every other event-like row, and unique on the command id."""
-        self._log(record.persistence_sequence, record.market_id, "control", record.command_id)
-        self._execute(
+        logged = self._log(
+            record.persistence_sequence, record.market_id, "control", record.command_id
+        )
+        stored = self._execute(
             "INSERT INTO control_audit (persistence_sequence, market_id, command_id, kind,"
             " accepted, risk_sequence, schema_version, payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (
@@ -427,6 +446,7 @@ class TelemetryStore:
                 _payload(record),
             ),
         )
+        return logged and stored
 
     def write_metrics(self, metrics: MarketMetrics) -> None:
         self._execute(

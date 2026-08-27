@@ -15,6 +15,7 @@ import sqlite3
 import threading
 import time
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -66,14 +67,22 @@ def test_sustained_concurrent_append_and_popleft_loses_nothing(tmp_path: Path) -
     is put under sustained two-thread load here instead of being taken on trust.
     """
     unit = worker(tmp_path, capacity=200_000)
-    unit.store.open()
     total = 40_000
     stop = threading.Event()
 
     def consume() -> None:
-        while not stop.is_set():
-            if unit.drain_once() == 0:
-                time.sleep(0.001)
+        # The draining thread opens the store, as the production worker does in `start()`. An
+        # earlier version of this test opened it on the main thread and drained here, so every
+        # write raised `SQLite objects created in a thread can only be used in that same
+        # thread` — and the test still passed, because a refused write was counted as written.
+        # 20,480 of the 40,000 "written" decisions were never in the file.
+        unit.store.open()
+        try:
+            while not stop.is_set() or unit.buffer.records:
+                if unit.drain_once() == 0:
+                    time.sleep(0.001)
+        finally:
+            unit.store.close()
 
     thread = threading.Thread(target=consume)
     thread.start()
@@ -81,18 +90,15 @@ def test_sustained_concurrent_append_and_popleft_loses_nothing(tmp_path: Path) -
         for seq in range(total):
             unit.buffer.capture(observation(seq))
     finally:
-        while unit.drain_once():
-            pass
         stop.set()
-        thread.join(10)
-    while unit.drain_once():
-        pass
-    unit.store.close()
+        thread.join(30)
 
     assert unit.stats.observations_consumed == total
     assert unit.stats.sequence_gaps == 0, "nothing was lost or reordered"
     assert unit.stats.lost_observations == 0
     assert unit.stats.decisions_written == total
+    assert unit.stats.write_failures == 0
+    assert unit.store.sink_errors == 0, "every one of those rows is actually in the file"
 
 
 # -- drops are exact and visible ---------------------------------------------------------------
@@ -290,3 +296,152 @@ def test_a_second_concurrent_drainer_is_turned_away_not_interleaved(tmp_path: Pa
     unit.store.close()
     assert unit.stats.sequence_gaps == 0
     assert unit.stats.lost_observations == 0
+
+
+# -- "written" means the row is in the file ----------------------------------------------------
+
+
+def _operator_command(command_id: str) -> Any:
+    from maker5m.ui import COMMAND_SCHEMA_VERSION, OperatorCommand
+
+    return OperatorCommand(
+        schema_version=COMMAND_SCHEMA_VERSION,
+        command_id=command_id,
+        kind="OPERATOR_HALT",
+        issued_at_ns=1,
+    )
+
+
+def _outcome(command_id: str) -> Any:
+    from maker5m.ui import CommandOutcome
+
+    return (
+        CommandOutcome(
+            command_id=command_id,
+            kind="OPERATOR_HALT",
+            accepted=True,
+            ingress_ordinal=10,
+            risk_sequence=0,
+            risk_state="HALTED",
+            allows_place=False,
+            detail="operator halt raised",
+        ),
+        True,
+    )
+
+
+def test_a_refused_control_row_is_not_counted_or_published(tmp_path: Path) -> None:
+    """§9. `write_control_audit` absorbs the IntegrityError; that is not the same as storing it.
+
+    The second row carries a command id the unique index already holds. The write path counts a
+    sink error and returns without the row. Before this contract existed, the worker incremented
+    `control_records_written` and called `on_control_record` anyway, so the manifest claimed a
+    row the file did not have and the dashboard listed it in the operator's history.
+    """
+    from maker5m.persistence import BoundedChannel
+
+    channel = BoundedChannel(capacity=8)
+    unit = worker(tmp_path, control_audit=channel)
+    published: list[Any] = []
+    unit.on_control_record = published.append
+    unit.store.open()
+
+    channel.publish((_operator_command("cmd-1"), _outcome("cmd-1")))
+    unit.drain_side_channels()
+    assert unit.stats.control_records_written == 1
+    assert len(published) == 1
+    assert unit.stats.write_failures == 0
+
+    before = unit.store.sink_errors
+    channel.publish((_operator_command("cmd-1"), _outcome("cmd-1")))
+    unit.drain_side_channels()
+    unit.store.close()
+
+    assert unit.stats.control_records_written == 1, "the refused row is not written"
+    assert len(published) == 1, "and it is not published as persisted"
+    assert unit.stats.write_failures == 1
+    assert unit.store.sink_errors > before
+    assert unit.store.duplicate_writes >= 1
+
+    stored = sqlite3.connect(tmp_path / "telemetry.sqlite3")
+    try:
+        assert next(iter(stored.execute("SELECT COUNT(*) FROM control_audit")))[0] == 1
+    finally:
+        stored.close()
+
+
+def test_the_operator_snapshot_never_lists_a_refused_control_row(tmp_path: Path) -> None:
+    """§9. The read model is fed by the callback, so the refusal has to reach it as silence."""
+    from maker5m.persistence import BoundedChannel
+    from maker5m.strategy import default_config
+    from maker5m.ui import SnapshotPublisher
+
+    channel = BoundedChannel(capacity=8)
+    unit = worker(tmp_path, control_audit=channel)
+    publisher = SnapshotPublisher(identity=identity(), config=default_config(), bridge=None)
+    unit.on_control_record = lambda row: publisher.deliver(
+        "control_persisted", {"command_id": row.command_id, "kind": row.kind}
+    )
+    unit.store.open()
+    for _ in range(2):
+        channel.publish((_operator_command("cmd-1"), _outcome("cmd-1")))
+        unit.drain_side_channels()
+    unit.store.close()
+
+    publisher._drain_inbox()
+    assert publisher.accepted_commands == [{"command_id": "cmd-1", "kind": "OPERATOR_HALT"}]
+
+
+def _risk_record(sequence: int) -> Any:
+    """One real P9 RiskRecord, produced by the risk controller rather than hand-built."""
+    from maker5m.market.events import HealthStatus
+    from maker5m.market.timebase import TimestampNs
+    from maker5m.risk import RiskConfig, RiskEngine, RiskProvenance
+    from maker5m.risk.trace import HealthFrame, RiskController
+
+    control = RiskController(
+        engine=RiskEngine(config=RiskConfig()), provenance=RiskProvenance.SUPPORTING_UNIT_TEST
+    )
+    frame = HealthFrame(
+        clob_status=HealthStatus.HEALTHY,
+        clob_awaiting_snapshot=False,
+        spot_status=HealthStatus.HEALTHY,
+    )
+    for ordinal in range(sequence + 1):
+        record = control.evaluate(
+            frame, as_of_ingress_ordinal=ordinal, now_ns=TimestampNs(ordinal + 1)
+        )
+    return record
+
+
+def test_a_refused_risk_row_is_not_counted_or_published(tmp_path: Path) -> None:
+    """§9, again for RiskRow: the same false-success path, the same contract."""
+    from maker5m.persistence import BoundedChannel
+
+    channel = BoundedChannel(capacity=8)
+    unit = worker(tmp_path, risk=channel)
+    published: list[Any] = []
+    unit.on_risk_record = published.append
+    unit.store.open()
+
+    channel.publish(_risk_record(0))
+    unit.drain_side_channels()
+    assert unit.stats.risk_written == 1
+    assert len(published) == 1
+
+    # A second verdict at a risk_sequence the file already holds. The unique index refuses it.
+    before = unit.store.sink_errors
+    channel.publish(_risk_record(0))
+    unit.drain_side_channels()
+    unit.store.close()
+
+    assert unit.stats.risk_written == 1
+    assert len(published) == 1
+    assert unit.stats.write_failures == 1
+    assert unit.store.sink_errors > before
+
+    stored = sqlite3.connect(tmp_path / "telemetry.sqlite3")
+    try:
+        assert next(iter(stored.execute("SELECT COUNT(*) FROM risk_records")))[0] == 1
+    finally:
+        stored.close()

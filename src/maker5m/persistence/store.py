@@ -21,6 +21,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+from collections.abc import Callable
 from dataclasses import dataclass, field, fields, is_dataclass
 from pathlib import Path
 from time import perf_counter_ns
@@ -196,10 +197,29 @@ class TelemetryStore:
 
     path: Path
     batch_size: int = DEFAULT_BATCH_SIZE
+    on_commit: Callable[[bool], None] | None = field(default=None, repr=False)
+    """Told the outcome of every commit attempt, on this store's own Plane-3 thread.
+
+    A statement entering the open transaction is not a durable record; the commit is what makes
+    it one. Whoever counts rows or announces them to an operator registers here and acts on the
+    commit, not on the insert."""
+
     _connection: sqlite3.Connection | None = field(default=None, repr=False)
     _pending: int = 0
+    """Rows accepted into the transaction that is currently open. Not durable."""
+
+    _in_transaction: bool = False
     sink_errors: int = 0
     rows_written: int = 0
+    """Statements the open transaction accepted, over the store's life. See `committed_rows`."""
+
+    committed_rows: int = 0
+    """Rows in transactions that committed successfully. This is the durable count."""
+
+    uncommitted_rows: int = 0
+    """Rows that were accepted and then lost when their transaction failed to commit."""
+
+    commit_failures: int = 0
     batches: int = 0
     transaction_ns: int = 0
     """Total time spent inside commits. An OPERATIONAL measurement, not a budget."""
@@ -240,29 +260,41 @@ class TelemetryStore:
         if not existing:
             connection.execute(f"PRAGMA user_version={STORE_SCHEMA_VERSION}")
         connection.execute("BEGIN")
+        self._in_transaction = True
         self._connection = connection
 
-    def close(self) -> None:
+    def close(self) -> bool:
+        """Commit whatever is left and close. Returns whether that final commit succeeded.
+
+        The last batch is almost never a full one, and a partial batch that is dropped because
+        it never reached `batch_size` would be a market losing its own tail. Called on the
+        thread that owns the connection.
+        """
         if self._connection is None:
-            return
+            return False
+        committed = True
         try:
-            self._flush()
+            committed = self._flush()
             self._connection.close()
         except sqlite3.Error as error:
             self._record_error(error)
+            committed = False
         finally:
             self._connection = None
+            self._in_transaction = False
+        return committed
 
     # -- writing ---------------------------------------------------------------------------
 
     def _execute(self, statement: str, parameters: tuple[Any, ...]) -> bool:
-        """Run one statement. Returns whether the write path actually took the row.
+        """Run one statement. Returns whether the **open transaction** accepted it.
 
         Errors still stop here — a failing disk must not reach Plane 1 — but "absorbed" is not
-        "accepted", and a caller that increments a written counter or tells the operator a row
-        is persisted needs to know which of the two happened. Before this returned the answer,
-        `write_control_audit` could count a rejected duplicate as written and publish it to the
-        dashboard, with only `sink_errors` quietly disagreeing.
+        "accepted", so the answer is returned rather than assumed.
+
+        `True` here is not durability. Writes are batched between `BEGIN` and `COMMIT`, so a
+        statement that returns `True` is in a transaction that has not committed yet and may
+        never commit. Durability is announced by `_flush`, through `on_commit`.
         """
         connection = self._connection
         if connection is None:
@@ -282,8 +314,6 @@ class TelemetryStore:
             return False
         self.rows_written += 1
         self._pending += 1
-        if self._pending >= self.batch_size:
-            self._flush()
         return True
 
     def _record_closed(self) -> None:
@@ -305,23 +335,93 @@ class TelemetryStore:
         if description not in self.error_samples and len(self.error_samples) < 8:
             self.error_samples.append(description)
 
-    def _flush(self) -> None:
+    def _maybe_flush(self) -> None:
+        """Commit the previous batch, if it is full, *before* starting another row.
+
+        Checked here rather than inside `_execute` for two reasons. A row and its storage-order
+        envelope are never split across two transactions, so a commit can only fall between
+        whole records. And the commit happens before the next row's first statement, so when a
+        writer returns, its row is always in the transaction that is open now — a caller that
+        notes the row afterwards cannot have it silently belong to a batch that already
+        committed. That ordering cost one decision its promotion when the check was at the end:
+        the last row of a market landed in the batch its own write had just committed, and the
+        close found nothing pending to announce it with.
+        """
+        if self._pending >= self.batch_size:
+            self._flush()
+
+    def _flush(self) -> bool:
+        """Commit the open transaction. Returns whether it committed.
+
+        Transaction state afterwards:
+
+        * **commit succeeded** — the rows are durable, a fresh transaction is open, and
+          `on_commit(True)` has been called so the worker can promote what it staged.
+        * **commit failed** — the error is counted, a rollback is attempted, `on_commit(False)`
+          is called so the worker discards those rows unannounced, and a fresh transaction is
+          opened if the connection still allows one. The rows are gone; their storage sequences
+          are not reissued, so the market cannot verify COMPLETE. That is the intended outcome:
+          a hole the verifier finds is better than a row an operator was told about that is not
+          in the file.
+        * **rollback failed** — counted as its own database error. SQLite has usually already
+          rolled the transaction back by then, which is why the failure is recorded and not
+          treated as fatal; `_in_transaction` records whether a transaction is open, and if the
+          fresh `BEGIN` also fails the store keeps working in autocommit and every subsequent
+          `sink_error` says so.
+        """
         connection = self._connection
-        if connection is None or self._pending == 0:
-            return
+        if connection is None:
+            return False
+        if self._pending == 0:
+            return True
+
         started = perf_counter_ns()
+        committed = False
         try:
             connection.execute("COMMIT")
+            committed = True
+            self._in_transaction = False
+        except sqlite3.Error as error:
+            self._record_error(error)
+            self.commit_failures += 1
+            self._rollback(connection)
+        self.transaction_ns += perf_counter_ns() - started
+        self.batches += 1
+
+        if committed:
+            self.committed_rows += self._pending
+        else:
+            self.uncommitted_rows += self._pending
+        self._pending = 0
+        self._begin(connection)
+
+        # After the accounting, so a callback that raises cannot leave the store's own view of
+        # its transaction wrong. It runs on this thread by contract; Plane 1 is not involved.
+        if self.on_commit is not None:
+            self.on_commit(committed)
+        return committed
+
+    def _rollback(self, connection: sqlite3.Connection) -> None:
+        try:
+            connection.execute("ROLLBACK")
+        except sqlite3.Error as error:
+            # Usually "cannot rollback - no transaction is active", because SQLite already did
+            # it. Recorded rather than assumed either way: guessing which of the two happened
+            # is exactly the kind of inference this round exists to remove.
+            self._record_error(error)
+        self._in_transaction = False
+
+    def _begin(self, connection: sqlite3.Connection) -> None:
+        try:
             connection.execute("BEGIN")
         except sqlite3.Error as error:
             self._record_error(error)
-        self.transaction_ns += perf_counter_ns() - started
-        self.batches += 1
-        self._pending = 0
+            return
+        self._in_transaction = True
 
-    def flush(self) -> None:
+    def flush(self) -> bool:
         """Commit whatever is pending. Called by the worker, never by Plane 1."""
-        self._flush()
+        return self._flush()
 
     def register_market(
         self, *, market_id: str, slug: str, condition_id: str | None, provenance: str
@@ -351,6 +451,7 @@ class TelemetryStore:
         )
 
     def write_decision(self, record: DecisionRecord) -> bool:
+        self._maybe_flush()
         logged = self._log(
             record.persistence_sequence, record.market_id, "decision", str(record.ingress_ordinal)
         )
@@ -372,6 +473,7 @@ class TelemetryStore:
         return logged and stored
 
     def write_fill(self, record: FillRecord) -> bool:
+        self._maybe_flush()
         logged = self._log(record.persistence_sequence, record.market_id, "fill", record.event_id)
         stored = self._execute(
             "INSERT INTO fills (persistence_sequence, market_id, ingress_ordinal,"
@@ -391,6 +493,7 @@ class TelemetryStore:
         return logged and stored
 
     def write_risk(self, record: RiskRow) -> bool:
+        self._maybe_flush()
         logged = self._log(
             record.persistence_sequence, record.market_id, "risk", str(record.risk_sequence)
         )
@@ -410,6 +513,7 @@ class TelemetryStore:
         return logged and stored
 
     def write_settlement(self, record: SettlementRow) -> bool:
+        self._maybe_flush()
         logged = self._log(
             record.persistence_sequence, record.market_id, "settlement", record.condition_id
         )
@@ -429,6 +533,7 @@ class TelemetryStore:
 
     def write_control_audit(self, record: ControlAuditRow) -> bool:
         """Append-only, like every other event-like row, and unique on the command id."""
+        self._maybe_flush()
         logged = self._log(
             record.persistence_sequence, record.market_id, "control", record.command_id
         )
@@ -455,7 +560,7 @@ class TelemetryStore:
             (metrics.market_id, metrics.schema_version, _payload(metrics)),
         )
 
-    def write_manifest(self, manifest: Manifest) -> None:
+    def write_manifest(self, manifest: Manifest) -> bool:
         """Record the manifest and mark the market closed.
 
         Closing is the *last* write on purpose. A crash before this leaves `closed = 0`, and the
@@ -466,7 +571,7 @@ class TelemetryStore:
             "UPDATE markets SET manifest_json = ?, closed = ? WHERE market_id = ?",
             (_payload(manifest), int(manifest.closed), manifest.market_id),
         )
-        self._flush()
+        return self._flush()
 
 
 def database_digest(path: Path) -> tuple[int, str]:

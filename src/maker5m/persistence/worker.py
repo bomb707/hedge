@@ -67,6 +67,8 @@ class WorkerStats:
 
     observations_consumed: int = 0
     decisions_written: int = 0
+    """Decision rows in transactions that **committed**. This is what the manifest counts."""
+
     fills_seen: int = 0
     passes: int = 0
     buffer_high_water: int = 0
@@ -79,10 +81,25 @@ class WorkerStats:
     risk_written: int = 0
     control_records_written: int = 0
     write_failures: int = 0
-    """Rows the SQLite write path refused. Each one also counted a `sink_errors`.
+    """Rows the SQLite write path refused outright. Each one also counted a `sink_errors`.
 
-    Separate from `consume_errors`: this is the store declining a row, not the worker throwing
-    on the way to it. Every written counter beside it means *durably accepted*."""
+    Separate from `consume_errors`: this is the store declining a statement, not the worker
+    throwing on the way to it, and separate again from `rows_lost_to_failed_commit`, which is a
+    statement the transaction took and the commit then lost."""
+
+    rows_accepted_into_transaction: int = 0
+    """Rows a transaction accepted. Not a durability count — see the `*_written` counters.
+
+    An `INSERT` between `BEGIN` and `COMMIT` is a statement, not a record. P12D counted these as
+    written and announced them to the operator, so a batch that failed to commit left the
+    manifest claiming rows the file does not have and the dashboard showing a command whose
+    audit row was never durable."""
+
+    rows_lost_to_failed_commit: int = 0
+    """Accepted rows whose transaction did not commit. Never announced, never counted written."""
+
+    commits: int = 0
+    failed_commits: int = 0
 
     fills_written: int = 0
     error_samples: list[str] = field(default_factory=list)
@@ -106,6 +123,10 @@ class WorkerStats:
             "risk_written": self.risk_written,
             "control_records_written": self.control_records_written,
             "write_failures": self.write_failures,
+            "rows_accepted_into_transaction": self.rows_accepted_into_transaction,
+            "rows_lost_to_failed_commit": self.rows_lost_to_failed_commit,
+            "commits": self.commits,
+            "failed_commits": self.failed_commits,
             "fills_written": self.fills_written,
             "error_samples": list(self.error_samples),
         }
@@ -154,6 +175,12 @@ class PersistenceWorker:
     """Each *successfully persisted* control-audit row. A dashboard's command history should
     describe durable evidence, not an in-memory list the ingress thread appended to."""
 
+    # Every callback above means the same thing: **the row is in a SQLite transaction that
+    # committed successfully**. None of them fires when the statement is merely accepted, and
+    # none fires at all for a transaction whose commit failed. A row is staged when it is
+    # written and promoted when its commit returns, which is why they arrive in bursts of a
+    # batch rather than one at a time — in storage order, exactly once each.
+
     """An optional Plane-3 observer of each built record — the UI snapshot publisher uses it.
 
     Called on this thread, after the row is written. It cannot reach Plane 1, and a failure in it
@@ -195,8 +222,74 @@ class PersistenceWorker:
     something was dropped, which is when the bound matters."""
     _expected_seq: int = 0
     _started: bool = False
+    _staged: list[tuple[str, Any]] = field(default_factory=list, repr=False)
+    """Rows accepted by the open transaction, waiting on its commit to become facts.
+
+    Held here rather than announced immediately: the store batches, so an accepted row is a
+    statement inside a transaction that may still fail. On commit these are promoted in the
+    order they were written; on failure they are dropped without ever having been counted or
+    published."""
+
+    _bound: bool = False
 
     # -- lifecycle -------------------------------------------------------------------------
+
+    def _bind(self) -> None:
+        """Take the store's commit notifications. Idempotent, and never on Plane 1."""
+        if not self._bound:
+            self.store.on_commit = self._transaction_settled
+            self._bound = True
+
+    def _stage(self, kind: str, payload: Any) -> None:
+        """Note a row the open transaction accepted. Nothing is announced yet."""
+        self.stats.rows_accepted_into_transaction += 1
+        self._staged.append((kind, payload))
+
+    def _transaction_settled(self, committed: bool) -> None:
+        """One transaction ended. Promote what it made durable, or drop what it lost.
+
+        Runs on the store's own thread, inside `flush`. A callback that raises is counted like
+        any other consume error rather than being allowed to abandon the rest of the batch —
+        one broken observer must not cost the others their promotion.
+        """
+        staged, self._staged = self._staged, []
+        if not committed:
+            self.stats.failed_commits += 1
+            self.stats.rows_lost_to_failed_commit += len(staged)
+            return
+        self.stats.commits += 1
+        for kind, payload in staged:
+            try:
+                self._promote(kind, payload)
+            except Exception as error:
+                self._record_consume_error(error)
+
+    def _promote(self, kind: str, payload: Any) -> None:
+        """One durable row: count it, fold it into the metrics, and announce it."""
+        if kind == "decision":
+            record, observation = payload
+            self.stats.decisions_written += 1
+            if self.first_ingress_ordinal is None:
+                self.first_ingress_ordinal = record.ingress_ordinal
+            self.last_ingress_ordinal = record.ingress_ordinal
+            if self.metrics is not None:
+                self.metrics.observe_decision(record)
+            if self.on_record is not None:
+                self.on_record(record)
+            if self.on_decision_record is not None:
+                self.on_decision_record(record, observation)
+        elif kind == "risk":
+            self.stats.risk_written += 1
+            if self.on_risk_record is not None:
+                self.on_risk_record(payload)
+        elif kind == "control":
+            self.stats.control_records_written += 1
+            if self.on_control_record is not None:
+                self.on_control_record(payload)
+        elif kind == "fill":
+            self.stats.fills_written += 1
+            if self.metrics is not None:
+                self.metrics.observe_fill(payload)
 
     def start(self) -> None:
         """Launch the consumer. The connection is opened *by the thread that will use it*.
@@ -211,6 +304,7 @@ class PersistenceWorker:
         if self._started:
             raise RuntimeError("worker already started")
         self._started = True
+        self._bind()
         self._thread = threading.Thread(target=self._run, name="maker5m-persistence", daemon=True)
         self._thread.start()
         if not self._ready.wait(timeout=10.0):
@@ -274,6 +368,7 @@ class PersistenceWorker:
         **Single consumer.** Concurrent callers are turned away rather than interleaved; see
         `_draining`.
         """
+        self._bind()
         if not self._draining.acquire(blocking=False):
             # Another thread is already draining. Returning rather than waiting keeps this a
             # non-blocking consumer, and the observations are not lost — the other drainer has
@@ -335,6 +430,7 @@ class PersistenceWorker:
         it governed keeps that reference satisfiable at every point in the file, including after
         a crash.
         """
+        self._bind()
         if not self._draining.acquire(blocking=False):
             return 0
         try:
@@ -369,9 +465,7 @@ class PersistenceWorker:
                     # store does not have.
                     self.stats.write_failures += 1
                     continue
-                self.stats.risk_written += 1
-                if self.on_risk_record is not None:
-                    self.on_risk_record(record)
+                self._stage("risk", record)
             except Exception as error:
                 self._record_consume_error(error)
         channel.drained += taken
@@ -400,9 +494,13 @@ class PersistenceWorker:
                 if not self.store.write_control_audit(row):
                     self.stats.write_failures += 1
                     continue
-                self.stats.control_records_written += 1
-                if self.on_control_record is not None:
-                    self.on_control_record(row)
+                self._stage("control", row)
+                # Commands are rare — two in a busy market — and an operator watching a halt
+                # should not wait for a telemetry batch to fill before their command is durable
+                # evidence. Risk records are drained before control records, so the
+                # OPERATOR_CONTROL RiskRow this row names is already in the same transaction
+                # (or in one that has already committed). Plane 3 throughout.
+                self.store.flush()
             except Exception as error:
                 self._record_consume_error(error)
         channel.drained += taken
@@ -427,9 +525,7 @@ class PersistenceWorker:
                 if not self.store.write_fill(record):
                     self.stats.write_failures += 1
                     continue
-                if self.metrics is not None:
-                    self.metrics.observe_fill(record)
-                self.stats.fills_written += 1
+                self._stage("fill", record)
             except Exception as error:
                 self._record_consume_error(error)
         channel.drained += taken
@@ -464,19 +560,13 @@ class PersistenceWorker:
             up_estimate=self._estimate("UP"),
             down_estimate=self._estimate("DOWN"),
         )
-        if self.first_ingress_ordinal is None:
-            self.first_ingress_ordinal = record.ingress_ordinal
-        self.last_ingress_ordinal = record.ingress_ordinal
         if not self.store.write_decision(record):
             self.stats.write_failures += 1
             return
-        if self.metrics is not None:
-            self.metrics.observe_decision(record)
-        if self.on_record is not None:
-            self.on_record(record)
-        if self.on_decision_record is not None:
-            self.on_decision_record(record, observation)
-        self.stats.decisions_written += 1
+        # Counted, folded into the metrics and announced when its transaction commits — not
+        # here. The ingress span the manifest reports is promoted with the row, so it describes
+        # what is durably in the file rather than what a transaction was once holding.
+        self._stage("decision", (record, observation))
 
     def _estimate(self, side: str) -> Any:
         """P8's queue estimate for one side, or ``None``. Never a second queue model."""

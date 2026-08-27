@@ -1,0 +1,68 @@
+{
+  "agreement": {
+    "decide_duration": true,
+    "prepare_duration": true,
+    "receive_to_reconcile": true,
+    "reconcile_duration": true
+  },
+  "counts": {
+    "decide_duration": 4883,
+    "prepare_duration": 4883,
+    "receive_to_reconcile": 4883,
+    "reconcile_duration": 4883
+  },
+  "cycles_compared": 4883,
+  "definitions": {
+    "decide_ns": "OBS_DECIDE_STAGE_NS - OBS_REDUCE_STAGE_NS (P8 decide_duration)",
+    "prepare_ns": "OBS_PREPARE_DONE_NS - OBS_DECIDE_DONE_NS",
+    "receive_to_decide_ns": "OBS_DECIDE_DONE_NS - OBS_RAW_RECEIVE_NS (P8 by_kind)",
+    "receive_to_reconcile_ns": "OBS_RECONCILE_DONE_NS - OBS_RAW_RECEIVE_NS",
+    "reconcile_ns": "OBS_RECONCILE_DONE_NS - OBS_PREPARE_DONE_NS"
+  },
+  "events_replayed": 40000,
+  "every_figure_agrees": true,
+  "examples": [
+    {
+      "decide_ns": 41651,
+      "prepare_ns": 3613,
+      "receive_to_decide_ns": 60069,
+      "receive_to_reconcile_ns": 75953,
+      "reconcile_ns": 12271
+    },
+    {
+      "decide_ns": 10864,
+      "prepare_ns": 837,
+      "receive_to_decide_ns": 14864,
+      "receive_to_reconcile_ns": 20825,
+      "reconcile_ns": 5124
+    },
+    {
+      "decide_ns": 10268,
+      "prepare_ns": 659,
+      "receive_to_decide_ns": 13766,
+      "receive_to_reconcile_ns": 18000,
+      "reconcile_ns": 3575
+    },
+    {
+      "decide_ns": 11198,
+      "prepare_ns": 785,
+      "receive_to_decide_ns": 17596,
+      "receive_to_reconcile_ns": 22391,
+      "reconcile_ns": 4010
+    },
+    {
+      "decide_ns": 10720,
+      "prepare_ns": 784,
+      "receive_to_decide_ns": 15439,
+      "receive_to_reconcile_ns": 19889,
+      "reconcile_ns": 3666
+    }
+  ],
+  "first_mismatch": null,
+  "journal": "btc-updown-5m-1787647500.journal.ndjson",
+  "kind": "P12D_LATENCY_DEFINITION_REPLAY",
+  "note": "Every cycle P8's analyzer measured, compared figure by figure against what the UI would publish for the same observation. P12C published receive-to-decide as decide_ns and would disagree on every one of them.",
+  "observations_captured": 40000,
+  "provenance": "REPLAY_OF_REAL_CAPTURE",
+  "slug": "btc-updown-5m-1787647500"
+}

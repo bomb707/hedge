@@ -823,6 +823,14 @@ P12D adds a fourth, from the metric contract:
   model publishes now names the P8 definition it carries, and a replay compares all four against
   `TelemetryAnalyzer` on real cycles rather than asserting they match.
 
+P12E adds a fifth, and it is the same shape one layer down:
+
+* **Durability has a boundary, and it is the commit.** "The method returned", "the statement was
+  accepted" and "the transaction committed" are three different facts, and P12/P12D each read one
+  of them as the last. Every counter and callback that feeds the manifest, the verifier or an
+  operator's screen now names which one it means. Where a batching store is involved, an
+  acceptance is not a record until its transaction says so.
+
 ---
 
 ## Summary table

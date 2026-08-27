@@ -6,6 +6,7 @@ a corrupt artifact is refused. What the latencies *were* comes from real markets
 
 from __future__ import annotations
 
+import hashlib
 import json
 import lzma
 from pathlib import Path
@@ -15,6 +16,7 @@ import pytest
 from tools.p13_corpus_report import merged_latency
 
 from maker5m.bot import LATENCY_SCHEMA_VERSION, read_latency, write_latency
+from maker5m.bot.latency import validate_latency_identity
 from maker5m.telemetry import SamplingPolicy, TelemetryAnalyzer
 from maker5m.telemetry.metrics import quantile
 
@@ -257,3 +259,117 @@ def test_a_market_missing_one_trigger_is_not_evidence(tmp_path: Path) -> None:
     entry = supervisor._entry(unit, clean_cold())
     assert entry["evidence_eligible"] is False
     assert any("one of the two triggers" in fault for fault in entry["operational_faults"])
+
+
+# -- §16: exact means typed, and required means present ----------------------------------------
+
+
+def rewrite(entry: dict[str, Any], **changes: Any) -> dict[str, Any]:
+    """Rewrite an artifact's payload in place, keeping its hash consistent with its bytes."""
+    path = Path(entry["latency_artifact"]["path"])
+    payload = read_latency(path)
+    for key, value in changes.items():
+        if value is _ABSENT:
+            payload.pop(key, None)
+        elif key == "sample_every":
+            if value is _ABSENT:
+                payload["sampling"].pop("sample_every", None)
+            else:
+                payload["sampling"]["sample_every"] = value
+        else:
+            payload[key] = value
+    raw = lzma.compress(json.dumps(payload).encode())
+    path.write_bytes(raw)
+    return {
+        **entry,
+        "latency_artifact": {
+            **entry["latency_artifact"],
+            "sha256": hashlib.sha256(raw).hexdigest(),
+        },
+    }
+
+
+class _Absent:
+    pass
+
+
+_ABSENT = _Absent()
+
+
+@pytest.mark.parametrize("value", [True, 1.0, "1", None])
+def test_a_schema_version_of_the_wrong_type_is_refused(tmp_path: Path, value: Any) -> None:
+    """`True == 1` and `1.0 == 1` in Python. "Exact equality" has to be written, not just said."""
+    entry = written(tmp_path, "market-a", [1], [2], [3])
+    broken = rewrite(entry, schema_version=value)
+
+    with pytest.raises(ValueError, match="schema"):
+        read_latency(
+            Path(broken["latency_artifact"]["path"]),
+            expected_sha256=broken["latency_artifact"]["sha256"],
+            expected_identity=broken,
+        )
+
+
+@pytest.mark.parametrize("value", [True, 1_787_811_600_000_000_000.0])
+def test_a_t0_of_the_wrong_type_is_refused(tmp_path: Path, value: Any) -> None:
+    entry = written(tmp_path, "market-a", [1], [2], [3])
+    broken = rewrite(entry, t0_ns=value)
+    problems = validate_latency_identity(
+        read_latency(Path(broken["latency_artifact"]["path"])), entry
+    )
+    assert any("t0_ns" in problem for problem in problems)
+
+
+@pytest.mark.parametrize("value", [10.0, True])
+def test_a_sample_every_of_the_wrong_type_is_refused(tmp_path: Path, value: Any) -> None:
+    entry = written(tmp_path, "market-a", [1], [2], [3])
+    broken = rewrite(entry, sample_every=value)
+    payload = read_latency(Path(broken["latency_artifact"]["path"]))
+    problems = validate_latency_identity(payload, {**entry, "sample_every": 10})
+    assert any("sample_every" in problem for problem in problems)
+
+
+def test_a_missing_sample_every_is_refused(tmp_path: Path) -> None:
+    entry = written(tmp_path, "market-a", [1], [2], [3])
+    path = Path(entry["latency_artifact"]["path"])
+    payload = read_latency(path)
+    del payload["sampling"]["sample_every"]
+    path.write_bytes(lzma.compress(json.dumps(payload).encode()))
+
+    problems = validate_latency_identity(read_latency(path), entry)
+    assert "sampling.sample_every is absent from the artifact" in problems
+
+
+@pytest.mark.parametrize("field_name", ["condition_id", "t0_ns"])
+def test_a_missing_required_identity_field_is_refused(tmp_path: Path, field_name: str) -> None:
+    """§15. These were compared only when present, which contradicts the rule beside them."""
+    entry = written(tmp_path, "market-a", [1], [2], [3])
+    path = Path(entry["latency_artifact"]["path"])
+    payload = read_latency(path)
+    del payload[field_name]
+    path.write_bytes(lzma.compress(json.dumps(payload).encode()))
+
+    problems = validate_latency_identity(read_latency(path), entry)
+    assert f"{field_name} is absent from the artifact" in problems
+
+
+def test_a_string_identity_field_of_the_wrong_type_is_refused(tmp_path: Path) -> None:
+    entry = written(tmp_path, "market-a", [1], [2], [3])
+    path = Path(entry["latency_artifact"]["path"])
+    payload = read_latency(path)
+    payload["slug"] = 12345
+    path.write_bytes(lzma.compress(json.dumps(payload).encode()))
+
+    problems = validate_latency_identity(read_latency(path), entry)
+    assert any("not a str" in problem for problem in problems)
+
+
+def test_a_correct_artifact_still_passes_the_strict_validator(tmp_path: Path) -> None:
+    entry = written(tmp_path, "market-a", [1, 2], [3], [4])
+    payload = read_latency(
+        Path(entry["latency_artifact"]["path"]),
+        expected_sha256=entry["latency_artifact"]["sha256"],
+        expected_identity={**entry, "sample_every": 10},
+    )
+    assert payload["slug"] == "market-a"
+    assert validate_latency_identity(payload, {**entry, "sample_every": 10}) == []

@@ -51,23 +51,27 @@ it describes a different market, and letting it satisfy the gate would make the 
 class AttemptIndex:
     """The attempt ledger, indexed once, with its inconsistencies already visible."""
 
-    starts: dict[str, dict[str, Any]]
+    starts: dict[str, list[dict[str, Any]]]
     terminals: dict[str, list[dict[str, Any]]]
 
     @classmethod
     def build(cls, events: Iterable[dict[str, Any]]) -> AttemptIndex:
-        starts: dict[str, dict[str, Any]] = {}
+        starts: dict[str, list[dict[str, Any]]] = {}
         terminals: dict[str, list[dict[str, Any]]] = {}
         for event in events:
             attempt = str(event.get("attempt_id"))
             name = str(event.get("event"))
             if name == STARTED:
-                starts[attempt] = event
+                # Lists on both sides. An assignment would collapse two starts for one attempt
+                # into one and quietly pick a winner, and "exactly one ATTEMPT_STARTED" is a
+                # contract, not a description of the usual case.
+                starts.setdefault(attempt, []).append(event)
             elif name in {FINISHED, FAILED, ABORTED}:
-                # A list, not an assignment. Two terminal events for one attempt is a ledger
-                # inconsistency, and last-one-wins would hide exactly the case worth seeing.
                 terminals.setdefault(attempt, []).append(event)
         return cls(starts=starts, terminals=terminals)
+
+    def duplicate_starts(self) -> dict[str, int]:
+        return {attempt: len(events) for attempt, events in self.starts.items() if len(events) > 1}
 
     def duplicates(self) -> dict[str, list[str]]:
         return {
@@ -82,7 +86,9 @@ class AttemptIndex:
     def counts(self) -> dict[str, int]:
         names = [str(event.get("event")) for events in self.terminals.values() for event in events]
         return {
-            "attempts_started": len(self.starts),
+            "attempts_started": sum(len(events) for events in self.starts.values()),
+            "attempt_ids_started": len(self.starts),
+            "duplicate_start_attempts": len(self.duplicate_starts()),
             "attempts_finished": names.count(FINISHED),
             "attempts_failed": names.count(FAILED),
             "attempts_aborted": names.count(ABORTED),
@@ -148,9 +154,12 @@ def _attempt_reasons(entry: dict[str, Any], attempts: AttemptIndex) -> list[str]
     if not attempt_id:
         return ["the row names no attempt"]
     attempt = str(attempt_id)
-    start = attempts.starts.get(attempt)
-    if start is None:
+    started = attempts.starts.get(attempt, [])
+    if not started:
         return [f"no ATTEMPT_STARTED for {attempt}"]
+    if len(started) > 1:
+        return [f"the attempt has {len(started)} ATTEMPT_STARTED records"]
+    start = started[0]
 
     terminals = attempts.terminals.get(attempt, [])
     if not terminals:
@@ -170,12 +179,16 @@ def _attempt_reasons(entry: dict[str, Any], attempts: AttemptIndex) -> list[str]
     if terminal.get("corpus_appended") is not True:
         reasons.append("the terminal record does not say the corpus row was written")
 
+    # Present *and* equal, on both records. Treating an absent field as agreement is how a
+    # half-written audit trail passes an audit: the field nobody wrote is the field nobody can
+    # check, and this contract says every one of them is written.
     for name in JOINED_IDENTITY:
         wanted = entry.get(name)
-        if name in start and start.get(name) != wanted:
-            reasons.append(f"ATTEMPT_STARTED {name} {start.get(name)!r}, row {wanted!r}")
-        if name in terminal and terminal.get(name) != wanted:
-            reasons.append(f"terminal {name} {terminal.get(name)!r}, row {wanted!r}")
+        for label, event in (("ATTEMPT_STARTED", start), ("terminal", terminal)):
+            if name not in event:
+                reasons.append(f"{label} is missing {name}")
+            elif event.get(name) != wanted:
+                reasons.append(f"{label} {name} {event.get(name)!r}, row {wanted!r}")
     return reasons
 
 

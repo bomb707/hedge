@@ -10,6 +10,8 @@ import asyncio
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from maker5m.bot import AttemptIndex, UiPlane, qualifying_rows
 from maker5m.bot.attempts import ABORTED, FINISHED, STARTED, AttemptLedger
 from tests.bot.test_multi_market import acceptance, clean_cold, collected, paper
@@ -295,3 +297,87 @@ def test_a_swapped_latency_artifact_fails_the_joined_qualification(tmp_path: Pat
     assert judgement.qualifies is False
     assert any("not this market's latency" in reason for reason in judgement.reasons)
     assert supervisor.qualifying_now() == 0
+
+
+# -- §9-12: exactly one start, and identity that cannot be absent ------------------------------
+
+
+def test_two_start_records_for_one_attempt_do_not_qualify(tmp_path: Path) -> None:
+    """§10. A dict keyed by attempt id collapsed these and quietly picked a winner."""
+    supervisor = acceptance(paper(tmp_path))
+    build = build_of(supervisor)
+    attempt = supervisor.ledger.start(slug="btc-updown-5m-1", t0_ns=1, identity=build)
+    # The same attempt registered twice — a retry, a duplicated line, a confused restart.
+    supervisor.ledger._append(
+        {"event": STARTED, "attempt_id": attempt, "slug": "btc-updown-5m-1", **build}
+    )
+    supervisor.corpus.append(row_for(supervisor, "btc-updown-5m-1", attempt))
+    supervisor.ledger.finish(attempt, slug="btc-updown-5m-1", corpus_appended=True, **build)
+
+    index = AttemptIndex.build(supervisor.ledger.events())
+    assert index.duplicate_starts() == {attempt: 2}
+    assert index.counts()["duplicate_start_attempts"] == 1
+
+    judgement = judge(supervisor)[0]
+    assert judgement.qualifies is False
+    assert judgement.reasons == ("the attempt has 2 ATTEMPT_STARTED records",)
+
+
+def test_two_disagreeing_start_records_still_fail_on_the_duplication(tmp_path: Path) -> None:
+    """Which of the two is right is not the question. Two is already wrong."""
+    supervisor = acceptance(paper(tmp_path))
+    build = build_of(supervisor)
+    attempt = supervisor.ledger.start(slug="btc-updown-5m-1", t0_ns=1, identity=build)
+    supervisor.ledger._append(
+        {
+            "event": STARTED,
+            "attempt_id": attempt,
+            **{**build, "slug": "btc-updown-5m-9", "epoch": "somewhere-else"},
+        }
+    )
+    supervisor.corpus.append(row_for(supervisor, "btc-updown-5m-1", attempt))
+    supervisor.ledger.finish(attempt, slug="btc-updown-5m-1", corpus_appended=True, **build)
+
+    judgement = judge(supervisor)[0]
+    assert judgement.qualifies is False
+    assert "2 ATTEMPT_STARTED" in judgement.reasons[0]
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    ["slug", "epoch", "config_sha256", "source_revision", "source_tree_sha", "run_mode"],
+)
+def test_a_terminal_missing_a_required_identity_field_does_not_qualify(
+    tmp_path: Path, field_name: str
+) -> None:
+    """§12. Absence is not agreement: the field nobody wrote is the field nobody can check."""
+    supervisor = acceptance(paper(tmp_path))
+    build = build_of(supervisor)
+    attempt = supervisor.ledger.start(slug="btc-updown-5m-1", t0_ns=1, identity=build)
+    supervisor.corpus.append(row_for(supervisor, "btc-updown-5m-1", attempt))
+    partial = {k: v for k, v in {**build, "slug": "btc-updown-5m-1"}.items() if k != field_name}
+    supervisor.ledger.finish(attempt, corpus_appended=True, **partial)
+
+    judgement = judge(supervisor)[0]
+    assert judgement.qualifies is False
+    assert f"terminal is missing {field_name}" in judgement.reasons
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    ["slug", "epoch", "config_sha256", "source_revision", "source_tree_sha", "run_mode"],
+)
+def test_a_start_missing_a_required_identity_field_does_not_qualify(
+    tmp_path: Path, field_name: str
+) -> None:
+    supervisor = acceptance(paper(tmp_path))
+    build = build_of(supervisor)
+    attempt = "0" * 32
+    partial = {k: v for k, v in {**build, "slug": "btc-updown-5m-1"}.items() if k != field_name}
+    supervisor.ledger._append({"event": STARTED, "attempt_id": attempt, **partial})
+    supervisor.corpus.append(row_for(supervisor, "btc-updown-5m-1", attempt))
+    supervisor.ledger.finish(attempt, corpus_appended=True, **{**build, "slug": "btc-updown-5m-1"})
+
+    judgement = judge(supervisor)[0]
+    assert judgement.qualifies is False
+    assert f"ATTEMPT_STARTED is missing {field_name}" in judgement.reasons

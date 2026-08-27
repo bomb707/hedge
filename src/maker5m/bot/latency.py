@@ -131,19 +131,30 @@ def write_latency(
     )
 
 
-IDENTITY: Final[tuple[str, ...]] = (
+TEXT_IDENTITY: Final[tuple[str, ...]] = (
     "slug",
     "market_id",
+    "condition_id",
     "source_revision",
     "source_tree_sha",
     "config_sha256",
     "epoch",
     "run_mode",
 )
-"""What an artifact must agree with its corpus row about. All of them, exactly."""
+"""What an artifact must agree with its corpus row about. All of them, present, and exact.
 
-OPTIONAL_IDENTITY: Final[tuple[str, ...]] = ("condition_id", "t0_ns")
-"""Compared when the row carries them. Present-and-different is a mismatch; absent is not."""
+`condition_id` and `t0_ns` were optional — compared when both sides carried them — which
+contradicts the rule stated three lines away: missing is not equality. For a v1 artifact they are
+part of the contract, so an artifact that omits one cannot satisfy a comparison against it."""
+
+
+def _exact_str(value: Any) -> bool:
+    return type(value) is str
+
+
+def _exact_int(value: Any) -> bool:
+    """A real integer. `True` is an `int` in Python and is not a schema version."""
+    return type(value) is int
 
 
 def validate_latency_identity(payload: dict[str, Any], expected: dict[str, Any]) -> list[str]:
@@ -158,36 +169,47 @@ def validate_latency_identity(payload: dict[str, Any], expected: dict[str, Any])
     field cannot satisfy a comparison against it. Returns the mismatches; empty means it agrees.
     """
     problems: list[str] = []
-    if payload.get("schema_version") != LATENCY_SCHEMA_VERSION:
+    version = payload.get("schema_version")
+    if not _exact_int(version) or version != LATENCY_SCHEMA_VERSION:
+        # `True == 1` and `1.0 == 1` in Python, so plain equality would accept a boolean or a
+        # float as a schema version. "Exact equality, no coercion" has to be written as well as
+        # said.
         problems.append(
-            f"schema_version {payload.get('schema_version')!r}, expected {LATENCY_SCHEMA_VERSION}"
+            f"schema_version {version!r} ({type(version).__name__}), expected "
+            f"{LATENCY_SCHEMA_VERSION} as an int"
         )
     if payload.get("kind") != "P13_LIVE_LATENCY":
         problems.append(f"kind {payload.get('kind')!r}")
     if payload.get("provenance") != "REAL_PUBLIC_MARKET_DATA":
         problems.append(f"provenance {payload.get('provenance')!r}")
 
-    for field_name in IDENTITY:
+    for field_name in TEXT_IDENTITY:
         want = expected.get(field_name)
         got = payload.get(field_name)
         if field_name not in payload:
             problems.append(f"{field_name} is absent from the artifact")
+        elif not _exact_str(got):
+            problems.append(f"{field_name} {got!r} is a {type(got).__name__}, not a str")
         elif got != want:
             problems.append(f"{field_name} {got!r}, the row says {want!r}")
 
-    for field_name in OPTIONAL_IDENTITY:
-        if field_name not in expected or field_name not in payload:
-            continue
-        if payload[field_name] != expected[field_name]:
-            problems.append(
-                f"{field_name} {payload[field_name]!r}, the row says {expected[field_name]!r}"
-            )
+    if "t0_ns" not in payload:
+        problems.append("t0_ns is absent from the artifact")
+    elif not _exact_int(payload["t0_ns"]):
+        problems.append(
+            f"t0_ns {payload['t0_ns']!r} is a {type(payload['t0_ns']).__name__}, not an int"
+        )
+    elif payload["t0_ns"] != expected.get("t0_ns"):
+        problems.append(f"t0_ns {payload['t0_ns']!r}, the row says {expected.get('t0_ns')!r}")
 
-    sample_every = expected.get("sample_every")
-    if sample_every is not None:
-        recorded = (payload.get("sampling") or {}).get("sample_every")
-        if recorded != sample_every:
-            problems.append(f"sample_every {recorded!r}, the run used {sample_every!r}")
+    recorded = (payload.get("sampling") or {}).get("sample_every")
+    wanted = expected.get("sample_every")
+    if recorded is None:
+        problems.append("sampling.sample_every is absent from the artifact")
+    elif not _exact_int(recorded):
+        problems.append(f"sample_every {recorded!r} is a {type(recorded).__name__}, not an int")
+    elif wanted is not None and recorded != wanted:
+        problems.append(f"sample_every {recorded!r}, the run used {wanted!r}")
     return problems
 
 

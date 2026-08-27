@@ -168,7 +168,9 @@ def accounting(
     }
     return {
         **counts,
+        "duplicate_start_detail": attempts.duplicate_starts(),
         "duplicate_terminal_detail": attempts.duplicates(),
+        "ledger_consistent": not attempts.duplicate_starts() and not attempts.duplicates(),
         "corpus_rows": len(rows),
         "qualifying_rows": sum(1 for judgement in judgements if judgement.qualifies),
         "rows_without_attempt_id": no_attempt,

@@ -201,6 +201,8 @@ class Supervisor:
     recovered_attempts: list[dict[str, Any]] = field(default_factory=list)
     integrity_faults: list[str] = field(default_factory=list)
     halted_for_integrity: bool = False
+    last_durable_count: int = 0
+    """The joined qualifying count as of the last finalisation. Read, never accumulated."""
     gc_observer: GcObserver = field(default_factory=GcObserver)
     allow_dirty_requested: bool = False
     run_mode: str = field(init=False, default="ACCEPTANCE_CLEAN")
@@ -501,6 +503,29 @@ class Supervisor:
             self.lifecycle_high_water = self.lifecycles
         return True
 
+    def _recount(self, slug: str) -> None:
+        """Re-derive the completion total from the durable record. Never `+= 1`.
+
+        A counter maintained by hand beside a rule maintained somewhere else drifts, and this one
+        did: an increment written when the corpus row landed survived beside the increment written
+        when the terminal record landed, so every successful market counted twice and a
+        `--markets 200` run would have stopped at about a hundred. The live log said "(8 durable)"
+        over four rows.
+
+        So the total is not incremented at all — it is read back out of the corpus and the ledger
+        by the same joined qualification the resume arithmetic and the final report use, and the
+        two are compared. If they ever disagree, that is a collector-integrity fault, because a
+        run that cannot count its own evidence has nothing to say about two hundred markets.
+        """
+        durable = self.qualifying_now()
+        self.last_durable_count = durable
+        self.completed_this_process = max(0, durable - self.completed_existing)
+        if self.completed != durable:  # pragma: no cover - arithmetic, kept as a tripwire
+            self._integrity_fault(
+                f"after finalising {slug} the runtime total is {self.completed} and the durable "
+                f"joined count is {durable}"
+            )
+
     def _integrity_fault(self, detail: str) -> None:
         """The audit trail failed. Record it, and stop collecting *acceptance* evidence.
 
@@ -563,14 +588,6 @@ class Supervisor:
             if not appended:
                 self.append_failures += 1
                 self.log(f"    corpus append FAILED for {session.slug}; it does not count")
-            elif entry.get("verification_status") == "COMPLETE" and entry.get("evidence_eligible"):
-                self.completed_this_process += 1
-            self.log(
-                f"    {session.slug}: {entry.get('verification_status')} "
-                f"replay={entry.get('replay', {}).get('status')} "
-                f"eligible={entry.get('evidence_eligible')} appended={appended} "
-                f"({self.completed} durable)"
-            )
         except Exception as error:  # pragma: no cover - the cold path never kills the run
             self.log(f"    {session.slug}: cold path failed: {type(error).__name__}: {error}")
             session.incidents.append(f"cold path failed: {type(error).__name__}: {error}")
@@ -602,17 +619,13 @@ class Supervisor:
                     f"the terminal attempt record for {session.slug} could not be written; "
                     "the market is retained and cannot count"
                 )
-            elif (
-                appended
-                and entry.get("verification_status") == "COMPLETE"
-                and entry.get("evidence_eligible")
-            ):
-                self.completed_this_process += 1
+            self._recount(session.slug)
             self.log(
                 f"    {session.slug}: {entry.get('verification_status')} "
                 f"replay={entry.get('replay', {}).get('status')} "
                 f"eligible={entry.get('evidence_eligible')} appended={appended} "
-                f"terminal={terminal} ({self.completed} durable)"
+                f"terminal={terminal} "
+                f"(runtime {self.completed} / durable {self.last_durable_count})"
             )
             self._release()
 

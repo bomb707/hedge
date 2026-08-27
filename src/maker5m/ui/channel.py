@@ -10,17 +10,43 @@ survivable.
 
 A directory is left. The bot writes the snapshot by writing a temporary file and renaming it,
 which is atomic on POSIX, so a reader either sees the previous snapshot or the next one and never
-half of either. The UI writes commands as individual files into an inbox; the bot lists the
-directory, reads what is there, and never waits for anyone. Killing either process leaves a
-directory, which needs no recovery because it was never a connection.
+half of either. The UI writes commands as individual files into an inbox. Killing either process
+leaves a directory, which needs no recovery because it was never a connection.
+
+Who reads the directory
+-----------------------
+Not the bot's ingress owner. That was P12's first shape and P12B moved it, because a `listdir`
+can stall on the filesystem with no UI involved at all. The path is::
+
+    UI process  ->  filesystem inbox  ->  Plane-3 CommandBridge  ->  bounded memory channel
+                                                                        ->  ingress owner
+
+The bridge is the only thing that lists, stats, reads, decodes or unlinks a command file. What
+the ingress owner does is `popleft` from a deque of already-decoded immutable commands: no
+syscall, no serialization, no lock. `CommandInbox.drain` remains for supporting tests and for a
+single-process caller that is already off the ingress path.
 
 The asymmetry the invariant demands falls straight out of it: the UI may block writing a file,
-and the bot's read is a `listdir` with a bound on it. Nothing in Plane 1 can be made to wait by
-anything the UI does, including dying while holding it.
+and nothing in Plane 1 can be made to wait by anything the UI does, including dying while
+holding it.
+
+Order is the transport's, not the clock's
+-----------------------------------------
+Pending commands were named `{issued_at_ns}-{command_id}.json` and read in sorted order, so a
+browser's wall clock decided which of two waiting commands reached the bot first — and a UI on a
+machine whose clock had drifted backwards could put a later command ahead of an earlier one.
+`issued_at_ns` is audit metadata and nothing else. Delivery order now comes from a transport
+sequence this inbox allocates on submission, which is monotonic within a process and continues
+above whatever is already pending when a new one starts.
+
+A transport sequence is not market causality either. What order a command *happened* in is
+decided when the bot accepts it, by `ingress_ordinal` and `risk_sequence`, and that is what the
+durable audit and any replay use.
 """
 
 from __future__ import annotations
 
+import itertools
 import json
 import os
 import tempfile
@@ -129,13 +155,36 @@ class SnapshotChannel:
 
 
 class CommandInbox:
-    """The UI writes commands here; the bot drains them. Bounded, non-blocking, deduplicated."""
+    """The UI writes commands here; the bridge drains them. Bounded, ordered, deduplicated."""
 
-    __slots__ = ("directory", "seen")
+    __slots__ = ("_counter", "directory", "seen")
 
     def __init__(self, directory: Path) -> None:
         self.directory = directory
         self.seen: set[str] = set()
+        self._counter = itertools.count(1)
+
+    def _allocate(self, pending: list[Path]) -> int:
+        """The next transport position: monotonic here, and above anything already waiting.
+
+        Restarting the UI must not put a fresh command ahead of one that has been sitting in the
+        inbox since before the restart, so a new process skips past the highest pending name
+        rather than starting from one.
+
+        `next` on an `itertools.count` rather than a lock and a `+= 1`: it completes inside one
+        C call, which is the same atomicity P11 relies on for `deque.append`, and this module is
+        forbidden a lock for a good reason — nothing the UI holds may be something the trading
+        path could end up waiting on.
+        """
+        highest = 0
+        for entry in pending:
+            head = entry.name.split("-", 1)[0]
+            if head.isdigit():
+                highest = max(highest, int(head))
+        sequence = next(self._counter)
+        while sequence <= highest:
+            sequence = next(self._counter)
+        return sequence
 
     # -- sender side (UI process) ---------------------------------------------------------
 
@@ -153,19 +202,21 @@ class CommandInbox:
                 f"{len(pending)} commands are already waiting to be read; refusing to queue "
                 "another rather than pretending it will be acted on"
             )
-        path = self.directory / f"{command.issued_at_ns:020d}-{command.command_id}.json"
+        # The transport's own order, not the sender's clock. `issued_at_ns` is recorded inside
+        # the file as audit metadata and takes no part in deciding what is read first.
+        path = self.directory / f"{self._allocate(pending):020d}-{command.command_id}.json"
         _write_atomic(path, json.dumps(command.summary(), separators=(",", ":")))
         return path
 
-    # -- receiver side (bot process) ------------------------------------------------------
+    # -- receiver side (the Plane-3 bridge, in the bot process) ---------------------------
 
     def drain(self, limit: int = MAX_PENDING_COMMANDS) -> list[OperatorCommand]:
-        """Take whatever commands are waiting, oldest first. Never blocks, never raises.
+        """Take whatever commands are waiting, in submission order. Never blocks, never raises.
 
-        Called from the bot's control tick. Everything that can go wrong with a file someone
-        else wrote — unreadable, truncated, not JSON, not a command this build knows, already
-        seen — ends here as a skipped file, because a malformed command must not be able to
-        interrupt a market.
+        Supporting-test and single-process path; the production reader is `CommandBridge`.
+        Everything that can go wrong with a file someone else wrote — unreadable, truncated,
+        not JSON, not a command this build knows, already seen — ends here as a skipped file,
+        because a malformed command must not be able to interrupt a market.
         """
         try:
             entries = sorted(self.directory.glob("*.json"))

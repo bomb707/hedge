@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import ast
 import builtins
+import json
 import logging
 import os
 import tempfile
@@ -24,6 +25,8 @@ from maker5m.strategy import BaseLot, default_config
 from maker5m.telemetry.observation import NOT_CAPTURED
 from maker5m.ui import (
     COMMAND_SCHEMA_VERSION,
+    CommandBridge,
+    CommandInbox,
     CommandKind,
     ControlIngress,
     HotCommandChannel,
@@ -591,3 +594,101 @@ def test_hot_side_events_render_in_the_shape_the_hot_path_produces() -> None:
     assert lines[1] == "    [+12s] sink stalled (controlled local fault)"
     assert lines[2] == "    [+30s] UI bridge resumed"
     assert lines[3] == "    3 hot-side event(s) dropped"
+
+
+# -- §14-19: the transport orders commands, not the browser's clock ----------------------------
+
+
+def _issued(kind: CommandKind, command_id: str, issued_at_ns: int) -> OperatorCommand:
+    return OperatorCommand(
+        schema_version=COMMAND_SCHEMA_VERSION,
+        command_id=command_id,
+        kind=kind.value,
+        issued_at_ns=TimestampNs(issued_at_ns),
+    )
+
+
+def test_submission_order_survives_a_backwards_clock(tmp_path: Path) -> None:
+    """§18. A halt issued at 9,000 then a release issued at 1,000, both pending.
+
+    P12C named the files by `issued_at_ns` and read them sorted, so the release would have been
+    delivered first — the browser's wall clock choosing which command reached the bot's ingress
+    first. `issued_at_ns` is audit metadata; submission order is the transport's business.
+    """
+    inbox = CommandInbox(tmp_path / "inbox")
+    inbox.submit(_issued(CommandKind.OPERATOR_HALT, "halt-a", 9_000))
+    inbox.submit(_issued(CommandKind.RELEASE_OPERATOR_HALT, "release-b", 1_000))
+
+    channel = HotCommandChannel()
+    bridge = CommandBridge(inbox=inbox, channel=channel)
+    assert bridge.poll_once() == 2
+    assert [command.command_id for command in channel.pop_all()] == ["halt-a", "release-b"]
+
+
+def test_the_accepted_ordinals_follow_submission_not_the_clock(tmp_path: Path) -> None:
+    """§18. And the authority agrees: the halt lands on the earlier ingress ordinal."""
+    inbox = CommandInbox(tmp_path / "inbox")
+    inbox.submit(_issued(CommandKind.OPERATOR_HALT, "halt-a", 9_000))
+    inbox.submit(_issued(CommandKind.RELEASE_OPERATOR_HALT, "release-b", 1_000))
+
+    channel = HotCommandChannel()
+    CommandBridge(inbox=inbox, channel=channel).poll_once()
+
+    control = controller()
+    ingress = ControlIngress(controller=control)
+    accepted: list[Any] = []
+    for ordinal, command in enumerate(channel.pop_all(), start=100):
+        outcome = ingress.apply(command, ingress_ordinal=ordinal, now_ns=TimestampNs(ordinal * 10))
+        accepted.append(outcome)
+
+    assert [outcome.kind for outcome in accepted] == [
+        "OPERATOR_HALT",
+        "RELEASE_OPERATOR_HALT",
+    ]
+    assert accepted[0].ingress_ordinal < accepted[1].ingress_ordinal
+    assert accepted[0].risk_sequence < accepted[1].risk_sequence
+
+
+def test_issued_at_ns_is_recorded_but_orders_nothing(tmp_path: Path) -> None:
+    """§17. The clock reading survives in the file; it just decides nothing."""
+    inbox = CommandInbox(tmp_path / "inbox")
+    path = inbox.submit(_issued(CommandKind.OPERATOR_HALT, "halt-a", 9_000))
+    assert "9000" not in path.name
+    assert json.loads(path.read_text("utf-8"))["issued_at_ns"] == 9_000
+
+
+def test_a_restarted_ui_cannot_jump_the_queue(tmp_path: Path) -> None:
+    """§19. One command pending, the UI-side transport is rebuilt, another is submitted.
+
+    A fresh process starts its counter at one, so without continuing above what is already
+    waiting the second command would take position 1 — sorting ahead of a command submitted
+    before it, and, if the ids collided, overwriting it.
+    """
+    directory = tmp_path / "inbox"
+    first = CommandInbox(directory)
+    waiting = first.submit(_issued(CommandKind.OPERATOR_HALT, "halt-a", 9_000))
+
+    restarted = CommandInbox(directory)
+    later = restarted.submit(_issued(CommandKind.RELEASE_OPERATOR_HALT, "release-b", 1_000))
+
+    assert waiting.exists(), "the pending command was not overwritten"
+    assert later != waiting
+    assert waiting.name < later.name, "and it keeps the earlier transport position"
+
+    channel = HotCommandChannel()
+    CommandBridge(inbox=restarted, channel=channel).poll_once()
+    assert [command.command_id for command in channel.pop_all()] == ["halt-a", "release-b"]
+
+
+def test_the_transport_position_is_not_the_command_identity(tmp_path: Path) -> None:
+    """§17. Transport order is not market causality and is not part of the durable audit."""
+    from maker5m.persistence import ControlAuditRow
+
+    inbox = CommandInbox(tmp_path / "inbox")
+    inbox.submit(_issued(CommandKind.OPERATOR_HALT, "halt-a", 9_000))
+    channel = HotCommandChannel()
+    CommandBridge(inbox=inbox, channel=channel).poll_once()
+    delivered = channel.pop_all()[0]
+
+    assert not hasattr(delivered, "transport_sequence")
+    assert "transport_sequence" not in ControlAuditRow.__dataclass_fields__

@@ -1,0 +1,42 @@
+{
+  "actions": {
+    "BLOCKED": 99168,
+    "CANCEL": 254,
+    "KEEP": 112635,
+    "NOTHING": 15415,
+    "PLACE": 678,
+    "REPLACE": 424
+  },
+  "decision_risk_copy_mismatches": 0,
+  "decisions": 114287,
+  "decisions_missing_risk_reference": 0,
+  "decisions_naming_an_absent_risk_row": 0,
+  "decisions_with_incomplete_risk_copy": 0,
+  "decisions_with_no_event_id": 0,
+  "evidence_eligible": true,
+  "evidence_note": "Eligible as empirical evidence.",
+  "fills": 0,
+  "places_by_risk_state": {
+    "SAFE": 678
+  },
+  "risk_exact_from_zero": true,
+  "risk_first": 0,
+  "risk_last": 114287,
+  "risk_records": 114288,
+  "risk_states": {
+    "HALTED": 2,
+    "RECOVERING": 1,
+    "SAFE": 114284
+  },
+  "risk_withdrew_intent": 0,
+  "settlements": 1,
+  "source": "/home/hr/p11-stores/btc-updown-5m-1787780700.p11.sqlite3.xz",
+  "storage_count": 228576,
+  "storage_duplicates": 0,
+  "storage_exact_from_one": true,
+  "storage_first": 1,
+  "storage_last": 228576,
+  "telemetry_complete": true,
+  "verification_failures": [],
+  "verification_status": "COMPLETE"
+}

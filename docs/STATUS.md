@@ -75,6 +75,40 @@ production.
 
 ---
 
+## P11F: supported schema domain closure
+
+Full evidence in
+[`evidence/P11F-SUPPORTED-SCHEMA-DOMAIN.md`](evidence/P11F-SUPPORTED-SCHEMA-DOMAIN.md).
+**Read-side only** — verifier, one added constant, and tests — so the real evidence was
+re-verified rather than re-gathered.
+
+P11E proved the column and payload said the *same* thing about the schema version. It never asked
+whether the thing they said named a contract. `effective < DECISION_SCHEMA_VERSION` was the
+definition of historical compatibility, so a record stamped `0` or `-1` in both places collected
+V1's exemption from every V2 rule, and one stamped `3` was validated as though it were current.
+And `isinstance(v, int)` accepted `True`, because `bool` subclasses `int` and `True == 1`.
+
+`SUPPORTED_DECISION_SCHEMA_VERSIONS = {1, 2}` is now enumerated, the V1 exemption matches `1`
+exactly, and the distinction is documented:
+
+| Case | Result |
+|---|---|
+| exact ints, equal, known version | read under that contract |
+| exact ints, equal, unknown (`0`, `-1`, `3`) | **UNSUPPORTED** — a record we cannot read |
+| not an exact int, or disagreeing | **INCOMPLETE** — a record contradicting itself |
+
+`UNSUPPORTED` outranks `INCOMPLETE`: "this build cannot read these" is a more fundamental answer
+than "some are missing". Types are exact before comparison for the version and every duplicated
+identity field, since `1 == True` and `1 == 1.0` would otherwise let a record agree with its
+column while saying something else.
+
+**`btc-updown-5m-1787780700` re-verified COMPLETE** — 114,287 decisions, every count 0, 678
+PLACEs all under a persisted SAFE RiskRow, 0 HALTED, 0 RECOVERING. **`btc-updown-5m-1787771100`
+re-verified INCOMPLETE** — schema and identity checks all pass; it fails only for the genuine
+persistence loss.
+
+---
+
 ## P11E: durable schema contract closure
 
 Full evidence in [`evidence/P11E-SCHEMA-CONTRACT.md`](evidence/P11E-SCHEMA-CONTRACT.md).
@@ -1128,7 +1162,7 @@ orders, which P8 does not place. Both stay OPEN.
 | **Current phase** | **P11 — durable telemetry persistence** |
 | P11 implementation gate | **PASSED** — versioned schemas, non-blocking worker, exact analytics, verifier |
 | P11 real-market gate | **PASSED** — P11B healthy market + controlled stalled sink |
-| P11 durability-integrity gate | **PASSED** — every V2 decision names and matches its governing RiskRow; exact risk and storage order; real, self-consistent event ids; self-consistent schema version; append-only audit rows; verified archive reads |
+| P11 durability-integrity gate | **PASSED** — every V2 decision names and matches its governing RiskRow; exact risk and storage order; real, self-consistent event ids; self-consistent schema version drawn from a defined domain; append-only audit rows; verified archive reads |
 | P11 storage representation | **CLOSED** — lossless `lzma` archive, 54.7×, 2.2 GB per 200-market corpus |
 | P11 authenticated fill/economics | **UNRUN / DEFERRED TO P14** |
 | P10 implementation gate | **PASSED** — verifier, payout arithmetic, plan, encoder, audit record |
@@ -1184,6 +1218,7 @@ orders, which P8 does not place. Both stay OPEN.
 | P11C branch | `fix/p11-final-audit-closure` |
 | P11D branch | `fix/p11-reference-completeness` |
 | P11E branch | `fix/p11-schema-contract-integrity` |
+| P11F branch | `fix/p11-supported-schema-domain` |
 | P11 store size | 5,230 B/decision raw → **95.7 B archived**; engineered in P11B, not deferred |
 | Remote | `origin` → `https://github.com/bomb707/hedge.git` |
 

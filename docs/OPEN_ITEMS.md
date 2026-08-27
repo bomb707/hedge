@@ -788,6 +788,24 @@ Three P11 facts belong in the record:
 
 ---
 
+## P12 opened no item and closed none
+
+The UI displays strategy parameters and their I18 labels. It cannot edit one, and there is no
+command in the vocabulary that could: `OPERATOR_HALT` and `RELEASE_OPERATOR_HALT` are the whole
+of it. P15 owns strategy research and change.
+
+Two P12 facts belong in the record:
+
+* **Loopback binding is an OPERATIONAL choice, not solved access control.** No authentication
+  system exists in this build, so the only defensible posture is that the control surface is not
+  reachable from the network. P12 is not a production service and no IAM was invented here.
+* **`OPERATOR_HALT` is deliberately not a latched reason.** It is the one condition whose evidence
+  is a person deciding, so a person deciding again clears it — and it clears only itself. A stale
+  feed, an unreconciled position or an ambiguous settlement all still forbid placement after a
+  release, which is why the command is named for what it does rather than "resume".
+
+---
+
 ## Summary table
 
 | ID | Item | Status | Blocking |

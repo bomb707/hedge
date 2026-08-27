@@ -392,7 +392,26 @@ Evidence: [`evidence/P11-TELEMETRY-PERSISTENCE.md`](evidence/P11-TELEMETRY-PERSI
 
 ---
 
-## P12 — UI / control plane
+## P12 — UI / control plane   ← IMPLEMENTED
+
+**Status:**
+
+| Gate | Status |
+|---|---|
+| Implementation | **PASSED** — Plane-3 UI, immutable snapshot, ordered control channel |
+| Real-market | **PASSED** — UI SIGKILLed mid-market; +18,113 events and +17,631 decisions in the next 47 s |
+
+The acceptance gate below asks that the UI be killed mid-market with trading uninterrupted and no
+journal gap. Both held on `btc-updown-5m-1787803500`, whose telemetry verifies COMPLETE with zero
+drops, gaps and sink errors across the whole market — which spans the kill.
+
+Operator control is two commands and nothing else exists. A halt withdraws executable intent
+through the existing risk overlay, `StrategyEngine` is untouched, and a release clears only the
+operator's own condition. **PLACE while HALTED: 0; while RECOVERING: 0**, over 6,209 decisions
+taken under the halt.
+
+Evidence: [`evidence/P12-UI-CONTROL-PLANE.md`](evidence/P12-UI-CONTROL-PLANE.md).
+**No strategy open item was opened or closed, and the UI cannot edit a strategy value.**
 
 - **Goal:** operator visibility and a narrow control channel.
 - **Inputs:** `ARCHITECTURE_SSOT` §2, §4; I19.

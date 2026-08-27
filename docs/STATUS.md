@@ -75,6 +75,55 @@ production.
 
 ---
 
+## P12: operator UI and control plane
+
+Full evidence in [`evidence/P12-UI-CONTROL-PLANE.md`](evidence/P12-UI-CONTROL-PLANE.md).
+
+Two processes and a directory between them. The bot writes a snapshot by atomic rename; the UI
+writes commands into a bounded inbox; the bot lists that directory on its control tick and never
+waits for anyone. Files rather than a socket, a queue or a broker, because the acceptance gate is
+killing the UI mid-market — which rules out any transport where the bot holds something the UI can
+be holding when it dies, and rules out a broker, which would be a third process to keep alive in
+order to prove that a process dying is survivable.
+
+`UiSnapshot` is immutable and holds no reference to any trading object. It is built on the
+persistence worker's thread from the `DecisionRecord` P11 already made, four frames a second, so
+**Plane 1 pays nothing**. Nothing in the UI recomputes an economic quantity — the licence is
+scale, and a second PnL implementation in a dashboard would be a second thing to be wrong in the
+place people look for the truth. Absence renders `—`, a missing snapshot renders NO SNAPSHOT, a
+stale one says so.
+
+Control is two commands — `OPERATOR_HALT` and `RELEASE_OPERATOR_HALT` — and nothing else exists.
+A command is inert until the bot accepts it into the ordered risk stream, ordering comes from the
+ingress ordinal rather than the browser's clock, and the release clears **only** the operator's
+own condition. Loopback only (no authentication exists; recorded as OPERATIONAL), GET has no
+write path, POST answers 303 so a refresh cannot repeat a command, and **no endpoint can change
+`LIVE_TRADING_ENABLED` or `REDEMPTION_ENABLED`**.
+
+### Real market — `btc-updown-5m-1787803500`
+
+66,174 decisions, 66,176 risk records (the two extra are the operator's commands), 0 drops, 0
+gaps, 0 sink errors, verification **COMPLETE**.
+
+```text
+halt     command 4b2a5f04ed7642c4  ordinal 1835  risk_seq 1771  HALTED   place=False cancel=True
+release  command 651f8ae4bbf644b9  ordinal 8131  risk_seq 7924  RECOVERING -> SAFE
+kill     SIGKILL at ordinal 8229 -> +18,113 events, +17,631 decisions in 47s, risk SAFE
+restart  same market, rendered from the snapshot, both commands still shown, no new command
+```
+
+**PLACE while HALTED: 0. PLACE while RECOVERING: 0** — with 6,209 decisions taken under the halt.
+
+### The defect the first real market found
+
+The first attempt verified **INCOMPLETE**, and the two records missing from the durable risk
+stream were the operator's own two commands: `ControlIngress` applied each to the controller and
+never published the result for persistence. The drop accounting was self-consistent throughout, so
+only P11's sequence-exactness check noticed. A control action with no durable record is the worst
+thing to lose, and it was the only thing lost. Fixed; the market above is the re-run.
+
+---
+
 ## P11F: supported schema domain closure
 
 Full evidence in
@@ -1159,7 +1208,9 @@ orders, which P8 does not place. Both stay OPEN.
 
 | | |
 |---|---|
-| **Current phase** | **P11 — durable telemetry persistence** |
+| **Current phase** | **P12 — operator UI and control plane** |
+| P12 implementation gate | **PASSED** — Plane-3 UI, immutable snapshot, ordered control, no trading reference |
+| P12 real-market gate | **PASSED** — UI killed mid-market, trading continued |
 | P11 implementation gate | **PASSED** — versioned schemas, non-blocking worker, exact analytics, verifier |
 | P11 real-market gate | **PASSED** — P11B healthy market + controlled stalled sink |
 | P11 durability-integrity gate | **PASSED** — every V2 decision names and matches its governing RiskRow; exact risk and storage order; real, self-consistent event ids; self-consistent schema version drawn from a defined domain; append-only audit rows; verified archive reads |
@@ -1210,15 +1261,16 @@ orders, which P8 does not place. Both stay OPEN.
 | Attestation binding | identity → endpoint → reading → attestation, checked at each layer; **software trust boundary, not cryptographic** |
 | GitHub default branch | `main` (verified 2026-08-26; the earlier `bootstrap/phase-0` observation no longer holds) |
 | P9 commits | `4be0032` risk engine · `6576de0` recovery + runner · `1584dee` stale recovery fix · `b2e715e` real-market evidence · `4c2ab1d` full fault market |
-| Last accepted milestone | P10C — settlement attestation binding (`8c7d435`, now `main`) |
-| Next milestone | P12 — **not started**, and not to be started before P11 is accepted |
-| `main` | `8c7d435` — fast-forwarded through the whole accepted P10 lineage, pushed |
+| Last accepted milestone | P11F — supported schema domain (`ea892c4`, now `main`) |
+| Next milestone | P13 — **not started**, and not to be started before P12 is accepted |
+| `main` | `ea892c4` — fast-forwarded through the whole accepted P11 lineage, pushed |
 | P11 branch | `feature/p11-telemetry-persistence` |
 | P11B branch | `fix/p11-persistence-integrity` |
 | P11C branch | `fix/p11-final-audit-closure` |
 | P11D branch | `fix/p11-reference-completeness` |
 | P11E branch | `fix/p11-schema-contract-integrity` |
 | P11F branch | `fix/p11-supported-schema-domain` |
+| P12 branch | `feature/p12-ui-control-plane` |
 | P11 store size | 5,230 B/decision raw → **95.7 B archived**; engineered in P11B, not deferred |
 | Remote | `origin` → `https://github.com/bomb707/hedge.git` |
 

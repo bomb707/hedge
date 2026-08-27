@@ -75,6 +75,66 @@ production.
 
 ---
 
+## P13C: final corpus foundation
+
+Full evidence in
+[`evidence/P13C-FINAL-CORPUS-FOUNDATION.md`](evidence/P13C-FINAL-CORPUS-FOUNDATION.md).
+`p13-corpus-2` is stopped, preserved and **SUPERSEDED_FOR_FINAL_P13_ACCEPTANCE** — ten COMPLETE
+replay-exact rows, two attempts in flight with no row at all, which is one of the reasons it
+cannot count.
+
+**Live latency died with the market.** P8's own distributions were released with the session and
+the corpus kept only `hot_path_observe_ns`, which mixes triggering kinds. A replay cannot stand in
+for it: re-deriving decisions from a journal measures this machine today, not the market that was
+traded. Each market now writes an immutable `<slug>.latency.json.xz` holding every raw sample —
+not a sketch, because quantiles do not merge — hash-bound in its corpus row, with
+`receive_to_reconcile` split by trigger. CLOB and spot are never merged.
+
+**An attempt did not exist until it finished.** `attempts.jsonl` records `ATTEMPT_STARTED` and
+fsyncs it *before* the session launches; if it cannot be written the market is not launched.
+Terminal records append beside it, and a start with no terminal event is found by the next
+start-up, closed as `ABORTED_PREVIOUS_PROCESS`, inventoried and counted toward nothing.
+
+**The cold cap could be exceeded.** A launch check a running market can walk past is not a bound.
+Markets reserve a lifecycle slot before launch and hold it until their terminal record and corpus
+row are written; the cap is six and nothing can exceed it.
+
+**Readiness was "ready once".** A book ready at T0-29 that disconnected at T0-10 kept its lead for
+ever. P6 now tracks current warm validity, snapshotted at the T0 boundary; a recovery measures its
+lead from the recovery.
+
+**Dirty rows could later qualify.** HEAD does not move when tracked files are edited, so
+`--allow-dirty` rows carried the same revision as clean ones. Qualification now requires
+`working_tree_clean`, `run_mode == ACCEPTANCE_CLEAN` and the tree hash.
+
+**The settlement knobs were hashed and ignored** — `settle_timeout_s` and `settle_poll_s` now
+control the runtime call they claim to.
+
+### Corrected pilot — four consecutive real markets, one process
+
+```text
+1787845500  COMPLETE EXACT   95,076 dec  190,152 classified  feed ready at T0 28.93s  349 KB latency
+1787845800  COMPLETE EXACT  189,026 dec  378,052 classified  feed ready at T0 29.01s  640 KB latency
+1787846100  COMPLETE EXACT  203,867 dec  407,734 classified  feed ready at T0 28.71s  645 KB latency
+1787846400  COMPLETE EXACT  167,600 dec  335,200 classified  feed ready at T0 28.76s  503 KB latency
+```
+
+0 drops, gaps and sink errors; PLACE only under SAFE; four settlements RESOLVED; lifecycle
+high-water 2 of 6; every row joins one attempt. Merged exact live latency over the four: CLOB
+receive→decide p50 112.6 µs / p99 862.3 µs (n 63,478), CLOB receive→reconcile p50 130.0 µs / p99
+971.7 µs, spot receive→decide p50 86.3 µs / p99 606.4 µs (n 2,101), decide_duration p50 28.8 µs.
+**No latency threshold is proposed**, and the P13B 426 ms outlier stands.
+
+**Controlled restart on a real market** (`CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET`): the collector
+was killed three minutes into `btc-updown-5m-1787847300`. The restart found the abandoned attempt,
+recorded `ABORTED_PREVIOUS_PROCESS`, inventoried its orphaned 432 MB store rather than deleting
+it, counted it toward nothing, and collected the next market normally.
+
+Overhead after the pilot: decide p50 **−304 ns (−1.14 %)**, full cycle **+1,073 ns (+1.84 %)**.
+Every P8C limit met, none moved.
+
+---
+
 ## P13B: corpus integrity corrections
 
 Full evidence in [`evidence/P13B-CORPUS-INTEGRITY.md`](evidence/P13B-CORPUS-INTEGRITY.md).
@@ -1530,9 +1590,9 @@ orders, which P8 does not place. Both stay OPEN.
 | | |
 |---|---|
 | **Current phase** | **P13 — live shadow / paper mode** |
-| P13 implementation gate | **PASSED** (P13B) — one classifier and it classifies everything; discovery and feed readiness distinct; cold backlog bounded; completion durable and restart-safe |
-| P13 pilot gate | **PASSED** (P13B) — four consecutive real markets, exhaustively classified, feeds warm before T0, one process, no restart. The v1 pilot is retained and superseded |
-| P13 ≥200-market corpus gate | **IN PROGRESS** — `p13-corpus-2`, from the corrected build. `p13-corpus-1` is preserved and excluded |
+| P13 implementation gate | **PASSED** (P13C) — durable attempt ledger, reservation-safe lifecycle cap, readiness proved at T0, dirty rows refused, live latency durable and hash-bound |
+| P13 pilot gate | **PASSED** (P13C) — four consecutive real markets plus a controlled restart on a real market; earlier pilots retained and superseded |
+| P13 ≥200-market corpus gate | **IN PROGRESS** — `p13-corpus-3`, from the P13C build. `p13-corpus-1` and `p13-corpus-2` are preserved and excluded |
 | P12 implementation gate | **PASSED** — Plane-3 UI, immutable snapshot, ordered control, no trading reference |
 | P12 real-market gate | **PASSED** — UI killed mid-market, trading continued |
 | P12 Plane-3 isolation gate | **PASSED** (P12C) — no synchronous I/O of any kind on the ingress path, stdout included |
@@ -1608,6 +1668,8 @@ orders, which P8 does not place. Both stay OPEN.
 | P13 base | `feb7e2b` — merge of P12E into main, no rebase, no force |
 | P13 corpus epoch (superseded) | `p13-corpus-1`, source `bb67b18` — 12 COMPLETE rows preserved, excluded from the count |
 | P13B branch | `fix/p13-corpus-integrity` |
+| P13C branch | `fix/p13-final-corpus-foundation` |
+| P13 corpus epochs superseded | `p13-corpus-1` (12 rows), `p13-corpus-2` (10 rows) — preserved, excluded |
 | P12C final snapshot | retained unedited; its `decide_ns` label is corrected in `p12d-p12c-snapshot-latency-correction.json`, not in the file |
 | P12B final snapshot | **known-inaccurate read-model artifact**, retained unedited; see `p12c-p12b-revalidation-btc-updown-5m-1787807700.json` |
 | P11 store size | 5,230 B/decision raw → **95.7 B archived**; engineered in P11B, not deferred |

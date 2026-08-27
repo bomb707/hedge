@@ -456,3 +456,31 @@ def test_a_session_is_freed_by_reference_counting_alone(tmp_path: Path) -> None:
         assert sample_resources().live_sessions == before, "freed without collecting a cycle"
     finally:
         gc.enable()
+
+
+def test_the_settlement_watch_uses_the_configured_schedule(tmp_path: Path) -> None:
+    """§31. The knobs are in the config hash, so they have to be the ones that ran."""
+    import asyncio
+
+    from maker5m.bot import PaperConfig, UiPlane
+    from maker5m.bot.config import OperationalThresholds
+    from tests.bot.test_multi_market import session
+
+    config = PaperConfig(
+        evidence_dir=tmp_path / "markets",
+        corpus_path=tmp_path / "corpus.jsonl",
+        ui_dir=tmp_path / "ui",
+        settle_timeout_s=17,
+        settle_poll_s=0.25,
+        thresholds=OperationalThresholds(min_decisions=5),
+    )
+    unit = session(tmp_path, UiPlane(directory=tmp_path / "ui"), 1_787_811_600, "a")
+    unit.config = config
+    seen: dict[str, Any] = {}
+
+    def watch(market: Any, slug: str, *, timeout_s: int, poll_s: float) -> None:
+        seen.update({"slug": slug, "timeout_s": timeout_s, "poll_s": poll_s})
+        return None
+
+    asyncio.run(unit.settle(watch))
+    assert seen == {"slug": unit.slug, "timeout_s": 17, "poll_s": 0.25}

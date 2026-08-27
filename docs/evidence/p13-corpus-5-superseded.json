@@ -1,0 +1,483 @@
+{
+  "attempts_index_sha256": "769e68e65bbdbd0f4320eab4356fb23189d1bc89ff84158bd21f42bd7330b0e3",
+  "config_sha256": "645ba03002d0ae8436c4b84071504dd2f2ed212a33d3f155ac3fe37b193a5636",
+  "corpus_index_sha256": "1012713727198de7345c187803752894e239df924653f16c8e6323036d9993f0",
+  "epoch": "p13-corpus-5",
+  "kind": "P13_CORPUS_5_SUPERSEDED",
+  "markets": [
+    {
+      "attempt_id": "ffa4fec86eb244d19309ddef64d15e54",
+      "decisions": 100448,
+      "latency_sha256": "18bf6726316bcc6b0c2598d4c42648eb1b58d45eb945c87ac7f4dfdbec321fd3",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787857800",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "123e678c3a54480bb82f0d8a6625644c",
+      "decisions": 138549,
+      "latency_sha256": "edc87632147545416dae4337a4fb1b8e84499c758edf71d6786ac8f951e38d26",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787858100",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "bd424cabb1ab4d2fbec8b92bf9db7440",
+      "decisions": 101458,
+      "latency_sha256": "21c1ae93164564b9f316f6d563ca24c17b8335c4599e9cba9fc6ffe0a6d5bff0",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787858400",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "8ea5610e910f464392b71815d393ae5b",
+      "decisions": 132627,
+      "latency_sha256": "958a36bf6ec1d722d86b8cfe4ee46e55c0a255ab31a147939f518b15de3f9398",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787858700",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "c89607a4b9014463b3e808856a390528",
+      "decisions": 157789,
+      "latency_sha256": "eb404679c8a856ffbf734b9d2b6e29cda56505eb6aa0db8e607c85d3a9b7efc0",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787859000",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "fe267c4d91dd4751a185cfa25cb569e4",
+      "decisions": 85212,
+      "latency_sha256": "b37eb5f5ccfda80ffba4712e16d6cb3d6eb734b5a9c7cc5e18453e0e3ca9a2ca",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787859300",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "9ca2c3719550495b8142886c52ab87da",
+      "decisions": 108371,
+      "latency_sha256": "6c0f79ace79c1276ff35002b82bb5eeea8bc8c02ee9e61ac16f7630e5d53af21",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787859600",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "7e0c6295d5114a519fc100f1070519c5",
+      "decisions": 144866,
+      "latency_sha256": "afd60b7fe7b832adace3a8a23796e43419e55e234cb6e1af74364a5c32f5be70",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787859900",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "1cb0daa6fb0640f3aaa80d1e5ba1f9c5",
+      "decisions": 136016,
+      "latency_sha256": "9738e4719e04d9234c07b56e41a1213779881aa0bedc1bb956efcfcada01ab3e",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787860200",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "b4ca1f8c1c4c44c493b79ed430de0b51",
+      "decisions": 100850,
+      "latency_sha256": "057af4ca3cca1d55eb23ba1c24cbea3271740113c4630ddf35431a8ab03c273a",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787860500",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "242c71817b1344df9dcfb465894c6a66",
+      "decisions": 115236,
+      "latency_sha256": "a73b699e2a215ce58e352767de0b52dfdc24560159e7c5f3177ad9516be317fe",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787860800",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "7afd9a2f992c422f84f496248317777a",
+      "decisions": 102095,
+      "latency_sha256": "3db819760f7bf6ff41f0614ed570ed21ab3af811c5b1c631bda20ece226c64e2",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787861100",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "b1476f5934e443dd81254314a6fb7519",
+      "decisions": 106008,
+      "latency_sha256": "2aefd972e93394cfe5f407eac88800b6f34ec7fd06ccb5c308cb372835cfc46d",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787861400",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "38ab7f5aa614455f82d181fb26d2a319",
+      "decisions": 120681,
+      "latency_sha256": "4af534083c0c1bc2e0e337f663304c01eef6d3520bce16241d55afedfde663d2",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787861700",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "3694ddf3318c473bba1669d4c3c0a3ac",
+      "decisions": 64439,
+      "latency_sha256": "6e3f9ea557a7299364d58f47ef469e9d7540e50329d9052622d324ac2e744bd7",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787862000",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "428ac4f38c2b4407ac22e596d1fdef43",
+      "decisions": 125782,
+      "latency_sha256": "e967e5e1c7720d9e567c8c544f6e2b2b74b2d66df5187c642d61620a584f39b0",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787862300",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "cc6a5c7fd90a4a52882acef17ed27e5e",
+      "decisions": 137361,
+      "latency_sha256": "07417c6ac106ad1a0359e4d91d44dddc159e834784f05a39d3422780ff53129c",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787862600",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "88075bb4b97449268d6542cf13772b92",
+      "decisions": 129801,
+      "latency_sha256": "09e9d7c66443386b7390b24435cd7da22a9d1cc478f1eef379fb363ca4c1fcf7",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787862900",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "4d7ace1b04814fa7a1ddf100d31b42f2",
+      "decisions": 84030,
+      "latency_sha256": "2f27c60d5e8e7b4eea07d6e038ab8ff9d5844c39777268c4b095557fef311150",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787863200",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "19019fd2ea354b6b97ef2486b4d724a3",
+      "decisions": 134971,
+      "latency_sha256": "3c50197fbc6016be704c97a137e3901becb21617471e283af089d778fb3c1958",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787863500",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "daf1c8b0a5f34245861d8244c9183d37",
+      "decisions": 121046,
+      "latency_sha256": "cc75134ed632c9b1ae3e80c2a20637bccae9cd761b411591e2a2ccd6c2c32427",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787863800",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "868aa9112a6f45e5a2940087a3592437",
+      "decisions": 84900,
+      "latency_sha256": "046c18433ca80f3393177eeb99fc73f0aa076657a395576331ab32e6da92452b",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787864100",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "f11702819c0749c293338ac06c4bc659",
+      "decisions": 122146,
+      "latency_sha256": "2ea44ddd6c7fc047bb17dc955a38b69b70e812baeaa722a976d80871ddd25ee9",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787864400",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "e4d456b5f2a647758166e238d653f943",
+      "decisions": 138072,
+      "latency_sha256": "c7f5b259bff20bbd3d1456a0581eca32054622b5dddd949f0163536b450e443e",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787864700",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "57a7754e0fa140a2a539d2031cf64d3b",
+      "decisions": 70152,
+      "latency_sha256": "e28e59189545963978fca372032576e7e307921fbfb9481c0229fe7b88b8a084",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787865000",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "9fc9307f5c5940f0862f97b1ec1c2c8a",
+      "decisions": 88154,
+      "latency_sha256": "d54e59f87a4ea695edf0c1734028eb8b600baf43d04e1a208a81faa2fa5e3a5d",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787865300",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "8f00e63a297d4addb882961230cc21c0",
+      "decisions": 91690,
+      "latency_sha256": "019d227650936534d71d176cfdbd59b79609ce4c2e828175194e4af848c40bf6",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787865600",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "93fbf32c162f4bf7b96f6eec145fafa2",
+      "decisions": 90961,
+      "latency_sha256": "4ed294e06de8a3c7a1b064016b9bd98e67a6518ec19bd89915fba8b8e862cf14",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787865900",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "603da001fe814acf9cf106764d6643f1",
+      "decisions": 71219,
+      "latency_sha256": "f0814e7ab15217ca2cd4266f4c5e0bbf672550ca3ea2f7ddf2440b7943990805",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787866200",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "62a4fb7e73c44f5e8ddd338f6cf031f6",
+      "decisions": 78889,
+      "latency_sha256": "286e57d9a0ab0cf728482708f80fe8b890ebce0877da268af2c06b12aec28e71",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787866500",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "382d0494181b465ab2f5a6e87d90140d",
+      "decisions": 93757,
+      "latency_sha256": "d5a0191213d159021e2d9620f5c745d3bcfa0b505df14fd4a8e833597705fd14",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787866800",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "b436c01b31974c0aa4d3a6bddc219639",
+      "decisions": 81179,
+      "latency_sha256": "54cf1f1356c2ba7b733d7dcde20f20bffd43335ba72f46e9ec02d94f0832501c",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787867100",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "bf72577373144826916ca71d65afa86e",
+      "decisions": 143838,
+      "latency_sha256": "b18cca4beb932a96f3aeae49b62a22e09e09ca3882156b7e54fc76d3095a00c8",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787867400",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "02a6ec49fb2a4e66a2c5d6ae4012d12c",
+      "decisions": 87908,
+      "latency_sha256": "28adec53c10b080f894ca3045c4d77c107d475dd9de7abde0e74e470f7f326ff",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787867700",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "09c6d4a50d27498088b8172050809c69",
+      "decisions": 73565,
+      "latency_sha256": "90e90cb9c707ea6273436c8e1d2c4db2e88154bfc8bcb0cb97b258740a0be2ef",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787868000",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "c9ba034527e14b1ea362097230c395ed",
+      "decisions": 148923,
+      "latency_sha256": "cc8c29dc2dcd4876b6c2cb1ab85ca7e764be161407f00d0421c5921ac0835616",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787868300",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "9bc7ae9dc3214dba8c08693e8b5dcb02",
+      "decisions": 156275,
+      "latency_sha256": "1f55f214ae80c0fb968bdfc515ce8fa244460242daaa1351c949f449079a7000",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787868600",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "51e0d8902487426d9e9442e55a94a182",
+      "decisions": 76169,
+      "latency_sha256": "c5db955a5e3620e398b8ed7f96e41922395f315aff4db8c51c8b42be3b9614f2",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787868900",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "146a303065d444428ac74ee75b8adf0c",
+      "decisions": 106756,
+      "latency_sha256": "9c75c33c4bb7cc1ea45f328bfc35458ee36570895093ca7572d8e548aec46ce6",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787869200",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "8d7164c8fefe42309f2711e0f2df05b4",
+      "decisions": 97972,
+      "latency_sha256": "f769d5ab1e4d67c018919e13de605f7924333d4aef0b03c4a0ee78848e2659ed",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787869500",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "72e777cf9f944a5986e57f009ffffa81",
+      "decisions": 142331,
+      "latency_sha256": "2e1ea83df44dc68f652a6cead670fa746130e5881acea4c613f2df723a6e455c",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787869800",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "c3f3edeb44e74101b6fc988d20e33813",
+      "decisions": 81505,
+      "latency_sha256": "098d13b6539af6fa2b7c824cda11f3881b72df88ffe696d31e8f53a8fc4819b4",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787870100",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "60ec29784f86449fb8ff45e797a43d01",
+      "decisions": 135474,
+      "latency_sha256": "0a657a1f8d0a9c4ef7e77ccb39564e4c49403156ac785e11e4b634bbb185bb26",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787870400",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "219042d071524855b6f937e6e6c32a73",
+      "decisions": 116948,
+      "latency_sha256": "b34ad67b4ae597312a865173641d54613ab2a6a4b1621af7acc6273886426fa2",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787870700",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "4d00bc9fcdb44d67a7f95c06d7c273ca",
+      "decisions": 129416,
+      "latency_sha256": "b0b5f76fcc635d65c6587b70df57f65331831f99633f84d55391d7e0f23706fc",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787871000",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "60ea6b6ce8a742a49959893313fd5722",
+      "decisions": 101881,
+      "latency_sha256": "bf2a7975c42eeaf8175c76583f39e744e54a130338011dfc216292ab28af0bfb",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787871300",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "0042f74440784149976b6a6eb200f919",
+      "decisions": 101679,
+      "latency_sha256": "11e44e3f8f6040985752a43b30afcd85610196d5f7a42f2870332c554412cda0",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787871600",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "0796381a47ef49649adf862d64d44c3b",
+      "decisions": 138752,
+      "latency_sha256": "34c1819e077622999f348581363109a8e32016e4057726f1b9811d3c38a7395d",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787871900",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "fe42703bfa004b1885ecb367f6491862",
+      "decisions": 125228,
+      "latency_sha256": "421e4b5186c2ca4e391f625545529d17197038674d99ceb6ed4074e0f70ee8eb",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787872200",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "1d860b489c1648dfaef37374527dbd43",
+      "decisions": 98672,
+      "latency_sha256": "1a9f03dacc32d9638dbe04f56c9c825bced077e10e69c56d2855afb188d793fa",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787872500",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "c8e9cb20415e452a9188dd67155bbbc8",
+      "decisions": 97931,
+      "latency_sha256": "b93e7496455a4b810c258b88fb6c27c5d309313291f32d208abc57c4b040f6df",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787872800",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "115e176067e94e93a346a71504d39e9c",
+      "decisions": 93522,
+      "latency_sha256": "68788ba8f2918c83effa3f8c545f9e55a4f44fcba679f19e9c160cf592d712ca",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787873100",
+      "verification_status": "COMPLETE"
+    }
+  ],
+  "note": "Nothing deleted, rewritten or reclassified. Retained; excluded from the >=200 count.",
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "read_side_audit": {
+    "attempt_ids_started": 54,
+    "attempts_aborted": 0,
+    "attempts_failed": 0,
+    "attempts_finished": 52,
+    "attempts_started": 54,
+    "attempts_terminal": 52,
+    "corpus_rows": 52,
+    "duplicate_market_slugs": {},
+    "duplicate_result_attempt_detail": {},
+    "duplicate_result_attempts": 0,
+    "duplicate_start_attempts": 0,
+    "duplicate_start_detail": {},
+    "duplicate_terminal_attempts": 0,
+    "duplicate_terminal_detail": {},
+    "every_row_joins_one_attempt": true,
+    "ledger": {
+      "attempts_started": 54,
+      "attempts_terminal": 52,
+      "by_event": {
+        "ATTEMPT_FINISHED": 52,
+        "ATTEMPT_STARTED": 54
+      },
+      "duplicate_terminals": {},
+      "events": 106,
+      "open_attempts": 2,
+      "path": "/home/hr/p13-corpus-5/attempts.jsonl",
+      "recovery_failures": [],
+      "write_errors": []
+    },
+    "ledger_consistent": true,
+    "note": "Every row for this epoch, judged by the same rule the collector counts with. A market with a start and no terminal record is one the collector was in the middle of; it counts toward nothing and its artifacts are inventoried, not deleted.",
+    "one_result_per_attempt_and_market": true,
+    "open_attempts": 2,
+    "qualifying_markets": 52,
+    "qualifying_rows": 52,
+    "rows_refused_with_reasons": {},
+    "rows_without_attempt_id": [],
+    "rows_without_finished_terminal": [],
+    "rows_without_start": [],
+    "terminal_without_start": 0,
+    "unique_market_slugs": 52,
+    "unique_result_attempt_ids": 52
+  },
+  "root": "/home/hr/p13-corpus-5",
+  "runtime_and_durable_agreed": true,
+  "runtime_counter_last": "runtime 52 / durable 52",
+  "source_revision": "f59f928302f99f9b867cb080acb1cc0b0317f20f",
+  "status": "SUPERSEDED_FOR_FINAL_P13_ACCEPTANCE",
+  "stopped_by": "SIGTERM to PID 585754, verified by ps, /proc/585754/cwd and /proc/585754/cmdline as this root's collector before signalling",
+  "stopped_utc": "2026-08-27T23:37:00Z",
+  "what_the_corrected_audit_says": "52 rows, 52 qualifying, 52 unique attempts, 52 unique market slugs, no duplicate starts, terminals, result rows or markets, and 52 identity-valid latency artifacts. The runtime and durable counters agreed at every market \u2014 the P13E fix held. What was wrong was where the work ran and what the rule did not yet forbid.",
+  "why_it_cannot_count": [
+    "Every finalisation ran the full joined qualification synchronously on the asyncio loop that was concurrently consuming the next market's frames \u2014 reading the whole corpus, the whole ledger and every historical latency artifact, decompressing each one. By market 52 that was 52 artifact decompressions per market, on the trading loop.",
+    "Result-row uniqueness was not load-bearing: two rows naming one attempt, or two attempts producing a result for one slug, would each have counted."
+  ]
+}

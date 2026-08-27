@@ -20,6 +20,7 @@ promised more than it could deliver.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -62,6 +63,17 @@ class ControlIngress:
     """Applies operator commands to the ordered risk stream. Bot-side, single owner."""
 
     controller: RiskController
+    publish: Callable[[Any], None] | None = None
+    """Where the resulting RiskRecord goes to be persisted.
+
+    Required in production, and the first real market found out why it is not optional: without
+    it the operator's two commands were applied to the controller, appeared in its in-memory
+    trace, and were the *only* two records of 107,252 missing from the durable stream. The
+    verifier refused to call that market complete, which is the correct answer — a control
+    action that changed what the bot was allowed to do, and left no durable record, is precisely
+    what an audit exists to make impossible.
+    """
+
     accepted: int = 0
     refused: int = 0
     outcomes: list[CommandOutcome] = field(default_factory=list)
@@ -90,6 +102,11 @@ class ControlIngress:
             )
         except Exception as error:
             return self._refuse(command, f"{type(error).__name__}: {error}")
+
+        if self.publish is not None:
+            # Same channel as every other risk record, so the operator's action lands in the
+            # durable stream in its own sequence position rather than only in memory.
+            self.publish(record)
 
         outcome = CommandOutcome(
             command_id=command.command_id,

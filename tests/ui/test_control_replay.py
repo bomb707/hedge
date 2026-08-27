@@ -190,3 +190,41 @@ def test_a_refused_command_leaves_no_trace_in_the_risk_stream() -> None:
         now_ns=TimestampNs(0),
     )
     assert control.sequence == before, "nothing was recorded for a command that was not accepted"
+
+
+def test_an_accepted_command_is_published_for_persistence() -> None:
+    """The first real market found this missing.
+
+    Without it the two operator commands were applied, appeared in the in-memory trace, and were
+    the only two records of 107,252 absent from the durable risk stream — so the market verified
+    INCOMPLETE, correctly. A control action that changed what the bot was allowed to do and left
+    no durable record is exactly what the audit exists to prevent.
+    """
+    published: list[object] = []
+    control = RiskController(
+        engine=RiskEngine(config=RiskConfig()), provenance=RiskProvenance.SUPPORTING_UNIT_TEST
+    )
+    control.evaluate(HEALTHY, as_of_ingress_ordinal=0, now_ns=TimestampNs(0))
+    ingress = ControlIngress(controller=control, publish=published.append)
+
+    ingress.apply(command(CommandKind.OPERATOR_HALT, "h"), ingress_ordinal=1, now_ns=TimestampNs(1))
+    ingress.apply(
+        command(CommandKind.RELEASE_OPERATOR_HALT, "r"), ingress_ordinal=2, now_ns=TimestampNs(2)
+    )
+
+    assert len(published) == 2
+    assert [getattr(record, "risk_sequence", None) for record in published] == [1, 2]
+
+
+def test_a_refused_command_publishes_nothing() -> None:
+    published: list[object] = []
+    control = RiskController(
+        engine=RiskEngine(config=RiskConfig()), provenance=RiskProvenance.SUPPORTING_UNIT_TEST
+    )
+    control.evaluate(HEALTHY, as_of_ingress_ordinal=100, now_ns=TimestampNs(100))
+    ingress = ControlIngress(controller=control, publish=published.append)
+
+    ingress.apply(
+        command(CommandKind.OPERATOR_HALT, "late"), ingress_ordinal=1, now_ns=TimestampNs(1)
+    )
+    assert published == []

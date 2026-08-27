@@ -190,7 +190,7 @@ async def main(
     publisher = SnapshotPublisher(
         channel=snapshot_channel, identity=identity, config=config, t0_ns=t0_ns
     )
-    control_ingress = ControlIngress(controller=controller)
+    control_ingress = ControlIngress(controller=controller, publish=risk_channel.publish)
     worker.on_record = publisher.observe
 
     hot_path_ns: list[int] = []

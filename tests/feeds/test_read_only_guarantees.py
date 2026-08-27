@@ -126,13 +126,44 @@ def posts(path: Path) -> bool:
     return 'method="POST"' in text or "method='POST'" in text
 
 
+def http_url_literals(path: Path) -> set[str]:
+    """Every string constant in the file that looks like the start of an HTTP URL."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    urls: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            lowered = node.value.lower()
+            if lowered.startswith(("http://", "https://")):
+                urls.add(node.value)
+    return urls
+
+
+def loopback_only(path: Path) -> bool:
+    """Whether every HTTP URL this file builds points at this machine.
+
+    P12's operator UI is an HTTP server on 127.0.0.1, so its client POSTs. That is not a venue
+    write and must not be treated as one — but nor is it exempt by being called a UI. The test
+    is the same kind as the JSON-RPC one: look at where it can actually send, and require that
+    every URL in the file is loopback.
+    """
+    urls = http_url_literals(path)
+    if not urls:
+        return False
+    return all(
+        url.lower().startswith(("http://127.0.0.1", "http://localhost", "http://[::1]"))
+        for url in urls
+    )
+
+
 def test_no_module_posts_to_a_venue() -> None:
     """Nothing POSTs to a venue, and anything that POSTs at all may only read.
 
     JSON-RPC is a POST by protocol however read-only its content, so a flat ban would forbid
     reading the Conditional Tokens contract at all. Rather than exempt files by name, the rule
-    is behavioural: a file that POSTs must issue only read JSON-RPC methods. On a JSON-RPC
-    endpoint the method name is the *only* thing separating a read from a write.
+    is behavioural: a file that POSTs must issue only read JSON-RPC methods, **or** must send
+    only to loopback — P12's operator control is an HTTP POST to 127.0.0.1, which reaches no
+    venue and cannot be made to. On a JSON-RPC endpoint the method name is the only thing
+    separating a read from a write; on a loopback address the host is.
     """
     posting = []
     for path in python_sources():
@@ -144,6 +175,8 @@ def test_no_module_posts_to_a_venue() -> None:
 
     assert posting, "expected the settlement reader to be found"
     for path in posting:
+        if loopback_only(path):
+            continue
         methods = rpc_method_literals(path)
         assert methods, f"{path.name} POSTs without a recognisable JSON-RPC method"
         offending = methods - READ_ONLY_RPC_METHODS

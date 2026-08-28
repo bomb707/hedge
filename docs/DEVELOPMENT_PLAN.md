@@ -445,9 +445,12 @@ both earlier markets' stores remain valid.
 |---|---|
 | Implementation | **PASSED** (P13F) — every audit read and write on a dedicated Plane-3 thread; qualification O(1) per market with full joined audits at startup and at the target; exactly one result per attempt and one per market |
 | Pilot | **PASSED** (P13F) — three consecutive real markets run with the audit path deliberately slowed by 500 ms per operation, all qualifying, zero drops, gaps or sink errors |
-| ≥200-market corpus | **IN PROGRESS** — `p13-corpus-6`, from the P13F build. Corpora 1-5 and every earlier pilot are retained, superseded, and excluded |
+| ≥200-market empirical corpus | **PASSED** — 202 qualifying real markets in `p13-corpus-6`, collected by `9a42031`; every duplicate, refusal and integrity category zero. Corpora 1-5 retained, superseded, excluded |
+| Long-run resource stability | **NOT PASSED** — post-release RSS 36 MB → 4,262 MB over 202 markets with no plateau. Object counts bounded and Python tracked objects not trending, so the growth is resident memory rather than a retained-session leak; its source is not identified by this instrumentation |
+| **Overall** | **NOT COMPLETE** — the dataset is accepted and ready for P15; the collector needs runtime engineering |
 
-Evidence: [`evidence/P13F-AUDIT-ISOLATION.md`](evidence/P13F-AUDIT-ISOLATION.md),
+Evidence: [`evidence/P13-CORPUS-ACCEPTANCE.md`](evidence/P13-CORPUS-ACCEPTANCE.md),
+[`evidence/P13F-AUDIT-ISOLATION.md`](evidence/P13F-AUDIT-ISOLATION.md),
 [`evidence/P13E-COUNTER-INTEGRITY.md`](evidence/P13E-COUNTER-INTEGRITY.md),
 [`evidence/P13D-EVIDENCE-BINDING.md`](evidence/P13D-EVIDENCE-BINDING.md),
 [`evidence/P13C-FINAL-CORPUS-FOUNDATION.md`](evidence/P13C-FINAL-CORPUS-FOUNDATION.md),
@@ -470,7 +473,13 @@ for the final gate.
 
 ---
 
-## P14 — Minimum-size live validation
+## P14 — Minimum-size live validation   ← BLOCKED
+
+**Blocked before it starts.** P13's corpus is accepted, but the collector that produced it grew
+from 36 MB to 4,262 MB of resident memory across 202 markets with no plateau, and its worst
+`observe` cycle reached 1,056 ms. Neither is a strategy question and neither was fixed in the
+acceptance task. Real capital waits on a runtime-engineering phase and independent review.
+
 
 - **Goal:** Canonical §34-L4. One market at a time, minimum capital.
 - **Inputs:** the L4 preconditions in Canonical §34 and the full acceptance checklist in

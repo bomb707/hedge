@@ -75,6 +75,63 @@ production.
 
 ---
 
+## P13: 202-market live-paper corpus — acceptance audit
+
+Full evidence in [`evidence/P13-CORPUS-ACCEPTANCE.md`](evidence/P13-CORPUS-ACCEPTANCE.md).
+
+**Two SHAs, and they are not the same.** The corpus was collected by
+`9a42031df1f46762a0a8ef958240342612586084` (tree `29aca3d58f1b4c3cf65161b99fb4137566c3adf5`) on a
+clean tree, before this documentation existed. The acceptance commit is necessarily later and
+changes only `docs/`. All 202 rows carry the collecting revision, and no document claims otherwise.
+
+**The empirical corpus gate passes.** 202 markets, epoch `p13-corpus-6`, one process, 16 h 58 m,
+no restart. Re-audited against the durable files rather than the collector's summary: 202 rows,
+202 qualifying, 202 unique attempts, 202 unique slugs, 202 started and finished, **zero** failed,
+aborted, open, duplicate-start, duplicate-terminal, duplicate-result, duplicate-slug, refused rows
+or refused latency artifacts. 202/202 stores COMPLETE with verified archives; 202/202 replays
+EXACT and byte-identical; 24,712,774 decisions → 49,425,548 side opportunities with
+`classified == actions == 2 × decisions` on every market; 202/202 feeds warm at T0; **PLACE SAFE
+105,024, HALTED 0, RECOVERING 0**; 0 drops, gaps and sink errors; 202 settlements RESOLVED (96 UP,
+106 DOWN); one epoch, revision, tree and config across every row.
+
+Exhaustive L3: AT_FRONT 33.87 %, PRICE_OK_BUT_DEEP 13.33 %, NOT_QUOTING 52.79 %, OFF_PRICE 0 %,
+STALE 0.013 %. Merged live latency: CLOB receive→decide p50 114,643 ns / p99 849,083 ns over
+2.36 M samples; spot p50 78,463 / p99 535,139 over 106,789; decide_duration p50 29,226 ns.
+
+**The resource gate does not pass.** Post-release RSS rose 36 MB → 4,262 MB across the run.
+Quartile medians climb monotonically (2,351 → 2,464 → 2,780 → 3,621 MB), the run ends at its
+maximum, and the last-50 slope (+31.5 MB/market) matches the first-50 slope (+32.2) and is seven
+times the middle-100 slope (+4.7). **No plateau is demonstrated: `CONTINUED_PROCESS_RESIDENT_GROWTH`.**
+
+Object counts say what they can and no more: live sessions 2-3, fds 16-26, cold backlog 1 of 6,
+lifecycle high-water 3 of 6, and Python tracked objects **not trending** (+2,071/market against a
+39 K-4.8 M range, negative over the first and last fifty). So the market graphs really are
+released and this is not a retained-session leak. What grew is resident memory whose source this
+instrumentation does not identify — untracked allocations, native SQLite/LZMA buffers, thread
+stacks and fragmentation are all consistent and none is established. Threads also rose 8 → 12
+(max 13): bounded, not flat.
+
+**Tail latency, recorded not solved.** `observe` maxima reach 1,056 ms; 19.8 % of markets exceed
+100 ms, 12.4 % exceed 500 ms. 215 full collections cost 134.0 s over the run, mean 623 ms. In the
+worst twenty markets the decide/prepare/reconcile maxima are 1-20 ms, so the time is spent around
+the cycle — but full collections occur in 82 % of quiet markets too, and `GcObserver` records a
+run-cumulative maximum, so per-market attribution is not possible from this run. No threshold is
+proposed.
+
+### Gates
+
+* P13 implementation — **PASSED**
+* P13 pilot — **PASSED**
+* P13 ≥200-market empirical corpus — **PASSED** (202)
+* P13 long-run resource stability — **NOT PASSED**
+* **P13 overall — NOT COMPLETE**
+
+The dataset is **ready for P15 analysis**; the collector needs runtime engineering before longer
+unattended runs. **P14 is BLOCKED** on resident-memory growth, with GC tail latency recorded as a
+second readiness risk. O01-O09 remain OPEN — P13 produced the evidence, P15 owns the experiments.
+
+---
+
 ## P13F: Plane-3 audit isolation and result uniqueness
 
 Full evidence in [`evidence/P13F-AUDIT-ISOLATION.md`](evidence/P13F-AUDIT-ISOLATION.md).
@@ -1731,7 +1788,10 @@ orders, which P8 does not place. Both stay OPEN.
 | **Current phase** | **P13 — live shadow / paper mode** |
 | P13 implementation gate | **PASSED** (P13F) — every audit read and write on a dedicated thread, O(1) qualification per market with full audits at the boundaries, one result per attempt and per market |
 | P13 pilot gate | **PASSED** (P13F) — three consecutive real markets with the audit path deliberately slowed by 500 ms, all qualifying, zero drops. Earlier pilots retained and superseded |
-| P13 ≥200-market corpus gate | **IN PROGRESS** — `p13-corpus-6`, from the P13F build. Corpora 1-5 are preserved and excluded |
+| P13 ≥200-market empirical corpus gate | **PASSED** — 202 qualifying markets, epoch `p13-corpus-6`, collected by `9a42031` |
+| P13 long-run resource stability gate | **NOT PASSED** — post-release RSS 36 MB → 4,262 MB with no plateau (`CONTINUED_PROCESS_RESIDENT_GROWTH`) |
+| **P13 overall** | **NOT COMPLETE** — corpus accepted, collector runtime not |
+| P14 | **BLOCKED** — resident-memory growth; GC tail latency (observe max 1,056 ms) a second readiness risk |
 | P12 implementation gate | **PASSED** — Plane-3 UI, immutable snapshot, ordered control, no trading reference |
 | P12 real-market gate | **PASSED** — UI killed mid-market, trading continued |
 | P12 Plane-3 isolation gate | **PASSED** (P12C) — no synchronous I/O of any kind on the ingress path, stdout included |
@@ -1790,7 +1850,7 @@ orders, which P8 does not place. Both stay OPEN.
 | GitHub default branch | `main` (verified 2026-08-26; the earlier `bootstrap/phase-0` observation no longer holds) |
 | P9 commits | `4be0032` risk engine · `6576de0` recovery + runner · `1584dee` stale recovery fix · `b2e715e` real-market evidence · `4c2ab1d` full fault market |
 | Last accepted milestone | P11F — supported schema domain (`ea892c4`, now `main`) |
-| Next milestone | P14 — **not started**. P13's corpus must complete first |
+| Next milestone | P14 — **not started and blocked**. The corpus is complete; the collector's resident-memory growth is not resolved |
 | `main` | `ea892c4` — fast-forwarded through the whole accepted P11 lineage, pushed |
 | P11 branch | `feature/p11-telemetry-persistence` |
 | P11B branch | `fix/p11-persistence-integrity` |
@@ -1811,6 +1871,8 @@ orders, which P8 does not place. Both stay OPEN.
 | P13D branch | `fix/p13-final-evidence-binding` |
 | P13E branch | `fix/p13-final-counter-integrity` |
 | P13F branch | `fix/p13-plane3-audit-isolation` |
+| P13 corpus source SHA | `9a42031df1f46762a0a8ef958240342612586084`, tree `29aca3d58f1b4c3cf65161b99fb4137566c3adf5` |
+| P13 accepted corpus | `p13-corpus-6` — 202 markets, config `09c82f15…`, at `/home/hr/p13-corpus-6/` |
 | P13 corpus epochs superseded | `p13-corpus-1` (12), `-2` (10), `-3` (12), `-4` (4), `-5` (52) — all preserved, all excluded |
 | P12C final snapshot | retained unedited; its `decide_ns` label is corrected in `p12d-p12c-snapshot-latency-correction.json`, not in the file |
 | P12B final snapshot | **known-inaccurate read-model artifact**, retained unedited; see `p12c-p12b-revalidation-btc-updown-5m-1787807700.json` |

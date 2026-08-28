@@ -1,0 +1,650 @@
+{
+  "starting": "P13 live paper",
+  "epoch": "p13-corpus-6",
+  "config_sha256": "09c82f1501e424dafe3cb9fcc55708541d00a08e344955410bee4d7cc5c355fa",
+  "source_revision": "9a42031df1f46762a0a8ef958240342612586084",
+  "source_tree_sha": "29aca3d58f1b4c3cf65161b99fb4137566c3adf5",
+  "working_tree_clean": true,
+  "already_qualifying_this_epoch": 0,
+  "run_mode": "ACCEPTANCE_CLEAN",
+  "slow_audit_seconds": 0.0,
+  "live_trading_enabled": false,
+  "redemption_enabled": false,
+  "evidence_dir": "/home/hr/p13-corpus-6/markets",
+  "corpus": "/home/hr/p13-corpus-6/corpus.jsonl",
+  "ui": "/home/hr/p13-corpus-6/ui",
+  "target_markets": 200,
+  "launch_limit": null,
+  "already_complete": 0
+}
+[02:43:45] btc-updown-5m-1787877900 launched (prearm lead 74.9s, attempt 1)
+[02:48:45] btc-updown-5m-1787878200 launched (prearm lead 74.9s, attempt 2)
+[02:50:13] btc-updown-5m-1787877900 closed: 143956 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787877900: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 1, last full audit 0)
+[02:53:45] btc-updown-5m-1787878500 launched (prearm lead 74.9s, attempt 3)
+[02:55:13] btc-updown-5m-1787878200 closed: 131269 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787878200: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 2, last full audit 0)
+[02:58:45] btc-updown-5m-1787878800 launched (prearm lead 74.9s, attempt 4)
+[03:00:10] btc-updown-5m-1787878500 closed: 99259 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787878500: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 3, last full audit 0)
+[03:03:45] btc-updown-5m-1787879100 launched (prearm lead 74.9s, attempt 5)
+[03:05:12] btc-updown-5m-1787878800 closed: 105921 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787878800: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 4, last full audit 0)
+[03:08:45] btc-updown-5m-1787879400 launched (prearm lead 74.9s, attempt 6)
+[03:10:15] btc-updown-5m-1787879100 closed: 155583 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787879100: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 5, last full audit 0)
+[03:13:45] btc-updown-5m-1787879700 launched (prearm lead 74.9s, attempt 7)
+[03:15:12] btc-updown-5m-1787879400 closed: 197287 decisions, 0 dropped, 0 sink errors
+[03:18:45] btc-updown-5m-1787880000 launched (prearm lead 74.9s, attempt 8)
+    btc-updown-5m-1787879400: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 6, last full audit 0)
+[03:20:15] btc-updown-5m-1787879700 closed: 153782 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787879700: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 7, last full audit 0)
+[03:23:45] btc-updown-5m-1787880300 launched (prearm lead 74.9s, attempt 9)
+[03:25:11] btc-updown-5m-1787880000 closed: 209913 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787880000: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 8, last full audit 0)
+[03:28:45] btc-updown-5m-1787880600 launched (prearm lead 74.9s, attempt 10)
+[03:30:10] btc-updown-5m-1787880300 closed: 177995 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787880300: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 9, last full audit 0)
+[03:33:45] btc-updown-5m-1787880900 launched (prearm lead 74.9s, attempt 11)
+[03:35:14] btc-updown-5m-1787880600 closed: 191910 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787880600: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 10, last full audit 0)
+[03:38:45] btc-updown-5m-1787881200 launched (prearm lead 74.9s, attempt 12)
+[03:40:15] btc-updown-5m-1787880900 closed: 147426 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787880900: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 11, last full audit 0)
+[03:43:45] btc-updown-5m-1787881500 launched (prearm lead 74.9s, attempt 13)
+[03:45:12] btc-updown-5m-1787881200 closed: 208292 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787881200: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 12, last full audit 0)
+[03:48:45] btc-updown-5m-1787881800 launched (prearm lead 74.9s, attempt 14)
+[03:50:15] btc-updown-5m-1787881500 closed: 127495 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787881500: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 13, last full audit 0)
+[03:53:45] btc-updown-5m-1787882100 launched (prearm lead 74.9s, attempt 15)
+[03:55:11] btc-updown-5m-1787881800 closed: 142265 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787881800: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 14, last full audit 0)
+[03:58:45] btc-updown-5m-1787882400 launched (prearm lead 74.9s, attempt 16)
+[04:00:13] btc-updown-5m-1787882100 closed: 129079 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787882100: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 15, last full audit 0)
+[04:03:45] btc-updown-5m-1787882700 launched (prearm lead 74.9s, attempt 17)
+[04:05:11] btc-updown-5m-1787882400 closed: 136016 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787882400: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 16, last full audit 0)
+[04:08:45] btc-updown-5m-1787883000 launched (prearm lead 74.9s, attempt 18)
+[04:10:14] btc-updown-5m-1787882700 closed: 212172 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787882700: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 17, last full audit 0)
+[04:13:45] btc-updown-5m-1787883300 launched (prearm lead 74.9s, attempt 19)
+[04:15:15] btc-updown-5m-1787883000 closed: 124421 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787883000: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 18, last full audit 0)
+[04:18:45] btc-updown-5m-1787883600 launched (prearm lead 74.9s, attempt 20)
+[04:20:12] btc-updown-5m-1787883300 closed: 128751 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787883300: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 19, last full audit 0)
+[04:23:45] btc-updown-5m-1787883900 launched (prearm lead 74.9s, attempt 21)
+[04:25:13] btc-updown-5m-1787883600 closed: 174819 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787883600: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 20, last full audit 0)
+[04:28:45] btc-updown-5m-1787884200 launched (prearm lead 74.7s, attempt 22)
+[04:30:15] btc-updown-5m-1787883900 closed: 177102 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787883900: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 21, last full audit 0)
+[04:33:45] btc-updown-5m-1787884500 launched (prearm lead 74.9s, attempt 23)
+[04:35:14] btc-updown-5m-1787884200 closed: 219286 decisions, 0 dropped, 0 sink errors
+[04:38:45] btc-updown-5m-1787884800 launched (prearm lead 74.9s, attempt 24)
+    btc-updown-5m-1787884200: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 22, last full audit 0)
+[04:40:13] btc-updown-5m-1787884500 closed: 120927 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787884500: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 23, last full audit 0)
+[04:43:45] btc-updown-5m-1787885100 launched (prearm lead 74.9s, attempt 25)
+[04:45:14] btc-updown-5m-1787884800 closed: 151429 decisions, 0 dropped, 0 sink errors
+[04:48:45] btc-updown-5m-1787885400 launched (prearm lead 74.9s, attempt 26)
+    btc-updown-5m-1787884800: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 24, last full audit 0)
+[04:50:11] btc-updown-5m-1787885100 closed: 140870 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787885100: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 25, last full audit 0)
+[04:53:45] btc-updown-5m-1787885700 launched (prearm lead 74.9s, attempt 27)
+[04:55:14] btc-updown-5m-1787885400 closed: 216840 decisions, 0 dropped, 0 sink errors
+[04:58:45] btc-updown-5m-1787886000 launched (prearm lead 74.9s, attempt 28)
+    btc-updown-5m-1787885400: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 26, last full audit 0)
+[05:00:14] btc-updown-5m-1787885700 closed: 175308 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787885700: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 27, last full audit 0)
+[05:03:45] btc-updown-5m-1787886300 launched (prearm lead 74.9s, attempt 29)
+[05:05:14] btc-updown-5m-1787886000 closed: 120287 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787886000: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 28, last full audit 0)
+[05:08:45] btc-updown-5m-1787886600 launched (prearm lead 74.9s, attempt 30)
+[05:10:11] btc-updown-5m-1787886300 closed: 168799 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787886300: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 29, last full audit 0)
+[05:13:45] btc-updown-5m-1787886900 launched (prearm lead 74.9s, attempt 31)
+[05:15:15] btc-updown-5m-1787886600 closed: 119738 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787886600: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 30, last full audit 0)
+[05:18:45] btc-updown-5m-1787887200 launched (prearm lead 74.9s, attempt 32)
+[05:20:11] btc-updown-5m-1787886900 closed: 108455 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787886900: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 31, last full audit 0)
+[05:23:45] btc-updown-5m-1787887500 launched (prearm lead 74.9s, attempt 33)
+[05:25:14] btc-updown-5m-1787887200 closed: 116280 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787887200: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 32, last full audit 0)
+[05:28:45] btc-updown-5m-1787887800 launched (prearm lead 74.9s, attempt 34)
+[05:30:14] btc-updown-5m-1787887500 closed: 87854 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787887500: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 33, last full audit 0)
+[05:33:45] btc-updown-5m-1787888100 launched (prearm lead 74.9s, attempt 35)
+[05:35:11] btc-updown-5m-1787887800 closed: 155204 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787887800: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 34, last full audit 0)
+[05:38:45] btc-updown-5m-1787888400 launched (prearm lead 74.9s, attempt 36)
+[05:40:11] btc-updown-5m-1787888100 closed: 116306 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787888100: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 35, last full audit 0)
+[05:43:45] btc-updown-5m-1787888700 launched (prearm lead 74.9s, attempt 37)
+[05:45:05] btc-updown-5m-1787888400 closed: 116791 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787888400: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 36, last full audit 0)
+[05:48:45] btc-updown-5m-1787889000 launched (prearm lead 74.9s, attempt 38)
+[05:50:13] btc-updown-5m-1787888700 closed: 145794 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787888700: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 37, last full audit 0)
+[05:53:45] btc-updown-5m-1787889300 launched (prearm lead 74.9s, attempt 39)
+[05:55:12] btc-updown-5m-1787889000 closed: 143990 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787889000: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 38, last full audit 0)
+[05:58:45] btc-updown-5m-1787889600 launched (prearm lead 74.9s, attempt 40)
+[06:00:13] btc-updown-5m-1787889300 closed: 108137 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787889300: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 39, last full audit 0)
+[06:03:45] btc-updown-5m-1787889900 launched (prearm lead 74.9s, attempt 41)
+[06:05:11] btc-updown-5m-1787889600 closed: 121383 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787889600: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 40, last full audit 0)
+[06:08:45] btc-updown-5m-1787890200 launched (prearm lead 74.9s, attempt 42)
+[06:10:13] btc-updown-5m-1787889900 closed: 106161 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787889900: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 41, last full audit 0)
+[06:13:45] btc-updown-5m-1787890500 launched (prearm lead 74.9s, attempt 43)
+[06:15:11] btc-updown-5m-1787890200 closed: 66021 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787890200: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 42, last full audit 0)
+[06:18:45] btc-updown-5m-1787890800 launched (prearm lead 74.9s, attempt 44)
+[06:20:12] btc-updown-5m-1787890500 closed: 51709 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787890500: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 43, last full audit 0)
+[06:23:45] btc-updown-5m-1787891100 launched (prearm lead 74.9s, attempt 45)
+[06:25:13] btc-updown-5m-1787890800 closed: 24849 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787890800: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 44, last full audit 0)
+[06:28:45] btc-updown-5m-1787891400 launched (prearm lead 74.9s, attempt 46)
+[06:30:11] btc-updown-5m-1787891100 closed: 81448 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787891100: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 45, last full audit 0)
+[06:33:45] btc-updown-5m-1787891700 launched (prearm lead 74.9s, attempt 47)
+[06:35:11] btc-updown-5m-1787891400 closed: 86787 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787891400: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 46, last full audit 0)
+[06:38:45] btc-updown-5m-1787892000 launched (prearm lead 74.9s, attempt 48)
+[06:40:14] btc-updown-5m-1787891700 closed: 103602 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787891700: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 47, last full audit 0)
+[06:43:45] btc-updown-5m-1787892300 launched (prearm lead 74.9s, attempt 49)
+[06:45:12] btc-updown-5m-1787892000 closed: 66260 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787892000: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 48, last full audit 0)
+[06:48:45] btc-updown-5m-1787892600 launched (prearm lead 74.9s, attempt 50)
+[06:50:15] btc-updown-5m-1787892300 closed: 107574 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787892300: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 49, last full audit 0)
+[06:53:45] btc-updown-5m-1787892900 launched (prearm lead 74.9s, attempt 51)
+[06:55:10] btc-updown-5m-1787892600 closed: 92907 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787892600: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 50, last full audit 0)
+[06:58:45] btc-updown-5m-1787893200 launched (prearm lead 74.9s, attempt 52)
+[07:00:12] btc-updown-5m-1787892900 closed: 99169 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787892900: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 51, last full audit 0)
+[07:03:45] btc-updown-5m-1787893500 launched (prearm lead 74.9s, attempt 53)
+[07:05:13] btc-updown-5m-1787893200 closed: 110377 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787893200: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 52, last full audit 0)
+[07:08:45] btc-updown-5m-1787893800 launched (prearm lead 74.9s, attempt 54)
+[07:10:15] btc-updown-5m-1787893500 closed: 77770 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787893500: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 53, last full audit 0)
+[07:13:45] btc-updown-5m-1787894100 launched (prearm lead 74.9s, attempt 55)
+[07:15:13] btc-updown-5m-1787893800 closed: 113454 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787893800: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 54, last full audit 0)
+[07:18:45] btc-updown-5m-1787894400 launched (prearm lead 74.9s, attempt 56)
+[07:20:13] btc-updown-5m-1787894100 closed: 100611 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787894100: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 55, last full audit 0)
+[07:23:45] btc-updown-5m-1787894700 launched (prearm lead 74.9s, attempt 57)
+[07:25:13] btc-updown-5m-1787894400 closed: 61735 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787894400: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 56, last full audit 0)
+[07:28:45] btc-updown-5m-1787895000 launched (prearm lead 74.9s, attempt 58)
+[07:30:12] btc-updown-5m-1787894700 closed: 81244 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787894700: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 57, last full audit 0)
+[07:33:45] btc-updown-5m-1787895300 launched (prearm lead 74.9s, attempt 59)
+[07:35:12] btc-updown-5m-1787895000 closed: 107385 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787895000: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 58, last full audit 0)
+[07:38:45] btc-updown-5m-1787895600 launched (prearm lead 74.9s, attempt 60)
+[07:40:10] btc-updown-5m-1787895300 closed: 85425 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787895300: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 59, last full audit 0)
+[07:43:45] btc-updown-5m-1787895900 launched (prearm lead 74.9s, attempt 61)
+[07:45:13] btc-updown-5m-1787895600 closed: 99794 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787895600: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 60, last full audit 0)
+[07:48:45] btc-updown-5m-1787896200 launched (prearm lead 74.9s, attempt 62)
+[07:50:12] btc-updown-5m-1787895900 closed: 93729 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787895900: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 61, last full audit 0)
+[07:53:45] btc-updown-5m-1787896500 launched (prearm lead 74.9s, attempt 63)
+[07:55:11] btc-updown-5m-1787896200 closed: 86509 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787896200: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 62, last full audit 0)
+[07:58:45] btc-updown-5m-1787896800 launched (prearm lead 74.9s, attempt 64)
+[08:00:11] btc-updown-5m-1787896500 closed: 53966 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787896500: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 63, last full audit 0)
+[08:03:45] btc-updown-5m-1787897100 launched (prearm lead 74.9s, attempt 65)
+[08:05:14] btc-updown-5m-1787896800 closed: 62828 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787896800: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 64, last full audit 0)
+[08:08:45] btc-updown-5m-1787897400 launched (prearm lead 74.9s, attempt 66)
+[08:10:14] btc-updown-5m-1787897100 closed: 98614 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787897100: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 65, last full audit 0)
+[08:13:45] btc-updown-5m-1787897700 launched (prearm lead 74.9s, attempt 67)
+[08:15:12] btc-updown-5m-1787897400 closed: 126794 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787897400: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 66, last full audit 0)
+[08:18:45] btc-updown-5m-1787898000 launched (prearm lead 74.9s, attempt 68)
+[08:20:10] btc-updown-5m-1787897700 closed: 106411 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787897700: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 67, last full audit 0)
+[08:23:45] btc-updown-5m-1787898300 launched (prearm lead 74.9s, attempt 69)
+[08:25:14] btc-updown-5m-1787898000 closed: 140485 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787898000: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 68, last full audit 0)
+[08:28:45] btc-updown-5m-1787898600 launched (prearm lead 74.9s, attempt 70)
+[08:30:14] btc-updown-5m-1787898300 closed: 77609 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787898300: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 69, last full audit 0)
+[08:33:45] btc-updown-5m-1787898900 launched (prearm lead 74.9s, attempt 71)
+[08:35:11] btc-updown-5m-1787898600 closed: 117401 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787898600: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 70, last full audit 0)
+[08:38:45] btc-updown-5m-1787899200 launched (prearm lead 74.9s, attempt 72)
+[08:40:12] btc-updown-5m-1787898900 closed: 115556 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787898900: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 71, last full audit 0)
+[08:43:45] btc-updown-5m-1787899500 launched (prearm lead 74.9s, attempt 73)
+[08:45:14] btc-updown-5m-1787899200 closed: 140369 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787899200: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 72, last full audit 0)
+[08:48:45] btc-updown-5m-1787899800 launched (prearm lead 74.9s, attempt 74)
+[08:50:14] btc-updown-5m-1787899500 closed: 78237 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787899500: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 73, last full audit 0)
+[08:53:45] btc-updown-5m-1787900100 launched (prearm lead 74.9s, attempt 75)
+[08:55:13] btc-updown-5m-1787899800 closed: 125509 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787899800: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 74, last full audit 0)
+[08:58:45] btc-updown-5m-1787900400 launched (prearm lead 74.9s, attempt 76)
+[09:00:12] btc-updown-5m-1787900100 closed: 92000 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787900100: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 75, last full audit 0)
+[09:03:45] btc-updown-5m-1787900700 launched (prearm lead 74.9s, attempt 77)
+[09:05:12] btc-updown-5m-1787900400 closed: 89069 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787900400: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 76, last full audit 0)
+[09:08:45] btc-updown-5m-1787901000 launched (prearm lead 74.9s, attempt 78)
+[09:10:12] btc-updown-5m-1787900700 closed: 66681 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787900700: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 77, last full audit 0)
+[09:13:45] btc-updown-5m-1787901300 launched (prearm lead 74.9s, attempt 79)
+[09:15:12] btc-updown-5m-1787901000 closed: 93601 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787901000: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 78, last full audit 0)
+[09:18:45] btc-updown-5m-1787901600 launched (prearm lead 74.9s, attempt 80)
+[09:20:12] btc-updown-5m-1787901300 closed: 102139 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787901300: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 79, last full audit 0)
+[09:23:45] btc-updown-5m-1787901900 launched (prearm lead 74.9s, attempt 81)
+[09:25:15] btc-updown-5m-1787901600 closed: 107423 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787901600: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 80, last full audit 0)
+[09:28:45] btc-updown-5m-1787902200 launched (prearm lead 74.9s, attempt 82)
+[09:30:12] btc-updown-5m-1787901900 closed: 72790 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787901900: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 81, last full audit 0)
+[09:33:45] btc-updown-5m-1787902500 launched (prearm lead 74.9s, attempt 83)
+[09:35:15] btc-updown-5m-1787902200 closed: 84900 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787902200: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 82, last full audit 0)
+[09:38:45] btc-updown-5m-1787902800 launched (prearm lead 74.9s, attempt 84)
+[09:40:13] btc-updown-5m-1787902500 closed: 116484 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787902500: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 83, last full audit 0)
+[09:43:45] btc-updown-5m-1787903100 launched (prearm lead 74.9s, attempt 85)
+[09:45:13] btc-updown-5m-1787902800 closed: 97462 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787902800: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 84, last full audit 0)
+[09:48:45] btc-updown-5m-1787903400 launched (prearm lead 74.9s, attempt 86)
+[09:50:12] btc-updown-5m-1787903100 closed: 110416 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787903100: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 85, last full audit 0)
+[09:53:45] btc-updown-5m-1787903700 launched (prearm lead 74.9s, attempt 87)
+[09:55:11] btc-updown-5m-1787903400 closed: 138357 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787903400: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 86, last full audit 0)
+[09:58:45] btc-updown-5m-1787904000 launched (prearm lead 74.9s, attempt 88)
+[10:00:11] btc-updown-5m-1787903700 closed: 103098 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787903700: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 87, last full audit 0)
+[10:03:45] btc-updown-5m-1787904300 launched (prearm lead 74.9s, attempt 89)
+[10:05:14] btc-updown-5m-1787904000 closed: 90181 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787904000: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 88, last full audit 0)
+[10:08:45] btc-updown-5m-1787904600 launched (prearm lead 74.9s, attempt 90)
+[10:10:14] btc-updown-5m-1787904300 closed: 130736 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787904300: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 89, last full audit 0)
+[10:13:45] btc-updown-5m-1787904900 launched (prearm lead 74.9s, attempt 91)
+[10:15:10] btc-updown-5m-1787904600 closed: 89790 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787904600: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 90, last full audit 0)
+[10:18:45] btc-updown-5m-1787905200 launched (prearm lead 74.9s, attempt 92)
+[10:20:15] btc-updown-5m-1787904900 closed: 77097 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787904900: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 91, last full audit 0)
+[10:23:45] btc-updown-5m-1787905500 launched (prearm lead 74.9s, attempt 93)
+[10:25:14] btc-updown-5m-1787905200 closed: 93368 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787905200: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 92, last full audit 0)
+[10:28:45] btc-updown-5m-1787905800 launched (prearm lead 74.9s, attempt 94)
+[10:30:14] btc-updown-5m-1787905500 closed: 88113 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787905500: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 93, last full audit 0)
+[10:33:45] btc-updown-5m-1787906100 launched (prearm lead 74.9s, attempt 95)
+[10:35:14] btc-updown-5m-1787905800 closed: 134391 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787905800: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 94, last full audit 0)
+[10:38:45] btc-updown-5m-1787906400 launched (prearm lead 74.9s, attempt 96)
+[10:40:10] btc-updown-5m-1787906100 closed: 94689 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787906100: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 95, last full audit 0)
+[10:43:45] btc-updown-5m-1787906700 launched (prearm lead 74.9s, attempt 97)
+[10:45:12] btc-updown-5m-1787906400 closed: 97313 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787906400: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 96, last full audit 0)
+[10:48:45] btc-updown-5m-1787907000 launched (prearm lead 74.9s, attempt 98)
+[10:50:15] btc-updown-5m-1787906700 closed: 63991 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787906700: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 97, last full audit 0)
+[10:53:45] btc-updown-5m-1787907300 launched (prearm lead 74.9s, attempt 99)
+[10:55:15] btc-updown-5m-1787907000 closed: 116039 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787907000: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 98, last full audit 0)
+[10:58:45] btc-updown-5m-1787907600 launched (prearm lead 74.9s, attempt 100)
+[11:00:14] btc-updown-5m-1787907300 closed: 65476 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787907300: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 99, last full audit 0)
+[11:03:45] btc-updown-5m-1787907900 launched (prearm lead 74.9s, attempt 101)
+[11:05:11] btc-updown-5m-1787907600 closed: 87314 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787907600: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 100, last full audit 0)
+[11:08:45] btc-updown-5m-1787908200 launched (prearm lead 74.9s, attempt 102)
+[11:10:10] btc-updown-5m-1787907900 closed: 127286 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787907900: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 101, last full audit 0)
+[11:13:45] btc-updown-5m-1787908500 launched (prearm lead 74.9s, attempt 103)
+[11:15:11] btc-updown-5m-1787908200 closed: 102334 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787908200: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 102, last full audit 0)
+[11:18:45] btc-updown-5m-1787908800 launched (prearm lead 74.9s, attempt 104)
+[11:20:12] btc-updown-5m-1787908500 closed: 90849 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787908500: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 103, last full audit 0)
+[11:23:45] btc-updown-5m-1787909100 launched (prearm lead 74.9s, attempt 105)
+[11:25:13] btc-updown-5m-1787908800 closed: 79543 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787908800: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 104, last full audit 0)
+[11:28:45] btc-updown-5m-1787909400 launched (prearm lead 74.9s, attempt 106)
+[11:30:14] btc-updown-5m-1787909100 closed: 84373 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787909100: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 105, last full audit 0)
+[11:33:45] btc-updown-5m-1787909700 launched (prearm lead 74.9s, attempt 107)
+[11:35:14] btc-updown-5m-1787909400 closed: 118441 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787909400: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 106, last full audit 0)
+[11:38:45] btc-updown-5m-1787910000 launched (prearm lead 74.9s, attempt 108)
+[11:40:12] btc-updown-5m-1787909700 closed: 127775 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787909700: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 107, last full audit 0)
+[11:43:45] btc-updown-5m-1787910300 launched (prearm lead 74.9s, attempt 109)
+[11:45:14] btc-updown-5m-1787910000 closed: 93029 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787910000: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 108, last full audit 0)
+[11:48:45] btc-updown-5m-1787910600 launched (prearm lead 74.9s, attempt 110)
+[11:50:11] btc-updown-5m-1787910300 closed: 107913 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787910300: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 109, last full audit 0)
+[11:53:45] btc-updown-5m-1787910900 launched (prearm lead 74.9s, attempt 111)
+[11:55:14] btc-updown-5m-1787910600 closed: 84912 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787910600: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 110, last full audit 0)
+[11:58:45] btc-updown-5m-1787911200 launched (prearm lead 74.9s, attempt 112)
+[12:00:12] btc-updown-5m-1787910900 closed: 71209 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787910900: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 111, last full audit 0)
+[12:03:45] btc-updown-5m-1787911500 launched (prearm lead 74.9s, attempt 113)
+[12:05:14] btc-updown-5m-1787911200 closed: 101883 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787911200: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 112, last full audit 0)
+[12:08:45] btc-updown-5m-1787911800 launched (prearm lead 74.9s, attempt 114)
+[12:10:13] btc-updown-5m-1787911500 closed: 110042 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787911500: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 113, last full audit 0)
+[12:13:45] btc-updown-5m-1787912100 launched (prearm lead 74.9s, attempt 115)
+[12:15:12] btc-updown-5m-1787911800 closed: 68652 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787911800: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 114, last full audit 0)
+[12:18:45] btc-updown-5m-1787912400 launched (prearm lead 74.9s, attempt 116)
+[12:20:14] btc-updown-5m-1787912100 closed: 95020 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787912100: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 115, last full audit 0)
+[12:23:45] btc-updown-5m-1787912700 launched (prearm lead 74.9s, attempt 117)
+[12:25:14] btc-updown-5m-1787912400 closed: 112407 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787912400: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 116, last full audit 0)
+[12:28:45] btc-updown-5m-1787913000 launched (prearm lead 74.9s, attempt 118)
+[12:30:15] btc-updown-5m-1787912700 closed: 79974 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787912700: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 117, last full audit 0)
+[12:33:45] btc-updown-5m-1787913300 launched (prearm lead 74.9s, attempt 119)
+[12:35:14] btc-updown-5m-1787913000 closed: 86175 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787913000: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 118, last full audit 0)
+[12:38:45] btc-updown-5m-1787913600 launched (prearm lead 74.9s, attempt 120)
+[12:40:15] btc-updown-5m-1787913300 closed: 117876 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787913300: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 119, last full audit 0)
+[12:43:45] btc-updown-5m-1787913900 launched (prearm lead 74.8s, attempt 121)
+[12:45:11] btc-updown-5m-1787913600 closed: 111270 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787913600: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 120, last full audit 0)
+[12:48:45] btc-updown-5m-1787914200 launched (prearm lead 74.9s, attempt 122)
+[12:50:10] btc-updown-5m-1787913900 closed: 76628 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787913900: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 121, last full audit 0)
+[12:53:45] btc-updown-5m-1787914500 launched (prearm lead 74.9s, attempt 123)
+[12:55:10] btc-updown-5m-1787914200 closed: 121094 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787914200: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 122, last full audit 0)
+[12:58:45] btc-updown-5m-1787914800 launched (prearm lead 74.9s, attempt 124)
+[13:00:12] btc-updown-5m-1787914500 closed: 83865 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787914500: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 123, last full audit 0)
+[13:03:45] btc-updown-5m-1787915100 launched (prearm lead 74.9s, attempt 125)
+[13:05:14] btc-updown-5m-1787914800 closed: 102109 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787914800: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 124, last full audit 0)
+[13:08:45] btc-updown-5m-1787915400 launched (prearm lead 74.9s, attempt 126)
+[13:10:12] btc-updown-5m-1787915100 closed: 108143 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787915100: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 125, last full audit 0)
+[13:13:45] btc-updown-5m-1787915700 launched (prearm lead 74.9s, attempt 127)
+[13:15:13] btc-updown-5m-1787915400 closed: 109971 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787915400: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 126, last full audit 0)
+[13:18:45] btc-updown-5m-1787916000 launched (prearm lead 74.9s, attempt 128)
+[13:20:14] btc-updown-5m-1787915700 closed: 116957 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787915700: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 127, last full audit 0)
+[13:23:45] btc-updown-5m-1787916300 launched (prearm lead 74.9s, attempt 129)
+[13:25:14] btc-updown-5m-1787916000 closed: 105691 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787916000: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 128, last full audit 0)
+[13:28:45] btc-updown-5m-1787916600 launched (prearm lead 74.9s, attempt 130)
+[13:30:15] btc-updown-5m-1787916300 closed: 73987 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787916300: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 129, last full audit 0)
+[13:33:45] btc-updown-5m-1787916900 launched (prearm lead 74.9s, attempt 131)
+[13:35:13] btc-updown-5m-1787916600 closed: 79827 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787916600: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 130, last full audit 0)
+[13:38:45] btc-updown-5m-1787917200 launched (prearm lead 74.9s, attempt 132)
+[13:40:11] btc-updown-5m-1787916900 closed: 66500 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787916900: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 131, last full audit 0)
+[13:43:45] btc-updown-5m-1787917500 launched (prearm lead 74.9s, attempt 133)
+[13:45:12] btc-updown-5m-1787917200 closed: 77071 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787917200: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 132, last full audit 0)
+[13:48:45] btc-updown-5m-1787917800 launched (prearm lead 74.9s, attempt 134)
+[13:50:12] btc-updown-5m-1787917500 closed: 89640 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787917500: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 133, last full audit 0)
+[13:53:45] btc-updown-5m-1787918100 launched (prearm lead 74.9s, attempt 135)
+[13:55:14] btc-updown-5m-1787917800 closed: 68228 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787917800: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 134, last full audit 0)
+[13:58:45] btc-updown-5m-1787918400 launched (prearm lead 74.9s, attempt 136)
+[14:00:14] btc-updown-5m-1787918100 closed: 85923 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787918100: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 135, last full audit 0)
+[14:03:45] btc-updown-5m-1787918700 launched (prearm lead 74.9s, attempt 137)
+[14:05:13] btc-updown-5m-1787918400 closed: 119472 decisions, 0 dropped, 0 sink errors
+[14:08:45] btc-updown-5m-1787919000 launched (prearm lead 74.9s, attempt 138)
+    btc-updown-5m-1787918400: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 136, last full audit 0)
+[14:10:12] btc-updown-5m-1787918700 closed: 124494 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787918700: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 137, last full audit 0)
+[14:13:45] btc-updown-5m-1787919300 launched (prearm lead 74.9s, attempt 139)
+[14:15:15] btc-updown-5m-1787919000 closed: 68303 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787919000: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 138, last full audit 0)
+[14:18:45] btc-updown-5m-1787919600 launched (prearm lead 74.9s, attempt 140)
+[14:20:13] btc-updown-5m-1787919300 closed: 60155 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787919300: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 139, last full audit 0)
+[14:23:45] btc-updown-5m-1787919900 launched (prearm lead 74.9s, attempt 141)
+[14:25:12] btc-updown-5m-1787919600 closed: 112484 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787919600: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 140, last full audit 0)
+[14:28:45] btc-updown-5m-1787920200 launched (prearm lead 74.9s, attempt 142)
+[14:30:10] btc-updown-5m-1787919900 closed: 93200 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787919900: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 141, last full audit 0)
+[14:33:45] btc-updown-5m-1787920500 launched (prearm lead 74.9s, attempt 143)
+[14:35:11] btc-updown-5m-1787920200 closed: 86746 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787920200: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 142, last full audit 0)
+[14:38:45] btc-updown-5m-1787920800 launched (prearm lead 74.9s, attempt 144)
+[14:40:11] btc-updown-5m-1787920500 closed: 78503 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787920500: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 143, last full audit 0)
+[14:43:45] btc-updown-5m-1787921100 launched (prearm lead 74.9s, attempt 145)
+[14:45:13] btc-updown-5m-1787920800 closed: 80001 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787920800: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 144, last full audit 0)
+[14:48:45] btc-updown-5m-1787921400 launched (prearm lead 74.9s, attempt 146)
+[14:50:15] btc-updown-5m-1787921100 closed: 93265 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787921100: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 145, last full audit 0)
+[14:53:45] btc-updown-5m-1787921700 launched (prearm lead 74.9s, attempt 147)
+[14:55:14] btc-updown-5m-1787921400 closed: 98253 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787921400: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 146, last full audit 0)
+[14:58:45] btc-updown-5m-1787922000 launched (prearm lead 74.9s, attempt 148)
+[15:00:12] btc-updown-5m-1787921700 closed: 103956 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787921700: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 147, last full audit 0)
+[15:03:45] btc-updown-5m-1787922300 launched (prearm lead 74.9s, attempt 149)
+[15:05:15] btc-updown-5m-1787922000 closed: 102874 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787922000: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 148, last full audit 0)
+[15:08:45] btc-updown-5m-1787922600 launched (prearm lead 74.9s, attempt 150)
+[15:10:13] btc-updown-5m-1787922300 closed: 87137 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787922300: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 149, last full audit 0)
+[15:13:45] btc-updown-5m-1787922900 launched (prearm lead 74.9s, attempt 151)
+[15:15:13] btc-updown-5m-1787922600 closed: 67314 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787922600: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 150, last full audit 0)
+[15:18:45] btc-updown-5m-1787923200 launched (prearm lead 74.9s, attempt 152)
+[15:20:13] btc-updown-5m-1787922900 closed: 124840 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787922900: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 151, last full audit 0)
+[15:23:45] btc-updown-5m-1787923500 launched (prearm lead 74.9s, attempt 153)
+[15:25:11] btc-updown-5m-1787923200 closed: 58583 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787923200: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 152, last full audit 0)
+[15:28:45] btc-updown-5m-1787923800 launched (prearm lead 74.9s, attempt 154)
+[15:30:12] btc-updown-5m-1787923500 closed: 125681 decisions, 0 dropped, 0 sink errors
+[15:33:45] btc-updown-5m-1787924100 launched (prearm lead 74.9s, attempt 155)
+    btc-updown-5m-1787923500: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 153, last full audit 0)
+[15:35:15] btc-updown-5m-1787923800 closed: 167552 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787923800: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 154, last full audit 0)
+[15:38:45] btc-updown-5m-1787924400 launched (prearm lead 74.9s, attempt 156)
+[15:40:11] btc-updown-5m-1787924100 closed: 150367 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787924100: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 155, last full audit 0)
+[15:43:45] btc-updown-5m-1787924700 launched (prearm lead 74.9s, attempt 157)
+[15:45:13] btc-updown-5m-1787924400 closed: 92101 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787924400: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 156, last full audit 0)
+[15:48:45] btc-updown-5m-1787925000 launched (prearm lead 74.9s, attempt 158)
+[15:50:13] btc-updown-5m-1787924700 closed: 123712 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787924700: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 157, last full audit 0)
+[15:53:45] btc-updown-5m-1787925300 launched (prearm lead 74.9s, attempt 159)
+[15:55:15] btc-updown-5m-1787925000 closed: 177266 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787925000: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 158, last full audit 0)
+[15:58:45] btc-updown-5m-1787925600 launched (prearm lead 74.9s, attempt 160)
+[16:00:15] btc-updown-5m-1787925300 closed: 139203 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787925300: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 159, last full audit 0)
+[16:03:45] btc-updown-5m-1787925900 launched (prearm lead 74.9s, attempt 161)
+[16:05:15] btc-updown-5m-1787925600 closed: 173619 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787925600: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 160, last full audit 0)
+[16:08:45] btc-updown-5m-1787926200 launched (prearm lead 74.9s, attempt 162)
+[16:10:15] btc-updown-5m-1787925900 closed: 291555 decisions, 0 dropped, 0 sink errors
+[16:13:45] btc-updown-5m-1787926500 launched (prearm lead 74.9s, attempt 163)
+    btc-updown-5m-1787925900: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 161, last full audit 0)
+[16:15:12] btc-updown-5m-1787926200 closed: 156232 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787926200: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 162, last full audit 0)
+[16:18:45] btc-updown-5m-1787926800 launched (prearm lead 74.8s, attempt 164)
+[16:20:11] btc-updown-5m-1787926500 closed: 214136 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787926500: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 163, last full audit 0)
+[16:23:45] btc-updown-5m-1787927100 launched (prearm lead 74.9s, attempt 165)
+[16:25:11] btc-updown-5m-1787926800 closed: 219636 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787926800: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 164, last full audit 0)
+[16:28:45] btc-updown-5m-1787927400 launched (prearm lead 74.9s, attempt 166)
+[16:30:13] btc-updown-5m-1787927100 closed: 245270 decisions, 0 dropped, 0 sink errors
+[16:33:45] btc-updown-5m-1787927700 launched (prearm lead 74.9s, attempt 167)
+    btc-updown-5m-1787927100: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 165, last full audit 0)
+[16:35:15] btc-updown-5m-1787927400 closed: 147577 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787927400: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 166, last full audit 0)
+[16:38:45] btc-updown-5m-1787928000 launched (prearm lead 74.9s, attempt 168)
+[16:40:11] btc-updown-5m-1787927700 closed: 147285 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787927700: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 167, last full audit 0)
+[16:43:45] btc-updown-5m-1787928300 launched (prearm lead 74.9s, attempt 169)
+[16:45:15] btc-updown-5m-1787928000 closed: 150852 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787928000: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 168, last full audit 0)
+[16:48:45] btc-updown-5m-1787928600 launched (prearm lead 74.9s, attempt 170)
+[16:50:12] btc-updown-5m-1787928300 closed: 152639 decisions, 0 dropped, 0 sink errors
+[16:53:45] btc-updown-5m-1787928900 launched (prearm lead 74.9s, attempt 171)
+    btc-updown-5m-1787928300: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 169, last full audit 0)
+[16:55:15] btc-updown-5m-1787928600 closed: 103190 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787928600: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 170, last full audit 0)
+[16:58:45] btc-updown-5m-1787929200 launched (prearm lead 74.9s, attempt 172)
+[17:00:14] btc-updown-5m-1787928900 closed: 162175 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787928900: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 171, last full audit 0)
+[17:03:45] btc-updown-5m-1787929500 launched (prearm lead 74.9s, attempt 173)
+[17:05:10] btc-updown-5m-1787929200 closed: 188708 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787929200: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 172, last full audit 0)
+[17:08:45] btc-updown-5m-1787929800 launched (prearm lead 74.9s, attempt 174)
+[17:10:14] btc-updown-5m-1787929500 closed: 153501 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787929500: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 173, last full audit 0)
+[17:13:45] btc-updown-5m-1787930100 launched (prearm lead 74.9s, attempt 175)
+[17:15:12] btc-updown-5m-1787929800 closed: 167297 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787929800: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 174, last full audit 0)
+[17:18:45] btc-updown-5m-1787930400 launched (prearm lead 74.9s, attempt 176)
+[17:20:15] btc-updown-5m-1787930100 closed: 143982 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787930100: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 175, last full audit 0)
+[17:23:45] btc-updown-5m-1787930700 launched (prearm lead 74.9s, attempt 177)
+[17:25:10] btc-updown-5m-1787930400 closed: 170004 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787930400: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 176, last full audit 0)
+[17:28:45] btc-updown-5m-1787931000 launched (prearm lead 74.9s, attempt 178)
+[17:30:12] btc-updown-5m-1787930700 closed: 145909 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787930700: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 177, last full audit 0)
+[17:33:45] btc-updown-5m-1787931300 launched (prearm lead 74.9s, attempt 179)
+[17:35:14] btc-updown-5m-1787931000 closed: 119113 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787931000: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 178, last full audit 0)
+[17:38:45] btc-updown-5m-1787931600 launched (prearm lead 74.9s, attempt 180)
+[17:40:10] btc-updown-5m-1787931300 closed: 182503 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787931300: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 179, last full audit 0)
+[17:43:45] btc-updown-5m-1787931900 launched (prearm lead 74.6s, attempt 181)
+[17:45:13] btc-updown-5m-1787931600 closed: 84191 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787931600: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 180, last full audit 0)
+[17:48:45] btc-updown-5m-1787932200 launched (prearm lead 74.9s, attempt 182)
+[17:50:12] btc-updown-5m-1787931900 closed: 189183 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787931900: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 181, last full audit 0)
+[17:53:45] btc-updown-5m-1787932500 launched (prearm lead 74.9s, attempt 183)
+[17:55:15] btc-updown-5m-1787932200 closed: 132557 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787932200: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 182, last full audit 0)
+[17:58:45] btc-updown-5m-1787932800 launched (prearm lead 74.9s, attempt 184)
+[18:00:15] btc-updown-5m-1787932500 closed: 136241 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787932500: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 183, last full audit 0)
+[18:03:45] btc-updown-5m-1787933100 launched (prearm lead 74.9s, attempt 185)
+[18:05:15] btc-updown-5m-1787932800 closed: 153424 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787932800: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 184, last full audit 0)
+[18:08:45] btc-updown-5m-1787933400 launched (prearm lead 74.9s, attempt 186)
+[18:10:11] btc-updown-5m-1787933100 closed: 197281 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787933100: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 185, last full audit 0)
+[18:13:45] btc-updown-5m-1787933700 launched (prearm lead 74.9s, attempt 187)
+[18:15:11] btc-updown-5m-1787933400 closed: 120796 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787933400: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 186, last full audit 0)
+[18:18:45] btc-updown-5m-1787934000 launched (prearm lead 74.9s, attempt 188)
+[18:20:15] btc-updown-5m-1787933700 closed: 140923 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787933700: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 187, last full audit 0)
+[18:23:45] btc-updown-5m-1787934300 launched (prearm lead 74.9s, attempt 189)
+[18:25:11] btc-updown-5m-1787934000 closed: 217968 decisions, 0 dropped, 0 sink errors
+[18:28:45] btc-updown-5m-1787934600 launched (prearm lead 74.9s, attempt 190)
+    btc-updown-5m-1787934000: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 188, last full audit 0)
+[18:30:11] btc-updown-5m-1787934300 closed: 247909 decisions, 0 dropped, 0 sink errors
+[18:33:45] btc-updown-5m-1787934900 launched (prearm lead 74.9s, attempt 191)
+    btc-updown-5m-1787934300: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 189, last full audit 0)
+[18:35:15] btc-updown-5m-1787934600 closed: 162280 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787934600: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 190, last full audit 0)
+[18:38:45] btc-updown-5m-1787935200 launched (prearm lead 74.9s, attempt 192)
+[18:40:13] btc-updown-5m-1787934900 closed: 166907 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787934900: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 191, last full audit 0)
+[18:43:45] btc-updown-5m-1787935500 launched (prearm lead 74.9s, attempt 193)
+[18:45:16] btc-updown-5m-1787935200 closed: 228439 decisions, 0 dropped, 0 sink errors
+[18:48:45] btc-updown-5m-1787935800 launched (prearm lead 74.9s, attempt 194)
+    btc-updown-5m-1787935200: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 192, last full audit 0)
+[18:50:13] btc-updown-5m-1787935500 closed: 152536 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787935500: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 193, last full audit 0)
+[18:53:45] btc-updown-5m-1787936100 launched (prearm lead 74.9s, attempt 195)
+[18:55:13] btc-updown-5m-1787935800 closed: 124608 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787935800: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 194, last full audit 0)
+[18:58:45] btc-updown-5m-1787936400 launched (prearm lead 74.9s, attempt 196)
+[19:00:10] btc-updown-5m-1787936100 closed: 200624 decisions, 0 dropped, 0 sink errors
+[19:03:45] btc-updown-5m-1787936700 launched (prearm lead 74.9s, attempt 197)
+    btc-updown-5m-1787936100: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 195, last full audit 0)
+[19:05:11] btc-updown-5m-1787936400 closed: 179540 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787936400: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 196, last full audit 0)
+[19:08:45] btc-updown-5m-1787937000 launched (prearm lead 74.9s, attempt 198)
+[19:10:10] btc-updown-5m-1787936700 closed: 188750 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787936700: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 197, last full audit 0)
+[19:13:45] btc-updown-5m-1787937300 launched (prearm lead 74.9s, attempt 199)
+[19:15:13] btc-updown-5m-1787937000 closed: 148703 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787937000: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 198, last full audit 0)
+[19:18:45] btc-updown-5m-1787937600 launched (prearm lead 74.9s, attempt 200)
+[19:20:10] btc-updown-5m-1787937300 closed: 183996 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787937300: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 199, last full audit 0)
+[19:23:45] btc-updown-5m-1787937900 launched (prearm lead 74.9s, attempt 201)
+[19:25:14] btc-updown-5m-1787937600 closed: 135011 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787937600: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 200, last full audit 0)
+[19:28:45] btc-updown-5m-1787938200 launched (prearm lead 74.9s, attempt 202)
+    target met: 200 markets confirmed by full audit
+[19:30:13] btc-updown-5m-1787937900 closed: 159401 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787937900: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 201, last full audit 200)
+[19:35:15] btc-updown-5m-1787938200 closed: 174656 decisions, 0 dropped, 0 sink errors
+    btc-updown-5m-1787938200: COMPLETE replay=EXACT eligible=True appended=True terminal=True (markets 202, last full audit 200)
+{
+  "finished": "P13 live paper",
+  "elapsed_seconds": 61056.1,
+  "attempted_this_process": 202,
+  "completed_existing": 0,
+  "completed_this_process": 202,
+  "completed_total": 202,
+  "skipped_already_collected": 0,
+  "skipped_slots": [],
+  "corpus_append_failures": 0,
+  "cold_backlog_high_water": 1,
+  "allow_dirty": false,
+  "corpus": {
+    "attempted": 202,
+    "complete": 202,
+    "incomplete": 0,
+    "unsupported": 0,
+    "corrupt": 0,
+    "eligible": 202,
+    "truncated_lines": 0
+  },
+  "orders_sent": 0,
+  "redemptions_sent": 0
+}

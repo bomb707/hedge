@@ -21,6 +21,7 @@ from maker5m.replay.codec import (
     decode_journal,
     encode_journal,
     encode_line,
+    iter_encoded_journal,
 )
 from maker5m.replay.errors import (
     JournalDecodeError,
@@ -40,6 +41,7 @@ from maker5m.replay.schema import (
 )
 from maker5m.replay.sweep import SweepCandidate, SweepResult, SweepRun, run_sweep
 from maker5m.replay.verifier import ReplayOutcome, replay_with_config, verify_replay
+from maker5m.replay.writer import JournalWrite, write_journal_stream
 
 __all__ = [
     "SCHEMA_VERSION",
@@ -49,6 +51,7 @@ __all__ = [
     "JournalEncodeError",
     "JournalHeader",
     "JournalProvenance",
+    "JournalWrite",
     "RecordType",
     "RecordedRun",
     "ReplayDivergenceError",
@@ -64,8 +67,10 @@ __all__ = [
     "decode_journal",
     "encode_journal",
     "encode_line",
+    "iter_encoded_journal",
     "record",
     "replay_with_config",
     "run_sweep",
     "verify_replay",
+    "write_journal_stream",
 ]

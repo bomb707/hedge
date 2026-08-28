@@ -52,7 +52,7 @@ from maker5m.persistence import (
     database_digest,
     settlement_row,
 )
-from maker5m.replay import encode_journal
+from maker5m.replay import write_journal_stream
 from maker5m.risk import RiskConfig, RiskEngine, RiskProvenance
 from maker5m.risk.engine import RiskDecision
 from maker5m.risk.overlay import risk_adjust
@@ -510,20 +510,31 @@ class MarketSession:
             await self.checkpoint("capture_end")
 
     async def write_journal(self) -> None:
-        """Encode and hash the journal. Off the loop, and only after the market has closed.
+        """Stream and hash the journal. Off the loop, and only after the market has closed.
 
-        Three memory readings bracket it, because this is where the largest single allocation in
-        the process happens and P13's corpus could not say whether that was where its resident
-        memory came from. The readings are taken; nothing is concluded from them here.
+        It used to build the whole file in memory: `encode_journal` returns one `bytes` object,
+        and before that a list of every encoded line. Those lines are ~1.6 KB each — above
+        CPython's small-object threshold and below glibc's mmap threshold — so they came from the
+        C heap and, when freed, stayed there. The `p13-diag-1` pilot measured it directly: this
+        one call moved `arena` from 22.8 MB to 229.6 MB on its first market, with `uordblks`
+        unchanged, and the heap was never returned. Ten markets took the process from 595 MB to
+        928 MB that way, and a `malloc_trim` at the end gave back 576 MB of it.
+
+        The writer consumes `iter_encoded_journal`, whose concatenation *is* `encode_journal`, so
+        the file is byte-for-byte the same journal — proved against three real corpus journals,
+        not argued. One line is resident at a time. The size and digest come back from the writer
+        because it hashed the bytes as they left, rather than reading the file again afterwards.
         """
         if self.capture is None:
             self.incidents.append("no journal: the capture did not complete")
             return
         await self.checkpoint("before_journal_encode")
         try:
-            raw = await asyncio.to_thread(encode_journal, self.capture.journal)
-            await asyncio.to_thread(self._write_bytes, self.journal_path, raw)
-            self.journal_bytes = len(raw)
+            written = await asyncio.to_thread(
+                write_journal_stream, self.journal_path, self.capture.journal
+            )
+            self.journal_bytes = written.bytes_written
+            self.journal_sha256 = written.sha256
         except Exception as error:
             self.incidents.append(f"journal write failed: {type(error).__name__}: {error}")
         finally:
@@ -557,11 +568,6 @@ class MarketSession:
                 # Nothing may stall the ingress owner, including this.
                 del steps[-STEP_RELEASE_CHUNK:]
                 await asyncio.sleep(0)
-
-    @staticmethod
-    def _write_bytes(path: Path, raw: bytes) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(raw)
 
     async def settle(self, settle_fn: Any) -> None:
         """Watch the chain for this market's resolution. Never blocks another market.

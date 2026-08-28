@@ -75,6 +75,57 @@ production.
 
 ---
 
+## P13F: Plane-3 audit isolation and result uniqueness
+
+Full evidence in [`evidence/P13F-AUDIT-ISOLATION.md`](evidence/P13F-AUDIT-ISOLATION.md).
+`p13-corpus-5` is stopped, preserved and **SUPERSEDED_FOR_FINAL_P13_ACCEPTANCE** — 52 COMPLETE
+replay-exact rows, all 52 qualifying under the corrected verifier, with the runtime and durable
+counters agreeing throughout. What was wrong was where the work ran.
+
+**The audit was running on the trading loop.** Every corpus and ledger append, every fsync, and a
+full re-read of the corpus plus an LZMA decompression of *every historical latency artifact*
+happened inside `_finalize` — a coroutine on the loop consuming the next market's frames. By
+market 52 that was 52 decompressions per market; over two hundred it is 20,100. `AuditIO` now owns
+all of it on a single dedicated thread; the supervisor's `corpus` and `ledger` are views onto that
+owner rather than second handles.
+
+Measured rather than asserted: with a 250 ms audit operation in flight, a heartbeat coroutine
+keeps running through the audit owner and makes **exactly zero** progress when the same call is
+made inline, as the previous version made it.
+
+**Counting is O(1) per market.** The full joined audit runs once at startup and once when the
+target is reached; each finalised market is judged alone, reading one artifact — 1 read
+incrementally against 201 for the full audit, in a test with 200 fixtures. `completed` is the size
+of a set of qualified attempt ids, so no sequence of observations can count a market twice, and
+the target is met only when a full off-loop audit agrees.
+
+**Two rows could each count.** One result per attempt and one result per market are now enforced —
+the gate is two hundred *markets*, not two hundred JSON lines — and the report pairs judgements to
+rows by position, so a refused row's counts can no longer enter the aggregates on a qualifying
+neighbour's ticket.
+
+### Pilot — three real markets with the audit deliberately slowed
+
+`CONTROLLED_LOCAL_FAULT_ON_REAL_MARKET`: 500 ms injected into every audit operation.
+
+```text
+1787874900  COMPLETE EXACT   87,223 dec  174,446 classified  audit 500-529 ms  hot max 1.3 ms
+1787875200  COMPLETE EXACT  106,178 dec  212,356 classified  audit 517-533 ms  hot max 272.7 ms
+1787875500  COMPLETE EXACT  153,847 dec  307,694 classified  audit 517-535 ms  hot max 720.8 ms
+```
+
+3 qualifying, 3 unique attempts, 3 unique slugs, 0 duplicates, 3 identity-valid artifacts, 0 drops,
+gaps or sink errors, PLACE only under SAFE, three settlements RESOLVED. The larger hot-path maxima
+are the garbage collector, and the numbers say so exactly — gen-2 maxima of 384 ms and 721 ms
+against hot-path maxima of 272.7 ms and 720.8 ms. That is P13B's measured effect, unchanged.
+
+P8C: decide p50 +481 ns (+2.01 %), full cycle +2,476 ns (+4.67 %) — both limits met, neither
+moved. The benchmark exercises persistence and UI code this round did not touch, and the machine
+was carrying an unrelated workload throughout; the figure is reported as measured rather than
+re-run until it looked better.
+
+---
+
 ## P13E: counter integrity
 
 Full evidence in [`evidence/P13E-COUNTER-INTEGRITY.md`](evidence/P13E-COUNTER-INTEGRITY.md).
@@ -1678,9 +1729,9 @@ orders, which P8 does not place. Both stay OPEN.
 | | |
 |---|---|
 | **Current phase** | **P13 — live shadow / paper mode** |
-| P13 implementation gate | **PASSED** (P13E) — one derived completion count, exactly one start and one terminal per market, required identity present on both, typed latency identity |
-| P13 pilot gate | **PASSED** (P13E) — four consecutive real markets on the corrected build, 4/4 joined-qualifying with runtime and durable counts equal at every boundary. The P13C pilot is retained and superseded: its terminals predate the identity fields |
-| P13 ≥200-market corpus gate | **IN PROGRESS** — `p13-corpus-5`, from the P13E build. Corpora 1-4 are preserved and excluded |
+| P13 implementation gate | **PASSED** (P13F) — every audit read and write on a dedicated thread, O(1) qualification per market with full audits at the boundaries, one result per attempt and per market |
+| P13 pilot gate | **PASSED** (P13F) — three consecutive real markets with the audit path deliberately slowed by 500 ms, all qualifying, zero drops. Earlier pilots retained and superseded |
+| P13 ≥200-market corpus gate | **IN PROGRESS** — `p13-corpus-6`, from the P13F build. Corpora 1-5 are preserved and excluded |
 | P12 implementation gate | **PASSED** — Plane-3 UI, immutable snapshot, ordered control, no trading reference |
 | P12 real-market gate | **PASSED** — UI killed mid-market, trading continued |
 | P12 Plane-3 isolation gate | **PASSED** (P12C) — no synchronous I/O of any kind on the ingress path, stdout included |
@@ -1759,7 +1810,8 @@ orders, which P8 does not place. Both stay OPEN.
 | P13C branch | `fix/p13-final-corpus-foundation` |
 | P13D branch | `fix/p13-final-evidence-binding` |
 | P13E branch | `fix/p13-final-counter-integrity` |
-| P13 corpus epochs superseded | `p13-corpus-1` (12), `p13-corpus-2` (10), `p13-corpus-3` (12), `p13-corpus-4` (4) — all preserved, all excluded |
+| P13F branch | `fix/p13-plane3-audit-isolation` |
+| P13 corpus epochs superseded | `p13-corpus-1` (12), `-2` (10), `-3` (12), `-4` (4), `-5` (52) — all preserved, all excluded |
 | P12C final snapshot | retained unedited; its `decide_ns` label is corrected in `p12d-p12c-snapshot-latency-correction.json`, not in the file |
 | P12B final snapshot | **known-inaccurate read-model artifact**, retained unedited; see `p12c-p12b-revalidation-btc-updown-5m-1787807700.json` |
 | P11 store size | 5,230 B/decision raw → **95.7 B archived**; engineered in P11B, not deferred |

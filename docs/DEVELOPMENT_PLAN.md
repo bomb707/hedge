@@ -443,11 +443,12 @@ both earlier markets' stores remain valid.
 
 | Gate | Status |
 |---|---|
-| Implementation | **PASSED** (P13E) — the completion total is derived from the durable record by the one shared qualifier, never incremented; exactly one start and one terminal per market, both carrying the identity they are joined on; latency identity typed rather than merely equal |
-| Pilot | **PASSED** (P13E) — four consecutive real markets on the corrected build, 4/4 joined-qualifying, runtime and durable counts equal at every boundary |
-| ≥200-market corpus | **IN PROGRESS** — `p13-corpus-5`, from the P13E build. Corpora 1-4 and every earlier pilot are retained, superseded, and excluded |
+| Implementation | **PASSED** (P13F) — every audit read and write on a dedicated Plane-3 thread; qualification O(1) per market with full joined audits at startup and at the target; exactly one result per attempt and one per market |
+| Pilot | **PASSED** (P13F) — three consecutive real markets run with the audit path deliberately slowed by 500 ms per operation, all qualifying, zero drops, gaps or sink errors |
+| ≥200-market corpus | **IN PROGRESS** — `p13-corpus-6`, from the P13F build. Corpora 1-5 and every earlier pilot are retained, superseded, and excluded |
 
-Evidence: [`evidence/P13E-COUNTER-INTEGRITY.md`](evidence/P13E-COUNTER-INTEGRITY.md),
+Evidence: [`evidence/P13F-AUDIT-ISOLATION.md`](evidence/P13F-AUDIT-ISOLATION.md),
+[`evidence/P13E-COUNTER-INTEGRITY.md`](evidence/P13E-COUNTER-INTEGRITY.md),
 [`evidence/P13D-EVIDENCE-BINDING.md`](evidence/P13D-EVIDENCE-BINDING.md),
 [`evidence/P13C-FINAL-CORPUS-FOUNDATION.md`](evidence/P13C-FINAL-CORPUS-FOUNDATION.md),
 then [`evidence/P13B-CORPUS-INTEGRITY.md`](evidence/P13B-CORPUS-INTEGRITY.md) and

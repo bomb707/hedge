@@ -1,0 +1,312 @@
+# P13 — resident memory and collector pauses: what the measurements say
+
+**Branch** `fix/p13-runtime-resource-stability`, from the accepted acceptance-evidence commit
+`2eb7d9afd7d36b798eb67111b007739c6bae391d`.
+
+**This document changes nothing about `p13-corpus-6`.** Its 202 markets, its journals, its stores
+and its empirical gate stand exactly as accepted. What is under investigation is the *process*
+that collected them, which ended at 4.26 GB of resident memory and could not say why.
+
+---
+
+## 0. The two questions, kept apart
+
+| | question | what it blocks |
+|---|---|---|
+| **A** | why does parent RSS keep rising after market sessions are released? | **P13's resource gate** |
+| **B** | why do generation-2 collections cost hundreds of ms, and can they be attributed? | **P14 readiness risk** |
+
+They are not the same question and are not answered together. A fix that stabilises memory does
+not thereby fix the collector's pauses, and this document does not claim it did unless the
+measurements say so.
+
+## 1. The failure baseline (from the accepted corpus, unchanged)
+
+Post-release RSS 36.2 MB → 4,261.7 MB across 202 markets in one process, 16 h 58 m.
+
+* all-run slope **+10.26 MB/market** (122.1 MB/h)
+* first 50 **+32.23**, middle 100 **+4.66**, last 50 **+31.46 MB/market** (374.6 MB/h)
+* quartile medians 2,350.9 → 2,463.9 → 2,780.3 → 3,620.9 MB — monotone, ending at the maximum
+* **no plateau at any point**; growth resumed rather than decelerating
+
+And, decisively for what it rules *out*: gc-tracked objects did **not** trend (+2,071/market
+against a 39 K–4.8 M range; −37,816 over the first fifty, −6,643 over the last fifty), live
+sessions stayed at 2–3, file descriptors 16–26, cold backlog 1 of 6, lifecycle high-water 3 of 6.
+Released market graphs really were released. Whatever is resident is not a retained session.
+
+Collector pauses over the same run: 215 generation-2 collections costing 134.0 s, mean 623 ms,
+max 1,738 ms; hot-path `observe` maximum 1,055.8 ms against a 23.6 µs median.
+
+## 2. What was measured, not assumed
+
+Nothing below started from "it must be fragmentation" or "it must be SQLite". The instruments
+were added first (commit `cc7b9a6`) and the hypotheses were tested against them:
+
+* `/proc/self/status` — `VmRSS`, `RssAnon`, `RssFile`, `RssShmem`, `VmSize`, `VmData`, `VmSwap`,
+  `Threads`
+* `/proc/self/smaps_rollup` — `Rss`, `Pss`, `Private_Clean`, `Private_Dirty`, `Shared_Clean`,
+  `Shared_Dirty`, `Anonymous`, `AnonHugePages`, `Swap`
+* glibc `mallinfo2` — `arena`, `hblkhd`, `uordblks` (in use), `fordblks` (free but retained)
+* CPython — `gc.get_count`, `gc.get_stats`, `sys.getallocatedblocks`, tracked-object count
+* thread names and counts; direct child processes read **separately** from the parent
+
+Host: Linux 6.8, glibc 2.39, CPython 3.12.3. Every reader returns `None` where a platform will
+not answer, and a machine with neither `/proc` nor glibc still produces a snapshot.
+
+## 3. Experiment A — three real journals, three encoder paths
+
+**Real evidence.** Three journals from `p13-corpus-6`, opened read-only and never modified: one
+small, one at the corpus median, one of the largest. One fresh process per measurement, RSS
+sampled every 2 ms during output.
+
+| market | journal | steps | legacy encoder | current `encode_journal` | streaming writer |
+|---|---:|---:|---:|---:|---:|
+| `btc-updown-5m-1787890800` | 35.4 MB | 25,541 | **+48.2 MB** | +35.5 MB | **+0.0 MB** |
+| `btc-updown-5m-1787907000` | 167.8 MB | 119,175 | **+254.9 MB** | +167.9 MB | **+0.0 MB** |
+| `btc-updown-5m-1787925900` | 423.1 MB | 298,663 | **+652.3 MB** | +423.3 MB | **+0.0 MB** |
+
+Peak resident above the pre-encode reading. `legacy` is `encode_journal` reproduced exactly as
+`p13-corpus-6` ran it — a list of every encoded line, then a join over a second sequence of
+`line + b"\n"`. The middle column is today's implementation. Measuring today's code and calling
+it the baseline would have understated what the accepted run actually paid; the first pass of
+this experiment did exactly that and was re-run.
+
+**Byte identity: all nine runs produced a file whose SHA-256 and size equal the original
+journal's.** The originals were re-hashed afterwards and are unchanged.
+
+### What the same experiment says about *retention* (largest journal)
+
+| reading | RSS | arena | uordblks | fordblks |
+|---|---:|---:|---:|---:|
+| after decode (graph resident) | 3,575.3 MB | 678.8 | 8.4 | 670.4 |
+| after deleting the graph | 732.7 MB | 678.9 | 6.2 | 672.8 |
+| after `gc.collect(2)` | 722.0 MB | 678.9 | 6.2 | 672.8 |
+| after `malloc_trim(0)` | **50.9 MB** | 674.9 | 6.2 | 668.8 |
+
+A full collection released **10 MB**. `malloc_trim` released **671 MB**. At that point 99 % of
+the C heap was free and still resident.
+
+By the interpretation written down before the numbers were taken, that is
+`NATIVE_FREE_HEAP_RETAINED`: **not** live cyclic Python objects, but a C heap that glibc had not
+returned to the kernel.
+
+One more figure worth stating plainly: the decoded `ReplayStep` graph for a 423 MB journal is
+**3,575 MB resident — 8.4× the journal bytes.** The encode transient is real, and it is smaller
+than the graph it is built from.
+
+## 4. Experiment B — the live collector
+
+**`p13-diag-1`** — ten consecutive real paper markets, one process, 57.6 minutes, source
+`cc7b9a66b01189b59e9cdd5c7ca02b1fb72bcfc2`, tree clean, `ACCEPTANCE_CLEAN`, `LIVE_TRADING_ENABLED`
+and `REDEMPTION_ENABLED` false, 0 orders, 0 redemptions. The journal is written by
+`encode_journal` **exactly as `p13-corpus-6` ran it**: this is the failing behaviour with
+instruments attached, not a partly-fixed build.
+
+Ten of ten COMPLETE, ten of ten replay EXACT, ten eligible, 0 drops, 0 gaps, 0 sink errors. The
+target was eight; markets 9 and 10 were already in flight and were finished rather than abandoned.
+
+| # | journal MB | post-release RSS | arena | fordblks | **uordblks** | encode ΔRSS | encode Δarena | gen2 | gen2 ms |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 198.9 | 595.1 | 246.1 | 228.7 | 17.4 | +416.9 | +206.7 | 1 | 421.0 |
+| 2 | 100.6 | 623.6 | 289.5 | 274.0 | 15.5 | +109.8 | +9.2 | 0 | — |
+| 3 | 178.6 | 667.0 | 331.6 | 313.9 | 17.7 | +218.6 | +39.9 | 1 | 270.0 |
+| 4 | 158.6 | 678.7 | 342.4 | 324.1 | 18.3 | +158.6 | 0.0 | 1 | 343.3 |
+| 5 | 120.7 | 688.6 | 348.9 | 329.3 | 19.6 | +127.1 | +6.4 | 1 | 338.6 |
+| 6 | 143.1 | 682.7 | 343.3 | 323.3 | 20.0 | +136.7 | −6.4 | 1 | 284.7 |
+| 7 | 148.0 | 682.7 | 343.4 | 323.0 | 20.3 | +148.0 | 0.0 | 1 | 361.7 |
+| 8 | 150.4 | 927.6 | 581.1 | 561.7 | 19.4 | +393.3 | +237.7 | 1 | 465.1 |
+| 9 | 100.9 | 927.9 | 581.2 | 564.1 | 17.1 | +100.9 | 0.0 | 1 | 465.1 |
+| 10 | 87.9 | 927.9 | 588.7 | 575.3 | 13.3 | +87.9 | 0.0 | 1 | 301.7 |
+
+All-run slope **+38.99 MB/market**, 95 % CI **[22.65, 55.34]**, r² 0.79. Bounded throughout: live
+sessions ≤ 3, file descriptors ≤ 24, threads ≤ 9, pending tasks ≤ 11, cold backlog ≤ 1,
+lifecycles ≤ 3.
+
+**`uordblks` — the C heap actually in use — never left 13.3–20.3 MB.**
+
+### Where the step is
+
+Median and total change in RSS across each checkpoint transition, over the ten markets:
+
+| transition | median | total |
+|---|---:|---:|
+| `market_start → capture_end` | +12.3 MB | +953.3 MB |
+| `capture_end → before_journal_encode` | 0.0 | 0.0 |
+| **`before_journal_encode → after_journal_write`** | **+142.4 MB** | **+1,897.8 MB** |
+| `after_journal_write → after_step_release` | 0.0 | −2.1 |
+| `after_step_release → after_latency_write` | −145.6 MB | −1,386.7 MB |
+| `after_latency_write → after_settlement` | 0.0 | +1.2 |
+| `after_settlement → after_store_close` | 0.0 | 0.0 |
+| `after_store_close → after_cold_result` | 0.0 | +2.2 |
+| `after_cold_result → after_release` | 0.0 | +7.1 |
+| `after_release → post_release_settled` | 0.0 | 0.0 |
+
+One transition accounts for the growth. Latency artifacts, settlement, store close, the cold
+child's result and release itself contribute **nothing measurable** — which is the answer to
+"should those be rewritten too": no, and the measurement is why.
+
+The +1,897.8 MB added by the encode and the −1,386.7 MB released afterwards do not cancel. The
+difference is the split visible in market 1: the joined journal `bytes` object is large enough
+for glibc to serve from `mmap` (`hblkhd` 6.5 → 205.3 MB) and **is** returned to the kernel when
+freed (`hblkhd` back to 4.3 MB). The per-line `bytes` objects are ~1.6 KB each — above CPython's
+512-byte small-object threshold, below glibc's mmap threshold — so they come from the main
+`arena`, and freeing them moves them to `fordblks` and no further.
+
+### The quiescent probe
+
+Taken at the one moment in a run when nothing is trading: every market closed, every cold task
+drained. Interpretation fixed before the reading.
+
+> **`NATIVE_FREE_HEAP_RETAINED`** — `gc.collect(2)` released **3.1 MB in 0.01 s**;
+> `malloc_trim(0)` released **576.3 MB**.
+
+## 5. What the evidence establishes, and what remains inference
+
+### Established by measurement
+
+1. **The resident bytes are free C heap, not live Python objects.** `uordblks` never left
+   13.3–20.3 MB across ten markets while `arena` went 246 → 589 MB. At the end of the run a full
+   collection released 3.1 MB and `malloc_trim` released 576.3 MB. Three independent instruments
+   agree, and the gc-tracked count in the accepted corpus already said the same thing from the
+   other direction.
+2. **The allocation that grows the heap is the journal encode.** Of ten checkpoint transitions,
+   one carries the growth (+1,897.8 MB total) and the rest carry effectively nothing. It is
+   visible per market and per allocator: `arena` +206.7 MB on the first market with `uordblks`
+   unchanged.
+3. **Why that allocation and not the recorded graph.** At `capture_end` the arena held 22.8 MB
+   while RSS was 368.6 MB — the `ReplayStep` graph is small objects, which CPython serves from
+   `pymalloc` arenas that *are* returned. The journal's per-line `bytes` are ~1.6 KB: above
+   CPython's 512-byte threshold, below glibc's mmap threshold, so they come from the main arena
+   and freeing them reaches `fordblks` and stops there.
+4. **Why the joined object hid it.** The final `bytes` object is large enough for glibc to serve
+   by `mmap` (`hblkhd` 6.5 → 205.3 MB) and *is* returned on free (back to 4.3 MB). RSS therefore
+   falls part-way back after every market, which is exactly what makes the residue look like
+   ordinary churn in a `statm`-only view.
+5. **Why it never plateaued over 202 markets.** The transient scales with the market: journals
+   ran 37 to 443 MB, and two encodes can overlap — market 8 of the pilot took +237.7 MB of arena
+   for a 150 MB journal because market 9 had already launched. The high-water keeps finding new
+   maxima, and a heap high-water does not come down.
+
+### Not established — stated as inference or as unknown
+
+* That fragmentation *per se* contributes beyond the high-water effect. The measurements are
+  consistent with it and do not isolate it.
+* Why market 11 of the post-fix pilot advanced the arena by 35.9 MB when markets 7–10 had not.
+  It is located (`after_step_release → after_latency_write`) and its size is bounded, but the
+  trigger for that particular step is not established.
+* Thread growth 8 → 12 in the accepted corpus is **not** an explanation of gigabytes and is not
+  offered as one. In both pilots threads stayed ≤ 9 and file descriptors ≤ 24.
+* Nothing here says the collector's generation-2 pauses are caused by the same thing. See §7.
+
+## 6. The fix
+
+`src/maker5m/replay/codec.py` — `iter_encoded_journal(journal)` yields exactly
+`encode_line(record) + b"\n"` per record, in the same order. `encode_journal` becomes its
+concatenation, so it keeps its name, signature and output.
+
+`src/maker5m/replay/writer.py` — `write_journal_stream(path, journal)` consumes the iterator into
+a `.partial` file one line at a time, hashing and counting as it writes, then renames. A failed
+write leaves nothing at the real path: a short journal is a different market and must not be
+somewhere the verifier would succeed on it.
+
+`src/maker5m/bot/session.py` — `MarketSession.write_journal` calls the writer instead of building
+`bytes`. It takes the size and digest from the writer rather than measuring the file afterwards,
+and the corpus row records that digest **beside** the one the cold child computes from the
+finished file, so a disagreement is visible rather than silently resolved.
+
+### Why this is the minimal change
+
+Of the ten checkpoint transitions, nine contribute nothing measurable. Latency artifacts,
+settlement, SQLite close, the cold child's result and release itself were **measured** and left
+alone — including the latency sidecars, which §13 of the brief nominates as the next suspect and
+which the numbers do not support rewriting. Nothing was changed on suspicion.
+
+### P5 byte identity
+
+* streamed bytes `==` `encode_journal(journal)` on every codec fixture;
+* the streamed file decodes to the same `Journal`;
+* `encode_journal(decode_journal(streamed))` `==` streamed;
+* and on the three **real** corpus journals above, the streamed file's SHA-256 and size equal the
+  original's, with the originals re-hashed afterwards and unchanged.
+
+No schema change, no record reordering, no JSON option changed, no newline contract changed, no
+strategy change, no replay semantics change.
+
+### Post-fix pilot — `p13-fix-1`
+
+Fourteen consecutive real markets, one process, 76.8 minutes, source
+`376cfcdd4a72f8909bd44598f1d8e43c988c3da6`, tree clean, `ACCEPTANCE_CLEAN`, 0 orders, 0
+redemptions. Fourteen of fourteen COMPLETE, replay EXACT, eligible; 0 drops, 0 gaps, 0 sink
+errors, 0 append failures.
+
+| # | journal MB | post-release RSS | arena | fordblks | uordblks | encode ΔRSS | encode Δarena |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 131.6 | 308.4 | 41.4 | 25.2 | 16.2 | +5.1 | +0.4 |
+| 2 | 154.4 | 369.3 | 112.5 | 95.6 | 17.0 | +3.6 | +0.1 |
+| 3 | 126.7 | 387.4 | 123.7 | 103.1 | 20.6 | 0.0 | 0.0 |
+| 4 | 159.7 | 406.8 | 125.7 | 105.8 | 19.9 | +2.6 | 0.0 |
+| 5 | 95.4 | 411.0 | 132.5 | 113.8 | 18.7 | 0.0 | 0.0 |
+| 6 | 140.1 | 416.6 | 143.6 | 126.8 | 16.8 | +1.1 | +1.0 |
+| 7 | 141.9 | 425.4 | 145.9 | 128.0 | 17.9 | 0.0 | 0.0 |
+| 8 | 150.4 | 427.1 | 145.9 | 125.0 | 20.9 | 0.0 | 0.0 |
+| 9 | 78.9 | 428.6 | 145.9 | 127.4 | 18.5 | 0.0 | 0.0 |
+| 10 | 158.1 | 428.8 | 145.9 | 125.3 | 20.6 | 0.0 | 0.0 |
+| 11 | 113.7 | 451.9 | 181.8 | 163.9 | 18.0 | 0.0 | 0.0 |
+| 12 | 135.3 | 454.1 | 181.8 | 160.5 | 21.3 | 0.0 | 0.0 |
+| 13 | 133.8 | 454.8 | 182.4 | 160.8 | 21.6 | 0.0 | 0.0 |
+| 14 | 186.2 | 440.9 | 153.5 | 139.7 | 13.8 | 0.0 | 0.0 |
+
+Step attribution, medians and totals over the fourteen markets:
+
+| transition | median | total | (pre-fix total) |
+|---|---:|---:|---:|
+| `market_start → capture_end` | +11.1 MB | +477.0 | +953.3 |
+| **`before_journal_encode → after_journal_write`** | **0.0** | **+12.4** | **+1,897.8** |
+| `after_step_release → after_latency_write` | +0.5 | +31.5 | −1,386.7 |
+| `after_store_close → after_cold_result` | 0.0 | +34.3 | +2.2 |
+| `after_cold_result → after_release` | 0.0 | +13.8 | +7.1 |
+
+End-of-run quiescent probe: `NATIVE_FREE_HEAP_RETAINED`, full collection **1.0 MB**,
+`malloc_trim` **55.5 MB** — the same verdict as before the fix, over an order of magnitude less
+of it (576.3 MB).
+
+Market 14 is the useful one: the largest journal of the run, 186.2 MB, cost 0.0 MB at the encode
+and ended *below* market 13.
+
+**This pilot is not the resource gate.** It shows the fix behaving as the mechanism predicts.
+The gate is decided by the ≥50-market validation under the test declared before it ran.
+
+## 7. Generation-2 attribution
+
+`GcObserver` kept a running maximum, and the corpus report read it as each market's own. Across
+`p13-corpus-6`, forty markets over 100 ms were credited with a generation-2 pause and only one of
+them had actually raised the cumulative figure. That is an attribution defect, not a summary
+choice, and no amount of care in the report could have recovered from it.
+
+`GcEventLog` keeps each collection's generation, start and end, and a market's live window —
+recorded on `perf_counter_ns`, the same clock — is intersected with them. Two things follow that
+the old instrument could not express:
+
+* a market with **no** full collection says so. `p13-diag-1` market 2 recorded
+  `{'1': 318}` and no generation-2 pause at all, where the running maximum would have handed it
+  market 1's 421 ms;
+* a collection that **spans two markets** is attributed to both, with the whole pause and the
+  part inside each window kept separately. Markets 8 and 9 of `p13-diag-1` both carry the same
+  465.1 ms collection, which is the truth about what happened rather than a coincidence.
+
+### What the memory fix did and did not do to the pauses
+
+It did not fix them, and this document does not claim it did. Generation-2 collections continued
+throughout the post-fix pilot — 284.9, 377.9, 295.1, 352.4, 352.4, 288.4, 374.0, 293.4, two
+totalling 860.3, 566.9, 392.3, 335.3, 475.1 ms — on a process holding a much smaller heap.
+
+That is consistent with the cost being driven by the number of *tracked objects* in the live
+recorded graph rather than by resident bytes, and streaming the journal does not shrink the graph
+that accumulates during a market. Whether it is worth changing anything about that is a separate
+question with its own evidence, and no threshold is proposed here: **no latency requirement for
+full-collection pauses has been established**, so `GC TAIL` remains an open P14 readiness risk
+rather than a gate anyone can pass or fail.
+
+`gc.collect` is not called on any ingress path — not in the observer, the tick, the strategy, the
+risk overlay, the reconciler or a feed callback — and the thresholds remain `(700, 10, 400)`,
+unchanged.

@@ -16,15 +16,20 @@ import gc
 import os
 import threading
 import weakref
+from array import array
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import perf_counter_ns
 from typing import Any, Final
 
 __all__ = [
+    "GC_EVENT_LIMIT",
+    "GC_RECORD_FROM_GENERATION",
     "GEN2_EVERY",
     "LIVE_SESSIONS",
+    "GcEventLog",
     "GcObserver",
+    "GcWindow",
     "ResourceSample",
     "pace_full_collections",
     "sample_resources",
@@ -107,6 +112,127 @@ def pace_full_collections(every: int = GEN2_EVERY) -> tuple[int, int, int]:
     return gc.get_threshold()
 
 
+GC_EVENT_LIMIT: Final[int] = 400_000
+"""How many individual collections are kept. Three arrays of machine integers, so ~10 MB full.
+
+The corpus recorded 86,417 generation-1 and 215 generation-2 collections in seventeen hours,
+which is nothing; generation 0 ran 950,584 times and is deliberately counted rather than
+recorded. Overflow is counted too — a truncated log that silently stopped recording would answer
+"how many collections did this market see" with a smaller number and no way to tell.
+"""
+
+GC_RECORD_FROM_GENERATION: Final[int] = 1
+"""The lowest generation kept as an individual event. Generation 0 is a counter only."""
+
+
+@dataclass(slots=True)
+class GcEventLog:
+    """Every collection that mattered, as three parallel arrays of integers.
+
+    P13's `GcObserver` kept a running maximum, and a running maximum cannot be attributed: the
+    corpus reported "this market's max gen-2 pause" for forty markets when what it had was the
+    largest pause *so far in the run*. Only one of those forty had actually raised it. The fix is
+    not a better summary, it is keeping the events — a generation, a start and an end each — so a
+    market's window can be intersected with them afterwards and the answer is exact.
+
+    Arrays rather than tuples because this is memory-diagnostic code and 24 bytes per event that
+    does not move is better than 160 that does.
+    """
+
+    limit: int = GC_EVENT_LIMIT
+    min_generation: int = GC_RECORD_FROM_GENERATION
+    generations: array[int] = field(default_factory=lambda: array("b"))
+    starts_ns: array[int] = field(default_factory=lambda: array("q"))
+    ends_ns: array[int] = field(default_factory=lambda: array("q"))
+    dropped: int = 0
+
+    def record(self, generation: int, start_ns: int, end_ns: int) -> None:
+        """Keep one collection. Called from a gc callback, so it allocates almost nothing."""
+        if generation < self.min_generation:
+            return
+        if len(self.generations) >= self.limit:
+            self.dropped += 1
+            return
+        self.generations.append(generation)
+        self.starts_ns.append(start_ns)
+        self.ends_ns.append(end_ns)
+
+    def __len__(self) -> int:
+        return len(self.generations)
+
+    def window(self, from_ns: int, to_ns: int, *, exact_from: int = 2) -> GcWindow:
+        """Every recorded collection overlapping ``[from_ns, to_ns)``, by generation.
+
+        A collection that straddles the boundary counts, and both figures are kept: the whole
+        pause, because the process paid all of it, and the part that fell inside the window,
+        because that is what this market waited for. `exact_from` names the generation whose
+        individual pause durations are listed rather than only summed.
+        """
+        collections: dict[int, int] = {}
+        total_ns: dict[int, int] = {}
+        overlap_ns: dict[int, int] = {}
+        longest_ns: dict[int, int] = {}
+        exact: list[dict[str, int]] = []
+        for index in range(len(self.generations)):
+            start, end = self.starts_ns[index], self.ends_ns[index]
+            if end <= from_ns or start >= to_ns:
+                continue
+            generation = self.generations[index]
+            elapsed = end - start
+            inside = min(end, to_ns) - max(start, from_ns)
+            collections[generation] = collections.get(generation, 0) + 1
+            total_ns[generation] = total_ns.get(generation, 0) + elapsed
+            overlap_ns[generation] = overlap_ns.get(generation, 0) + inside
+            longest_ns[generation] = max(longest_ns.get(generation, 0), elapsed)
+            if generation >= exact_from:
+                exact.append(
+                    {
+                        "generation": generation,
+                        "start_ns": start,
+                        "end_ns": end,
+                        "duration_ns": elapsed,
+                        "overlap_ns": inside,
+                    }
+                )
+        return GcWindow(
+            from_ns=from_ns,
+            to_ns=to_ns,
+            collections=collections,
+            total_pause_ns=total_ns,
+            overlap_pause_ns=overlap_ns,
+            longest_pause_ns=longest_ns,
+            events=tuple(exact),
+            dropped=self.dropped,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class GcWindow:
+    """What the collector did during one market. Derived from events, never from a maximum."""
+
+    from_ns: int
+    to_ns: int
+    collections: dict[int, int]
+    total_pause_ns: dict[int, int]
+    overlap_pause_ns: dict[int, int]
+    longest_pause_ns: dict[int, int]
+    events: tuple[dict[str, int], ...]
+    dropped: int
+
+    def summary(self) -> dict[str, Any]:
+        return {
+            "from_ns": self.from_ns,
+            "to_ns": self.to_ns,
+            "window_ns": self.to_ns - self.from_ns,
+            "collections": {str(k): v for k, v in sorted(self.collections.items())},
+            "total_pause_ns": {str(k): v for k, v in sorted(self.total_pause_ns.items())},
+            "overlap_pause_ns": {str(k): v for k, v in sorted(self.overlap_pause_ns.items())},
+            "longest_pause_ns": {str(k): v for k, v in sorted(self.longest_pause_ns.items())},
+            "events": [dict(event) for event in self.events],
+            "dropped_events": self.dropped,
+        }
+
+
 @dataclass(slots=True)
 class GcObserver:
     """What the garbage collector did, and for how long. Measured, never assumed.
@@ -120,11 +246,16 @@ class GcObserver:
 
     This records it rather than inferring it. No threshold is tuned here on a hunch; the numbers
     go into the corpus and the decision is taken on them.
+
+    The running totals below are the whole process's, and are only ever reported as the whole
+    process's. Per-market attribution comes from `events`, which keeps each collection's start
+    and end so a market's window can be intersected with it — see `GcEventLog`.
     """
 
     collections: dict[int, int] = field(default_factory=dict)
     pause_ns: dict[int, int] = field(default_factory=dict)
     max_pause_ns: dict[int, int] = field(default_factory=dict)
+    events: GcEventLog = field(default_factory=GcEventLog)
     _started: int = 0
     _installed: bool = False
 
@@ -144,18 +275,33 @@ class GcObserver:
             self._started = perf_counter_ns()
             return
         generation = int(info.get("generation", -1))
-        elapsed = perf_counter_ns() - self._started
+        finished = perf_counter_ns()
+        elapsed = finished - self._started
         self.collections[generation] = self.collections.get(generation, 0) + 1
         self.pause_ns[generation] = self.pause_ns.get(generation, 0) + elapsed
         self.max_pause_ns[generation] = max(self.max_pause_ns.get(generation, 0), elapsed)
+        self.events.record(generation, self._started, finished)
 
-    def summary(self) -> dict[str, Any]:
+    def counters(self) -> dict[int, int]:
+        """A copy of the cumulative collection counts. Differenced to attribute generation 0."""
+        return dict(self.collections)
+
+    def window(self, from_ns: int, to_ns: int) -> GcWindow:
+        """Exactly what happened between two `perf_counter_ns` readings."""
+        return self.events.window(from_ns, to_ns)
+
+    def summary(self, *, tracked_objects: bool = True) -> dict[str, Any]:
         return {
             "thresholds": list(gc.get_threshold()),
             "collections": {str(k): v for k, v in sorted(self.collections.items())},
             "total_pause_ns": {str(k): v for k, v in sorted(self.pause_ns.items())},
             "max_pause_ns": {str(k): v for k, v in sorted(self.max_pause_ns.items())},
-            "tracked_objects": len(gc.get_objects()),
+            "recorded_events": len(self.events),
+            "dropped_events": self.events.dropped,
+            # A running maximum over the whole process. It is not any one market's maximum, and
+            # the corpus report that read it as one was wrong; `window` is the per-market answer.
+            "max_pause_is_process_wide": True,
+            "tracked_objects": len(gc.get_objects()) if tracked_objects else None,
         }
 
 

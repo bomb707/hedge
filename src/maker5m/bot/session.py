@@ -26,9 +26,11 @@ import asyncio
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from time import perf_counter_ns
 from typing import Any
 
 from maker5m.bot.config import PaperConfig
+from maker5m.bot.diagnostics import snapshot
 from maker5m.bot.latency import LatencyArtifact, read_latency, write_latency
 from maker5m.bot.quality import QualityAggregate
 from maker5m.bot.resources import LIVE_SESSIONS, ResourceSample, sample_resources, tiers
@@ -233,6 +235,14 @@ class MarketSession:
         self.finished_resources: ResourceSample | None = None
         self.released_resources: ResourceSample | None = None
         self.hot_path_tiers: dict[str, int | None] = {}
+        # Where the resident bytes went, market by market. P13's corpus could say the process
+        # grew and could not say where, because three samples per market cannot locate a step.
+        self.checkpoints: list[dict[str, Any]] = []
+        # The live window on the *monotonic* clock, so process-wide collector events can be
+        # intersected with it. `t0_ns` is wall time and cannot be compared with `perf_counter_ns`.
+        self.live_from_ns = 0
+        self.live_to_ns = 0
+        self.gc_window: dict[str, Any] | None = None
         LIVE_SESSIONS.add(self)
         self.capture: Any = None
         self.settlement: Any = None
@@ -447,11 +457,33 @@ class MarketSession:
             "feed_ready_before_t0": ready is not None and ready < self.t0_ns,
         }
 
+    # -- memory attribution ------------------------------------------------------------------
+
+    async def checkpoint(self, label: str, *, tracked_objects: bool = False) -> None:
+        """Record where this process's memory stands, off the loop. Plane 3, always.
+
+        Reading `/proc/self/smaps_rollup` walks the process's mappings in the kernel and can take
+        milliseconds on a multi-gigabyte process; another market is trading while this one is
+        being finalised, and I19 does not have an exception for diagnostics. So it goes to a
+        thread, where the `/proc` read releases the GIL. `tracked_objects` is off by default
+        because `gc.get_objects` does *not* release it.
+        """
+        try:
+            taken = await asyncio.to_thread(
+                snapshot, label, tracked_objects=tracked_objects, at_ns=time.time_ns()
+            )
+        except Exception as error:  # pragma: no cover - a diagnostic may never break a market
+            self.incidents.append(f"checkpoint {label} failed: {type(error).__name__}: {error}")
+            return
+        self.checkpoints.append(taken.compact())
+
     # -- lifecycle ---------------------------------------------------------------------------
 
     async def run(self) -> None:
         """Trade one market in shadow. Returns when the capture window closes."""
         self.started_resources = sample_resources()
+        await self.checkpoint("market_start")
+        self.live_from_ns = perf_counter_ns()
         self.feed_warm_started_ns = time.time_ns()
         self.worker.start()
         try:
@@ -473,13 +505,21 @@ class MarketSession:
             while len(self.buffer) and time.time() < deadline:
                 await asyncio.sleep(0.05)
             self.worker.stop(timeout=30)
+            self.live_to_ns = perf_counter_ns()
             self.finished_resources = sample_resources()
+            await self.checkpoint("capture_end")
 
     async def write_journal(self) -> None:
-        """Encode and hash the journal. Off the loop, and only after the market has closed."""
+        """Encode and hash the journal. Off the loop, and only after the market has closed.
+
+        Three memory readings bracket it, because this is where the largest single allocation in
+        the process happens and P13's corpus could not say whether that was where its resident
+        memory came from. The readings are taken; nothing is concluded from them here.
+        """
         if self.capture is None:
             self.incidents.append("no journal: the capture did not complete")
             return
+        await self.checkpoint("before_journal_encode")
         try:
             raw = await asyncio.to_thread(encode_journal, self.capture.journal)
             await asyncio.to_thread(self._write_bytes, self.journal_path, raw)
@@ -487,7 +527,9 @@ class MarketSession:
         except Exception as error:
             self.incidents.append(f"journal write failed: {type(error).__name__}: {error}")
         finally:
+            await self.checkpoint("after_journal_write")
             await self._drop_recorded_steps()
+            await self.checkpoint("after_step_release")
 
     async def _drop_recorded_steps(self) -> None:
         """Let go of the recorded event stream as soon as it is on disk.

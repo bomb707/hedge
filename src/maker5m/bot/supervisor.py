@@ -34,7 +34,8 @@ from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 from multiprocessing import get_context
 from pathlib import Path
-from typing import Any
+from time import perf_counter_ns
+from typing import Any, Final
 
 from maker5m.bot.attempts import FAILED, FINISHED, AttemptLedger, LedgerWriteError
 from maker5m.bot.audit import AuditIO
@@ -56,6 +57,15 @@ from maker5m.ui import (
     SnapshotChannel,
     drain_operator_commands,
 )
+
+RELEASE_SETTLE_S: Final[float] = 2.0
+"""How long after a market is released before the settled reading is taken.
+
+Not a delay that matters — the slot this market held is given back a moment later either way,
+and five other markets may be running — but the reading it separates does matter. Worker threads
+are still finishing at the instant `release` returns, and a number taken then describes a market
+that is still shutting down rather than one that is gone.
+"""
 
 __all__ = ["Supervisor", "UiPlane"]
 
@@ -213,6 +223,8 @@ class Supervisor:
     last_durable_count: int = 0
     """The joined qualifying count as of the last full audit."""
     gc_observer: GcObserver = field(default_factory=GcObserver)
+    quiescent: dict[str, Any] | None = None
+    """What a full collection and a heap trim released once every market had drained."""
     allow_dirty_requested: bool = False
     run_mode: str = field(init=False, default="ACCEPTANCE_CLEAN")
     log: Any = _flushed_print
@@ -355,12 +367,51 @@ class Supervisor:
             await self._loop(already)
         finally:
             await self._drain_cold()
+            await self._quiescent_probe()
             self.ui.stop()
             self.gc_observer.remove()
             self.audit.stop()
             if self.pool is not None:
                 self.pool.shutdown(wait=True)
             self.pool = None
+
+    async def _quiescent_probe(self) -> None:
+        """The one moment in a collection run when nothing is trading. Measure it there.
+
+        Every market has closed and every cold task has drained, so a full collection and a heap
+        trim can be timed without pausing anything that matters — which is the whole reason the
+        probe lives here and nowhere else. What it separates is the question P13's corpus could
+        not answer: whether resident memory is being held by live Python objects, by a C heap
+        that nobody is using but glibc has not returned, or by neither.
+
+        Nothing is *fixed* by this. `malloc_trim` runs after the last market, so no market's
+        numbers are altered by it, and the result is recorded as a measurement.
+        """
+        from maker5m.bot.diagnostics import quiescent_probe
+        from maker5m.bot.resources import LIVE_SESSIONS
+
+        live = len(LIVE_SESSIONS)
+        try:
+            probe = await asyncio.to_thread(
+                quiescent_probe,
+                "end_of_run",
+                live_sessions=live,
+                pending_tasks=sum(1 for task in asyncio.all_tasks() if not task.done()),
+            )
+        except Exception as error:  # pragma: no cover - a diagnostic never ends a run badly
+            self.log(f"    quiescent probe failed: {type(error).__name__}: {error}")
+            return
+        self.quiescent = probe.summary()
+        if probe.refused:
+            self.log(f"    quiescent probe refused: {probe.refused}")
+            return
+        released_gc = probe.gc_release_bytes or 0
+        released_trim = probe.trim_release_bytes or 0
+        self.log(
+            f"    quiescent probe: {probe.verdict()} "
+            f"(full collection {-released_gc / 1e6:.1f} MB in {probe.gc_seconds:.2f}s, "
+            f"malloc_trim {-released_trim / 1e6:.1f} MB)"
+        )
 
     async def _loop(self, already: set[str]) -> None:
         """Launch each market in time to prearm it, and never wait on a closed one.
@@ -664,9 +715,13 @@ class Supervisor:
                 "run_mode": self.run_mode,
             }
             await session.write_latency_artifact(build)
+            await session.checkpoint("after_latency_write")
             await session.settle(settle_market)
+            await session.checkpoint("after_settlement")
             await asyncio.to_thread(session.close_store)
+            await session.checkpoint("after_store_close")
             cold = await self._cold_result(session)
+            await session.checkpoint("after_cold_result")
             session.publish_close(cold)
             # The persisted artifact, read back and checked against the identity this market's
             # row is about to claim. Not the object that was written a moment ago.
@@ -681,6 +736,19 @@ class Supervisor:
                 }
             )
             session.finish()
+            await session.checkpoint("after_release")
+            # A released market's memory is not a released market's memory one instant later:
+            # worker threads are still finishing and the allocator has not settled. The two
+            # readings are the difference between "still shutting down" and "still resident",
+            # and both are taken here — before the row is built — because a reading that arrives
+            # after `_entry` is not in the row and cannot be analysed later.
+            await asyncio.sleep(RELEASE_SETTLE_S)
+            await session.checkpoint("post_release_settled", tracked_objects=True)
+            # Exactly which collections ran while this market was live, from the process event
+            # log. Not a running maximum, which is what the accepted corpus had to report.
+            session.gc_window = self.gc_observer.window(
+                session.live_from_ns, session.live_to_ns or perf_counter_ns()
+            ).summary()
             entry = self._entry(session, cold)
             # Durability first. A market counts when its row is on the disk, not when the
             # verifier liked it: the previous version incremented the total whether or not the
@@ -911,6 +979,17 @@ class Supervisor:
                 "path": str(session.journal_path),
                 "bytes": replay.get("journal_bytes", session.journal_bytes),
                 "sha256": replay.get("journal_sha256"),
+                # The writer hashed the bytes as they left this process; the cold child read the
+                # finished file back and hashed it again. Two independent computations over the
+                # same journal, recorded separately so a disagreement is a visible fact rather
+                # than one of them quietly winning.
+                "writer_bytes": session.journal_bytes,
+                "writer_sha256": session.journal_sha256,
+                "writer_agrees": bool(
+                    session.journal_sha256
+                    and session.journal_sha256 == replay.get("journal_sha256")
+                    and session.journal_bytes == replay.get("journal_bytes")
+                ),
             },
             "store": {
                 "path": str(session.database),
@@ -988,10 +1067,16 @@ class Supervisor:
                 "cold_backlog": len(self.cold),
                 "cold_backlog_high_water": self.cold_high_water,
                 "cold_backlog_cap": MAX_COLD_BACKLOG,
+                # Eleven readings across this market's cold path, each one a place a step in
+                # resident memory could appear. Three samples per market said the process grew;
+                # they could not say where, which is why P13's resource gate could not close.
+                "checkpoints": session.checkpoints,
+                "gc_window": session.gc_window,
                 "market_lifecycles": self.lifecycles,
                 "market_lifecycle_high_water": self.lifecycle_high_water,
                 "market_lifecycle_cap": MAX_MARKET_LIFECYCLES,
                 "gc": self.gc_observer.summary(),
+                "quiescent": self.quiescent,
                 "audit_io": self.audit.summary(),
             },
             "incidents": list(session.incidents),

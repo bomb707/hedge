@@ -1,0 +1,251 @@
+{
+  "association": {
+    "markets_at_or_under_25ms": 137,
+    "markets_over_100ms": 40,
+    "mean_gen2_collections_in_those_markets": 0.94,
+    "of_those_with_a_gen2_collection_during_the_market": 112
+  },
+  "epoch": "p13-corpus-6",
+  "gc_totals_over_run": {
+    "gen0_collections": 950584,
+    "gen1_collections": 86417,
+    "gen2_collections": 215,
+    "gen2_max_pause_ns": 1738206312,
+    "gen2_mean_pause_ns": 623183937,
+    "gen2_total_pause_ns": 133984546380,
+    "thresholds_in_force": [
+      700,
+      10,
+      400
+    ]
+  },
+  "hot_path_max_threshold_counts": {
+    ">1000ms": {
+      "markets": 1,
+      "percent": 0.5
+    },
+    ">100ms": {
+      "markets": 40,
+      "percent": 19.8
+    },
+    ">10ms": {
+      "markets": 163,
+      "percent": 80.7
+    },
+    ">1ms": {
+      "markets": 202,
+      "percent": 100.0
+    },
+    ">250ms": {
+      "markets": 40,
+      "percent": 19.8
+    },
+    ">25ms": {
+      "markets": 65,
+      "percent": 32.2
+    },
+    ">500ms": {
+      "markets": 25,
+      "percent": 12.4
+    },
+    ">50ms": {
+      "markets": 43,
+      "percent": 21.3
+    },
+    ">5ms": {
+      "markets": 189,
+      "percent": 93.6
+    },
+    ">750ms": {
+      "markets": 14,
+      "percent": 6.9
+    }
+  },
+  "kind": "P13_CORPUS_6_GC_TAIL",
+  "markets": 202,
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "reading": "Consistent with generation-2 pauses, and not established as caused by them market by market. For it: the run's 215 full collections cost 134.0 s, a mean of 623 ms each, which is the magnitude of the large maxima; and in the twenty worst markets the decide, prepare and reconcile stage maxima are 1-20 ms, two orders of magnitude below the observe maximum, so the time is spent around the cycle rather than inside the strategy or the reconciler. Against it: full collections occur in 82 % of quiet markets too, so their presence alone separates nothing. Exact per-market attribution is not possible from this run because GcObserver records a run-cumulative maximum rather than a per-market one \u2014 an instrumentation gap, and one of the things a runtime-engineering phase should fix first.",
+  "status": "P13 EMPIRICAL EVIDENCE + P14 READINESS RISK. No latency threshold is proposed here.",
+  "top_20_by_hot_path_max": [
+    {
+      "clob_receive_to_decide_max_ns": 20602337,
+      "decide_duration_max_ns": 5639678,
+      "gc_gen2_collections_cumulative": 157,
+      "gc_gen2_max_pause_ns_cumulative": 1254114701,
+      "hot_path_max_ns": 1055836686,
+      "slug": "btc-updown-5m-1787925900",
+      "spot_receive_to_decide_max_ns": 15947613
+    },
+    {
+      "clob_receive_to_decide_max_ns": 10912383,
+      "decide_duration_max_ns": 5219579,
+      "gc_gen2_collections_cumulative": 209,
+      "gc_gen2_max_pause_ns_cumulative": 1738206312,
+      "hot_path_max_ns": 983360805,
+      "slug": "btc-updown-5m-1787936700",
+      "spot_receive_to_decide_max_ns": 8152933
+    },
+    {
+      "clob_receive_to_decide_max_ns": 16645966,
+      "decide_duration_max_ns": 15387501,
+      "gc_gen2_collections_cumulative": 38,
+      "gc_gen2_max_pause_ns_cumulative": 1098795615,
+      "hot_path_max_ns": 945947106,
+      "slug": "btc-updown-5m-1787885700",
+      "spot_receive_to_decide_max_ns": 995450
+    },
+    {
+      "clob_receive_to_decide_max_ns": 21050237,
+      "decide_duration_max_ns": 15914791,
+      "gc_gen2_collections_cumulative": 35,
+      "gc_gen2_max_pause_ns_cumulative": 1098795615,
+      "hot_path_max_ns": 922116274,
+      "slug": "btc-updown-5m-1787885100",
+      "spot_receive_to_decide_max_ns": 694726
+    },
+    {
+      "clob_receive_to_decide_max_ns": 26324466,
+      "decide_duration_max_ns": 15548011,
+      "gc_gen2_collections_cumulative": 162,
+      "gc_gen2_max_pause_ns_cumulative": 1254114701,
+      "hot_path_max_ns": 910338372,
+      "slug": "btc-updown-5m-1787926800",
+      "spot_receive_to_decide_max_ns": 2935861
+    },
+    {
+      "clob_receive_to_decide_max_ns": 15662531,
+      "decide_duration_max_ns": 15556543,
+      "gc_gen2_collections_cumulative": 190,
+      "gc_gen2_max_pause_ns_cumulative": 1254114701,
+      "hot_path_max_ns": 905354072,
+      "slug": "btc-updown-5m-1787933100",
+      "spot_receive_to_decide_max_ns": 782550
+    },
+    {
+      "clob_receive_to_decide_max_ns": 10404753,
+      "decide_duration_max_ns": 5417099,
+      "gc_gen2_collections_cumulative": 206,
+      "gc_gen2_max_pause_ns_cumulative": 1738206312,
+      "hot_path_max_ns": 897961212,
+      "slug": "btc-updown-5m-1787936100",
+      "spot_receive_to_decide_max_ns": 1488963
+    },
+    {
+      "clob_receive_to_decide_max_ns": 15829084,
+      "decide_duration_max_ns": 10312480,
+      "gc_gen2_collections_cumulative": 30,
+      "gc_gen2_max_pause_ns_cumulative": 1098795615,
+      "hot_path_max_ns": 890368583,
+      "slug": "btc-updown-5m-1787883900",
+      "spot_receive_to_decide_max_ns": 10357367
+    },
+    {
+      "clob_receive_to_decide_max_ns": 24240204,
+      "decide_duration_max_ns": 5142189,
+      "gc_gen2_collections_cumulative": 208,
+      "gc_gen2_max_pause_ns_cumulative": 1738206312,
+      "hot_path_max_ns": 865087624,
+      "slug": "btc-updown-5m-1787936400",
+      "spot_receive_to_decide_max_ns": 2142303
+    },
+    {
+      "clob_receive_to_decide_max_ns": 10542676,
+      "decide_duration_max_ns": 6428972,
+      "gc_gen2_collections_cumulative": 168,
+      "gc_gen2_max_pause_ns_cumulative": 1254114701,
+      "hot_path_max_ns": 858128706,
+      "slug": "btc-updown-5m-1787928000",
+      "spot_receive_to_decide_max_ns": 9456529
+    },
+    {
+      "clob_receive_to_decide_max_ns": 13788592,
+      "decide_duration_max_ns": 5386668,
+      "gc_gen2_collections_cumulative": 180,
+      "gc_gen2_max_pause_ns_cumulative": 1254114701,
+      "hot_path_max_ns": 855326961,
+      "slug": "btc-updown-5m-1787930700",
+      "spot_receive_to_decide_max_ns": 674097
+    },
+    {
+      "clob_receive_to_decide_max_ns": 1907328,
+      "decide_duration_max_ns": 1367646,
+      "gc_gen2_collections_cumulative": 37,
+      "gc_gen2_max_pause_ns_cumulative": 1098795615,
+      "hot_path_max_ns": 828960713,
+      "slug": "btc-updown-5m-1787885400",
+      "spot_receive_to_decide_max_ns": 386490
+    },
+    {
+      "clob_receive_to_decide_max_ns": 19795822,
+      "decide_duration_max_ns": 19695713,
+      "gc_gen2_collections_cumulative": 25,
+      "gc_gen2_max_pause_ns_cumulative": 1098795615,
+      "hot_path_max_ns": 815617600,
+      "slug": "btc-updown-5m-1787883000",
+      "spot_receive_to_decide_max_ns": 244757
+    },
+    {
+      "clob_receive_to_decide_max_ns": 10388741,
+      "decide_duration_max_ns": 5306082,
+      "gc_gen2_collections_cumulative": 132,
+      "gc_gen2_max_pause_ns_cumulative": 1162760178,
+      "hot_path_max_ns": 799887582,
+      "slug": "btc-updown-5m-1787918700",
+      "spot_receive_to_decide_max_ns": 522246
+    },
+    {
+      "clob_receive_to_decide_max_ns": 15749968,
+      "decide_duration_max_ns": 12080412,
+      "gc_gen2_collections_cumulative": 169,
+      "gc_gen2_max_pause_ns_cumulative": 1254114701,
+      "hot_path_max_ns": 713574156,
+      "slug": "btc-updown-5m-1787928300",
+      "spot_receive_to_decide_max_ns": 4568490
+    },
+    {
+      "clob_receive_to_decide_max_ns": 5216630,
+      "decide_duration_max_ns": 1342427,
+      "gc_gen2_collections_cumulative": 124,
+      "gc_gen2_max_pause_ns_cumulative": 1162760178,
+      "hot_path_max_ns": 662607208,
+      "slug": "btc-updown-5m-1787915400",
+      "spot_receive_to_decide_max_ns": 232888
+    },
+    {
+      "clob_receive_to_decide_max_ns": 3146017,
+      "decide_duration_max_ns": 1390856,
+      "gc_gen2_collections_cumulative": 132,
+      "gc_gen2_max_pause_ns_cumulative": 1162760178,
+      "hot_path_max_ns": 624027393,
+      "slug": "btc-updown-5m-1787918400",
+      "spot_receive_to_decide_max_ns": 391545
+    },
+    {
+      "clob_receive_to_decide_max_ns": 10578674,
+      "decide_duration_max_ns": 5158323,
+      "gc_gen2_collections_cumulative": 90,
+      "gc_gen2_max_pause_ns_cumulative": 1162760178,
+      "hot_path_max_ns": 608905279,
+      "slug": "btc-updown-5m-1787903700",
+      "spot_receive_to_decide_max_ns": 403261
+    },
+    {
+      "clob_receive_to_decide_max_ns": 15204317,
+      "decide_duration_max_ns": 14981138,
+      "gc_gen2_collections_cumulative": 182,
+      "gc_gen2_max_pause_ns_cumulative": 1254114701,
+      "hot_path_max_ns": 595656560,
+      "slug": "btc-updown-5m-1787931300",
+      "spot_receive_to_decide_max_ns": 2792471
+    },
+    {
+      "clob_receive_to_decide_max_ns": 3832853,
+      "decide_duration_max_ns": 2060392,
+      "gc_gen2_collections_cumulative": 139,
+      "gc_gen2_max_pause_ns_cumulative": 1162760178,
+      "hot_path_max_ns": 583841485,
+      "slug": "btc-updown-5m-1787921400",
+      "spot_receive_to_decide_max_ns": 419283
+    }
+  ]
+}

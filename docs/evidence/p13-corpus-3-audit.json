@@ -1,0 +1,467 @@
+{
+  "accounting": {
+    "attempts_aborted": 0,
+    "attempts_failed": 0,
+    "attempts_finished": 12,
+    "attempts_started": 14,
+    "attempts_terminal": 12,
+    "corpus_rows": 12,
+    "duplicate_terminal_attempts": 0,
+    "duplicate_terminal_detail": {},
+    "every_row_joins_one_attempt": true,
+    "ledger": {
+      "attempts_started": 14,
+      "attempts_terminal": 12,
+      "by_event": {
+        "ATTEMPT_FINISHED": 12,
+        "ATTEMPT_STARTED": 14
+      },
+      "duplicate_terminals": {},
+      "events": 26,
+      "open_attempts": 2,
+      "path": "/home/hr/p13-corpus-3/attempts.jsonl",
+      "recovery_failures": [],
+      "write_errors": []
+    },
+    "note": "Every row for this epoch, judged by the same rule the collector counts with. A market with a start and no terminal record is one the collector was in the middle of; it counts toward nothing and its artifacts are inventoried, not deleted.",
+    "open_attempts": 2,
+    "qualifying_rows": 12,
+    "rows_refused_with_reasons": {},
+    "rows_without_attempt_id": [],
+    "rows_without_finished_terminal": [],
+    "rows_without_start": [],
+    "terminal_without_start": 0
+  },
+  "action_counts": {
+    "BLOCKED": 1370699,
+    "CANCEL": 3687,
+    "KEEP": 1531039,
+    "NOTHING": 348630,
+    "PLACE": 8646,
+    "REPLACE": 4959
+  },
+  "attempted": 12,
+  "config_identities": {
+    "e179e137ad621799a32a17566852aa449ff600999d13ee486bc30ae93145a012": 12
+  },
+  "epoch": "p13-corpus-3",
+  "evidence_eligible": 12,
+  "first_slug": "btc-updown-5m-1787848800",
+  "kind": "P13_CORPUS_REPORT",
+  "l3": {
+    "by_outcome": {
+      "DOWN": {
+        "AT_FRONT": 563984,
+        "NOT_QUOTING": 866726,
+        "PRICE_OK_BUT_DEEP": 203113,
+        "STALE": 7
+      },
+      "UP": {
+        "AT_FRONT": 567179,
+        "NOT_QUOTING": 861235,
+        "PRICE_OK_BUT_DEEP": 205409,
+        "STALE": 7
+      }
+    },
+    "by_phase": {
+      "DONE": {
+        "NOT_QUOTING": 10376
+      },
+      "ENDGAME": {
+        "AT_FRONT": 16614,
+        "NOT_QUOTING": 163217,
+        "PRICE_OK_BUT_DEEP": 6755
+      },
+      "PREARM": {
+        "NOT_QUOTING": 40388
+      },
+      "QUOTE": {
+        "AT_FRONT": 1114549,
+        "NOT_QUOTING": 1457944,
+        "PRICE_OK_BUT_DEEP": 401767,
+        "STALE": 14
+      },
+      "SETTLING": {
+        "NOT_QUOTING": 56036
+      }
+    },
+    "by_reason": {
+      "CENTRE_UNAVAILABLE": 202940,
+      "CONTINUITY_LOST": 14,
+      "ENDGAME_GATE": 38896,
+      "NO_LIVE_ORDER": 4959,
+      "OFF_VENUE_TICK": 6406,
+      "PHASE_NOT_QUOTING": 106804,
+      "POST_ONLY_BLOCK": 1367956,
+      "QUOTING": 1539685
+    },
+    "by_time_bucket": {
+      "000s": {
+        "AT_FRONT": 163085,
+        "NOT_QUOTING": 235006,
+        "PRICE_OK_BUT_DEEP": 51021
+      },
+      "030s": {
+        "AT_FRONT": 163122,
+        "NOT_QUOTING": 207718,
+        "PRICE_OK_BUT_DEEP": 67024,
+        "STALE": 8
+      },
+      "060s": {
+        "AT_FRONT": 171366,
+        "NOT_QUOTING": 207557,
+        "PRICE_OK_BUT_DEEP": 63867
+      },
+      "090s": {
+        "AT_FRONT": 151529,
+        "NOT_QUOTING": 191523,
+        "PRICE_OK_BUT_DEEP": 58484
+      },
+      "120s": {
+        "AT_FRONT": 151932,
+        "NOT_QUOTING": 188641,
+        "PRICE_OK_BUT_DEEP": 57283
+      },
+      "150s": {
+        "AT_FRONT": 133016,
+        "NOT_QUOTING": 164333,
+        "PRICE_OK_BUT_DEEP": 44619
+      },
+      "180s": {
+        "AT_FRONT": 109989,
+        "NOT_QUOTING": 165151,
+        "PRICE_OK_BUT_DEEP": 35358,
+        "STALE": 6
+      },
+      "210s": {
+        "AT_FRONT": 70510,
+        "NOT_QUOTING": 138403,
+        "PRICE_OK_BUT_DEEP": 24111
+      },
+      "240s": {
+        "AT_FRONT": 15058,
+        "NOT_QUOTING": 132544,
+        "PRICE_OK_BUT_DEEP": 6618
+      },
+      "270s": {
+        "AT_FRONT": 1556,
+        "NOT_QUOTING": 86709,
+        "PRICE_OK_BUT_DEEP": 137
+      },
+      "300s": {
+        "NOT_QUOTING": 10376
+      }
+    },
+    "fractions": {
+      "AT_FRONT": 0.3461691240826769,
+      "NOT_QUOTING": 0.5288068526101247,
+      "OFF_PRICE": 0.0,
+      "PRICE_OK_BUT_DEEP": 0.12501973889572354,
+      "STALE": 4.284411474878047e-06
+    },
+    "note": "P8's classification, aggregated over **every** side of every decision \u2014 the denominator is `side_opportunities.expected`. Latency remains sampled, and is described as sampled wherever it appears. Queue figures are a shadow model, never a venue queue position, and STALE is P6's verdict carried through P8.",
+    "provenance": "SHADOW_ESTIMATE",
+    "total": {
+      "AT_FRONT": 1131163,
+      "NOT_QUOTING": 1727961,
+      "OFF_PRICE": 0,
+      "PRICE_OK_BUT_DEEP": 408522,
+      "STALE": 14
+    }
+  },
+  "last_slug": "btc-updown-5m-1787852100",
+  "live_latency": {
+    "all_markets_merged": true,
+    "hot_path_observe_max_by_market": {
+      "btc-updown-5m-1787848800": 1318494,
+      "btc-updown-5m-1787849100": 21007904,
+      "btc-updown-5m-1787849400": 10387948,
+      "btc-updown-5m-1787849700": 31526265,
+      "btc-updown-5m-1787850000": 10532351,
+      "btc-updown-5m-1787850300": 15461859,
+      "btc-updown-5m-1787850600": 11243901,
+      "btc-updown-5m-1787850900": 15767345,
+      "btc-updown-5m-1787851200": 10269553,
+      "btc-updown-5m-1787851500": 27384850,
+      "btc-updown-5m-1787851800": 10990558,
+      "btc-updown-5m-1787852100": 1324237568
+    },
+    "hot_path_observe_ns": {
+      "max": 1324237568,
+      "n": 1633830,
+      "p50": 24950,
+      "p95": 50831,
+      "p99": 80069
+    },
+    "markets_merged": 12,
+    "markets_refused": [],
+    "note": "Merged from the raw live samples of every eligible market. CLOB and spot are kept apart: they arrive at different rates through different sockets, and a combined figure answers a question nobody asked.",
+    "sampling": "SAMPLED \u2014 P8's accepted policy; every sample it took is here",
+    "series_ns": {
+      "acting_cycle": {
+        "max": 3316595,
+        "n": 1254,
+        "p50": 140476,
+        "p95": 540317,
+        "p99": 964702
+      },
+      "clob_receive_to_decide": {
+        "max": 992785033,
+        "n": 156095,
+        "p50": 123896,
+        "p95": 295953,
+        "p99": 703531
+      },
+      "clob_receive_to_reconcile": {
+        "max": 992810395,
+        "n": 156095,
+        "p50": 142700,
+        "p95": 340023,
+        "p99": 757826
+      },
+      "decide_duration": {
+        "max": 41926768,
+        "n": 163495,
+        "p50": 30983,
+        "p95": 66999,
+        "p99": 120841
+      },
+      "fill_receive_to_decide": {
+        "max": null,
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "p99": null
+      },
+      "fill_receive_to_reconcile": {
+        "max": null,
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "p99": null
+      },
+      "keep_cycle": {
+        "max": 11505881,
+        "n": 7894,
+        "p50": 132613,
+        "p95": 581632,
+        "p99": 1054273
+      },
+      "phase_receive_to_decide": {
+        "max": 200417,
+        "n": 48,
+        "p50": 84123,
+        "p95": 181368,
+        "p99": 200417
+      },
+      "phase_receive_to_reconcile": {
+        "max": 237091,
+        "n": 48,
+        "p50": 99077,
+        "p95": 206188,
+        "p99": 237091
+      },
+      "prepare_duration": {
+        "max": 27368024,
+        "n": 163495,
+        "p50": 10368,
+        "p95": 21650,
+        "p99": 38932
+      },
+      "receive_to_reconcile": {
+        "max": 992810395,
+        "n": 163495,
+        "p50": 141232,
+        "p95": 332941,
+        "p99": 743141
+      },
+      "reconcile_duration": {
+        "max": 5310636,
+        "n": 163495,
+        "p50": 7144,
+        "p95": 14395,
+        "p99": 24392
+      },
+      "spot_receive_to_decide": {
+        "max": 5274186,
+        "n": 7352,
+        "p50": 84297,
+        "p95": 178020,
+        "p99": 256903
+      },
+      "spot_receive_to_reconcile": {
+        "max": 5301347,
+        "n": 7352,
+        "p50": 100661,
+        "p95": 209764,
+        "p99": 305017
+      }
+    }
+  },
+  "not_claimed": "This is a measurement, not a strategy conclusion. No OPEN item is closed by it, no queue or stale threshold is proposed, and no parameter was tuned to produce it. P15 owns the experiments.",
+  "per_market_distributions": {
+    "at_front_fraction": {
+      "max": 0.3704850874271027,
+      "min": 0.3178123454569977,
+      "n": 12,
+      "p50": 0.342601,
+      "p90": 0.370183
+    },
+    "queue_ahead_p50_shadow_estimate": {
+      "max": 0.0,
+      "min": 0.0,
+      "n": 12,
+      "p50": 0.0,
+      "p90": 0.0
+    },
+    "queue_ahead_p95_shadow_estimate": {
+      "max": 492090000.0,
+      "min": 181500000.0,
+      "n": 12,
+      "p50": 235370000.0,
+      "p90": 340820000.0
+    },
+    "stale_fraction": {
+      "max": 2.6632045008156065e-05,
+      "min": 0.0,
+      "n": 12,
+      "p50": 0.0,
+      "p90": 1.9e-05
+    }
+  },
+  "places_by_risk_state": {
+    "SAFE": 6142
+  },
+  "prearm": {
+    "clob_book_ready_lead_seconds": {
+      "max": 29.789,
+      "min": 29.732,
+      "n": 12,
+      "p50": 29.764,
+      "p90": 29.785
+    },
+    "discovery_lead_seconds": {
+      "max": 74.916,
+      "min": 74.864,
+      "n": 12,
+      "p50": 74.902,
+      "p90": 74.912
+    },
+    "feed_ready_before_t0": 12,
+    "feed_ready_lead_seconds": {
+      "max": 29.139,
+      "min": 27.612,
+      "n": 12,
+      "p50": 28.896,
+      "p90": 29.028
+    },
+    "note": "Discovery readiness is when the market's metadata resolved; feed readiness is when a usable book and a real BTC price both existed. Only the second one means a market was warm, and only it gates eligibility.",
+    "of": 12,
+    "spot_first_valid_lead_seconds": {
+      "max": 29.139,
+      "min": 27.612,
+      "n": 12,
+      "p50": 28.896,
+      "p90": 29.028
+    }
+  },
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "replay_status_counts": {
+    "EXACT": 12
+  },
+  "resources": {
+    "gc_full_collection_max_pause_ns": {
+      "max": 1324175949.0,
+      "min": 322653042.0,
+      "n": 12,
+      "p50": 890838928.0,
+      "p90": 1324175949.0
+    },
+    "live_sessions_post_release": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      3,
+      2,
+      2
+    ],
+    "note": "Every figure but the first is taken **after** the market was released. RSS is the operating system's view and glibc does not return freed arenas promptly, so `live_sessions` is the number that says whether release works.",
+    "open_fds_post_release_spread": {
+      "max": 24.0,
+      "min": 21.0,
+      "n": 12,
+      "p50": 21.0,
+      "p90": 22.0
+    },
+    "rss_bytes_first_market_start": 37761024,
+    "rss_bytes_last_post_release": 1493905408,
+    "rss_bytes_post_release_spread": {
+      "max": 1493905408.0,
+      "min": 540336128.0,
+      "n": 12,
+      "p50": 1127591936.0,
+      "p90": 1493905408.0
+    },
+    "threads_post_release_spread": {
+      "max": 8.0,
+      "min": 7.0,
+      "n": 12,
+      "p50": 7.0,
+      "p90": 7.0
+    }
+  },
+  "risk_states": {
+    "HALTED": 1922,
+    "RECOVERING": 14,
+    "SAFE": 1631896
+  },
+  "safety": {
+    "live_trading_enabled": false,
+    "orders_sent": 0,
+    "redemption_enabled": false,
+    "redemptions_sent": 0
+  },
+  "sampling": {
+    "classification": "EXHAUSTIVE \u2014 every side of every decision",
+    "latency": "SAMPLED \u2014 P8's accepted policy, unchanged",
+    "queue_estimate": "SHADOW_ESTIMATE \u2014 modelled, never a venue queue position"
+  },
+  "settlement_states": {
+    "RESOLVED": 12
+  },
+  "side_opportunities": {
+    "actions": 3267660,
+    "all_exhaustive": true,
+    "classified": 3267660,
+    "expected": 3267660,
+    "markets_exhaustive": 12,
+    "of_markets": 12,
+    "rule": "two per decision observation, UP and DOWN, on every decision"
+  },
+  "source_revisions": {
+    "d20d3c9744d4e8e91430c8f73c4bce60d47bf047": 12
+  },
+  "status_counts": {
+    "COMPLETE": 12
+  },
+  "totals": {
+    "clob_messages": 1596745,
+    "decisions": 1633830,
+    "dropped_records": 0,
+    "operator_commands": 0,
+    "risk_records": 1633832,
+    "sequence_gaps": 0,
+    "sink_errors": 0,
+    "spot_messages": 73379
+  },
+  "winners": {
+    "DOWN": 7,
+    "UP": 5
+  }
+}

@@ -1,0 +1,849 @@
+{
+  "events_per_run": 12000,
+  "journal": "btc-updown-5m-1787647500.journal.ndjson",
+  "kind": "P11_PERSISTENCE_OVERHEAD",
+  "medians": {
+    "decide": {
+      "healthy": {
+        "p50": 23655,
+        "p95": 28157,
+        "p99": 71371
+      },
+      "off": {
+        "p50": 23406,
+        "p95": 27657,
+        "p99": 69915
+      },
+      "stalled": {
+        "p50": 23767,
+        "p95": 28902,
+        "p99": 70371
+      }
+    },
+    "full_cycle": {
+      "healthy": {
+        "p50": 53290,
+        "p95": 83150,
+        "p99": 117419
+      },
+      "off": {
+        "p50": 51364,
+        "p95": 67971,
+        "p99": 101951
+      },
+      "stalled": {
+        "p50": 53395,
+        "p95": 73767,
+        "p99": 106445
+      }
+    },
+    "receive_to_reconcile": {
+      "healthy": {
+        "p50": 28898,
+        "p95": 37917,
+        "p99": 77802
+      },
+      "off": {
+        "p50": 27593,
+        "p95": 33167,
+        "p99": 69161
+      },
+      "stalled": {
+        "p50": 29093,
+        "p95": 36886,
+        "p99": 75258
+      }
+    }
+  },
+  "note": "Real captured market events replayed in fresh processes. The strategy, the reconciler and the shadow order table run identically in every configuration; only persistence changes.",
+  "overhead": {
+    "decide_healthy_p50_ns": 249,
+    "decide_healthy_p50_pct": 1.06,
+    "decide_stalled_p50_ns": 361,
+    "decide_stalled_p50_pct": 1.54,
+    "full_cycle_healthy_p50_ns": 1926,
+    "full_cycle_healthy_p50_pct": 3.75,
+    "full_cycle_stalled_p50_ns": 2031,
+    "full_cycle_stalled_p50_pct": 3.95
+  },
+  "pairs": 4,
+  "provenance": "REPLAY_OF_REAL_CAPTURE",
+  "runs": [
+    {
+      "actions": {
+        "BLOCKED": 9161,
+        "CANCEL": 27,
+        "KEEP": 10272,
+        "NOTHING": 4422,
+        "PLACE": 73,
+        "REPLACE": 45
+      },
+      "batches": 0,
+      "bridge": null,
+      "buffer_accepted": 12000,
+      "buffer_dropped": 0,
+      "consume_errors": 0,
+      "decide": {
+        "mean": 25506,
+        "p50": 23418,
+        "p95": 28017,
+        "p99": 70133
+      },
+      "error_samples": [],
+      "events": 12000,
+      "fills_seen": 0,
+      "full_cycle": {
+        "mean": 60830,
+        "p50": 51012,
+        "p95": 76981,
+        "p99": 102778
+      },
+      "measured": 10000,
+      "mode": "off",
+      "observations_consumed": 0,
+      "order": [
+        "off",
+        "healthy",
+        "stalled"
+      ],
+      "pair": 0,
+      "persisted": 0,
+      "receive_to_reconcile": {
+        "mean": 35323,
+        "p50": 27334,
+        "p95": 33434,
+        "p99": 71407
+      },
+      "risk_states": {
+        "HALTED": 28,
+        "RECOVERING": 1,
+        "SAFE": 11971
+      },
+      "rows_written": 0,
+      "sink_errors": 0,
+      "slug": "btc-updown-5m-1787647500",
+      "snapshots": 0,
+      "store_error_samples": [],
+      "transaction_ns": 0,
+      "worker_high_water": 0
+    },
+    {
+      "actions": {
+        "BLOCKED": 9161,
+        "CANCEL": 27,
+        "KEEP": 10272,
+        "NOTHING": 4422,
+        "PLACE": 73,
+        "REPLACE": 45
+      },
+      "batches": 96,
+      "bridge": {
+        "alive": false,
+        "available": false,
+        "deferred": 0,
+        "delivered": 0,
+        "errors": [],
+        "polls": 7,
+        "snapshot_errors": 0,
+        "snapshots_published": 0,
+        "unreadable": 0
+      },
+      "buffer_accepted": 12000,
+      "buffer_dropped": 0,
+      "consume_errors": 0,
+      "decide": {
+        "mean": 25773,
+        "p50": 23692,
+        "p95": 27446,
+        "p99": 71384
+      },
+      "error_samples": [],
+      "events": 12000,
+      "fills_seen": 0,
+      "full_cycle": {
+        "mean": 63059,
+        "p50": 53588,
+        "p95": 77203,
+        "p99": 115595
+      },
+      "measured": 10000,
+      "mode": "healthy",
+      "observations_consumed": 12000,
+      "order": [
+        "off",
+        "healthy",
+        "stalled"
+      ],
+      "pair": 0,
+      "persisted": 12000,
+      "receive_to_reconcile": {
+        "mean": 37285,
+        "p50": 29298,
+        "p95": 35933,
+        "p99": 78320
+      },
+      "risk_states": {
+        "HALTED": 28,
+        "RECOVERING": 1,
+        "SAFE": 11971
+      },
+      "rows_written": 48001,
+      "sink_errors": 0,
+      "slug": "btc-updown-5m-1787647500",
+      "snapshots": 7,
+      "store_error_samples": [],
+      "transaction_ns": 572823376,
+      "worker_high_water": 7904
+    },
+    {
+      "actions": {
+        "BLOCKED": 9161,
+        "CANCEL": 27,
+        "KEEP": 10272,
+        "NOTHING": 4422,
+        "PLACE": 73,
+        "REPLACE": 45
+      },
+      "batches": 96,
+      "bridge": {
+        "alive": false,
+        "available": false,
+        "deferred": 0,
+        "delivered": 0,
+        "errors": [],
+        "polls": 0,
+        "snapshot_errors": 0,
+        "snapshots_published": 0,
+        "unreadable": 0
+      },
+      "buffer_accepted": 12000,
+      "buffer_dropped": 0,
+      "consume_errors": 0,
+      "decide": {
+        "mean": 33121,
+        "p50": 24314,
+        "p95": 40247,
+        "p99": 72489
+      },
+      "error_samples": [],
+      "events": 12000,
+      "fills_seen": 0,
+      "full_cycle": {
+        "mean": 65694,
+        "p50": 54557,
+        "p95": 90628,
+        "p99": 118259
+      },
+      "measured": 10000,
+      "mode": "stalled",
+      "observations_consumed": 12000,
+      "order": [
+        "off",
+        "healthy",
+        "stalled"
+      ],
+      "pair": 0,
+      "persisted": 12000,
+      "receive_to_reconcile": {
+        "mean": 32572,
+        "p50": 29797,
+        "p95": 47790,
+        "p99": 76924
+      },
+      "risk_states": {
+        "HALTED": 28,
+        "RECOVERING": 1,
+        "SAFE": 11971
+      },
+      "rows_written": 48001,
+      "sink_errors": 0,
+      "slug": "btc-updown-5m-1787647500",
+      "snapshots": 6,
+      "store_error_samples": [],
+      "transaction_ns": 497691892,
+      "worker_high_water": 12000
+    },
+    {
+      "actions": {
+        "BLOCKED": 9161,
+        "CANCEL": 27,
+        "KEEP": 10272,
+        "NOTHING": 4422,
+        "PLACE": 73,
+        "REPLACE": 45
+      },
+      "batches": 96,
+      "bridge": {
+        "alive": false,
+        "available": false,
+        "deferred": 0,
+        "delivered": 0,
+        "errors": [],
+        "polls": 7,
+        "snapshot_errors": 0,
+        "snapshots_published": 0,
+        "unreadable": 0
+      },
+      "buffer_accepted": 12000,
+      "buffer_dropped": 0,
+      "consume_errors": 0,
+      "decide": {
+        "mean": 29455,
+        "p50": 23820,
+        "p95": 28718,
+        "p99": 71359
+      },
+      "error_samples": [],
+      "events": 12000,
+      "fills_seen": 0,
+      "full_cycle": {
+        "mean": 62614,
+        "p50": 53287,
+        "p95": 83671,
+        "p99": 117735
+      },
+      "measured": 10000,
+      "mode": "healthy",
+      "observations_consumed": 12000,
+      "order": [
+        "healthy",
+        "stalled",
+        "off"
+      ],
+      "pair": 1,
+      "persisted": 12000,
+      "receive_to_reconcile": {
+        "mean": 33159,
+        "p50": 28835,
+        "p95": 39889,
+        "p99": 77252
+      },
+      "risk_states": {
+        "HALTED": 28,
+        "RECOVERING": 1,
+        "SAFE": 11971
+      },
+      "rows_written": 48001,
+      "sink_errors": 0,
+      "slug": "btc-updown-5m-1787647500",
+      "snapshots": 6,
+      "store_error_samples": [],
+      "transaction_ns": 560747231,
+      "worker_high_water": 7904
+    },
+    {
+      "actions": {
+        "BLOCKED": 9161,
+        "CANCEL": 27,
+        "KEEP": 10272,
+        "NOTHING": 4422,
+        "PLACE": 73,
+        "REPLACE": 45
+      },
+      "batches": 96,
+      "bridge": {
+        "alive": false,
+        "available": false,
+        "deferred": 0,
+        "delivered": 0,
+        "errors": [],
+        "polls": 0,
+        "snapshot_errors": 0,
+        "snapshots_published": 0,
+        "unreadable": 0
+      },
+      "buffer_accepted": 12000,
+      "buffer_dropped": 0,
+      "consume_errors": 0,
+      "decide": {
+        "mean": 31223,
+        "p50": 23800,
+        "p95": 27721,
+        "p99": 70426
+      },
+      "error_samples": [],
+      "events": 12000,
+      "fills_seen": 0,
+      "full_cycle": {
+        "mean": 62198,
+        "p50": 53598,
+        "p95": 70060,
+        "p99": 106336
+      },
+      "measured": 10000,
+      "mode": "stalled",
+      "observations_consumed": 12000,
+      "order": [
+        "healthy",
+        "stalled",
+        "off"
+      ],
+      "pair": 1,
+      "persisted": 12000,
+      "receive_to_reconcile": {
+        "mean": 30974,
+        "p50": 29129,
+        "p95": 34346,
+        "p99": 74951
+      },
+      "risk_states": {
+        "HALTED": 28,
+        "RECOVERING": 1,
+        "SAFE": 11971
+      },
+      "rows_written": 48001,
+      "sink_errors": 0,
+      "slug": "btc-updown-5m-1787647500",
+      "snapshots": 6,
+      "store_error_samples": [],
+      "transaction_ns": 510700417,
+      "worker_high_water": 12000
+    },
+    {
+      "actions": {
+        "BLOCKED": 9161,
+        "CANCEL": 27,
+        "KEEP": 10272,
+        "NOTHING": 4422,
+        "PLACE": 73,
+        "REPLACE": 45
+      },
+      "batches": 0,
+      "bridge": null,
+      "buffer_accepted": 12000,
+      "buffer_dropped": 0,
+      "consume_errors": 0,
+      "decide": {
+        "mean": 25106,
+        "p50": 23246,
+        "p95": 26523,
+        "p99": 69737
+      },
+      "error_samples": [],
+      "events": 12000,
+      "fills_seen": 0,
+      "full_cycle": {
+        "mean": 59448,
+        "p50": 51110,
+        "p95": 64676,
+        "p99": 101124
+      },
+      "measured": 10000,
+      "mode": "off",
+      "observations_consumed": 0,
+      "order": [
+        "healthy",
+        "stalled",
+        "off"
+      ],
+      "pair": 1,
+      "persisted": 0,
+      "receive_to_reconcile": {
+        "mean": 34342,
+        "p50": 27392,
+        "p95": 31638,
+        "p99": 66916
+      },
+      "risk_states": {
+        "HALTED": 28,
+        "RECOVERING": 1,
+        "SAFE": 11971
+      },
+      "rows_written": 0,
+      "sink_errors": 0,
+      "slug": "btc-updown-5m-1787647500",
+      "snapshots": 0,
+      "store_error_samples": [],
+      "transaction_ns": 0,
+      "worker_high_water": 0
+    },
+    {
+      "actions": {
+        "BLOCKED": 9161,
+        "CANCEL": 27,
+        "KEEP": 10272,
+        "NOTHING": 4422,
+        "PLACE": 73,
+        "REPLACE": 45
+      },
+      "batches": 96,
+      "bridge": {
+        "alive": false,
+        "available": false,
+        "deferred": 0,
+        "delivered": 0,
+        "errors": [],
+        "polls": 0,
+        "snapshot_errors": 0,
+        "snapshots_published": 0,
+        "unreadable": 0
+      },
+      "buffer_accepted": 12000,
+      "buffer_dropped": 0,
+      "consume_errors": 0,
+      "decide": {
+        "mean": 30373,
+        "p50": 23339,
+        "p95": 26620,
+        "p99": 69291
+      },
+      "error_samples": [],
+      "events": 12000,
+      "fills_seen": 0,
+      "full_cycle": {
+        "mean": 60260,
+        "p50": 52306,
+        "p95": 65280,
+        "p99": 102418
+      },
+      "measured": 10000,
+      "mode": "stalled",
+      "observations_consumed": 12000,
+      "order": [
+        "stalled",
+        "off",
+        "healthy"
+      ],
+      "pair": 2,
+      "persisted": 12000,
+      "receive_to_reconcile": {
+        "mean": 29887,
+        "p50": 28180,
+        "p95": 32700,
+        "p99": 73236
+      },
+      "risk_states": {
+        "HALTED": 28,
+        "RECOVERING": 1,
+        "SAFE": 11971
+      },
+      "rows_written": 48001,
+      "sink_errors": 0,
+      "slug": "btc-updown-5m-1787647500",
+      "snapshots": 6,
+      "store_error_samples": [],
+      "transaction_ns": 489990864,
+      "worker_high_water": 12000
+    },
+    {
+      "actions": {
+        "BLOCKED": 9161,
+        "CANCEL": 27,
+        "KEEP": 10272,
+        "NOTHING": 4422,
+        "PLACE": 73,
+        "REPLACE": 45
+      },
+      "batches": 0,
+      "bridge": null,
+      "buffer_accepted": 12000,
+      "buffer_dropped": 0,
+      "consume_errors": 0,
+      "decide": {
+        "mean": 25290,
+        "p50": 23395,
+        "p95": 27298,
+        "p99": 68982
+      },
+      "error_samples": [],
+      "events": 12000,
+      "fills_seen": 0,
+      "full_cycle": {
+        "mean": 60225,
+        "p50": 51619,
+        "p95": 66880,
+        "p99": 100972
+      },
+      "measured": 10000,
+      "mode": "off",
+      "observations_consumed": 0,
+      "order": [
+        "stalled",
+        "off",
+        "healthy"
+      ],
+      "pair": 2,
+      "persisted": 0,
+      "receive_to_reconcile": {
+        "mean": 34934,
+        "p50": 27795,
+        "p95": 32900,
+        "p99": 66880
+      },
+      "risk_states": {
+        "HALTED": 28,
+        "RECOVERING": 1,
+        "SAFE": 11971
+      },
+      "rows_written": 0,
+      "sink_errors": 0,
+      "slug": "btc-updown-5m-1787647500",
+      "snapshots": 0,
+      "store_error_samples": [],
+      "transaction_ns": 0,
+      "worker_high_water": 0
+    },
+    {
+      "actions": {
+        "BLOCKED": 9161,
+        "CANCEL": 27,
+        "KEEP": 10272,
+        "NOTHING": 4422,
+        "PLACE": 73,
+        "REPLACE": 45
+      },
+      "batches": 96,
+      "bridge": {
+        "alive": false,
+        "available": false,
+        "deferred": 0,
+        "delivered": 0,
+        "errors": [],
+        "polls": 7,
+        "snapshot_errors": 0,
+        "snapshots_published": 0,
+        "unreadable": 0
+      },
+      "buffer_accepted": 12000,
+      "buffer_dropped": 0,
+      "consume_errors": 0,
+      "decide": {
+        "mean": 28084,
+        "p50": 23619,
+        "p95": 29954,
+        "p99": 72110
+      },
+      "error_samples": [],
+      "events": 12000,
+      "fills_seen": 0,
+      "full_cycle": {
+        "mean": 63355,
+        "p50": 53294,
+        "p95": 94112,
+        "p99": 129992
+      },
+      "measured": 10000,
+      "mode": "healthy",
+      "observations_consumed": 12000,
+      "order": [
+        "stalled",
+        "off",
+        "healthy"
+      ],
+      "pair": 2,
+      "persisted": 12000,
+      "receive_to_reconcile": {
+        "mean": 35270,
+        "p50": 28962,
+        "p95": 42296,
+        "p99": 80394
+      },
+      "risk_states": {
+        "HALTED": 28,
+        "RECOVERING": 1,
+        "SAFE": 11971
+      },
+      "rows_written": 48001,
+      "sink_errors": 0,
+      "slug": "btc-updown-5m-1787647500",
+      "snapshots": 6,
+      "store_error_samples": [],
+      "transaction_ns": 485629273,
+      "worker_high_water": 7904
+    },
+    {
+      "actions": {
+        "BLOCKED": 9161,
+        "CANCEL": 27,
+        "KEEP": 10272,
+        "NOTHING": 4422,
+        "PLACE": 73,
+        "REPLACE": 45
+      },
+      "batches": 0,
+      "bridge": null,
+      "buffer_accepted": 12000,
+      "buffer_dropped": 0,
+      "consume_errors": 0,
+      "decide": {
+        "mean": 25780,
+        "p50": 23675,
+        "p95": 28757,
+        "p99": 70094
+      },
+      "error_samples": [],
+      "events": 12000,
+      "fills_seen": 0,
+      "full_cycle": {
+        "mean": 61167,
+        "p50": 52156,
+        "p95": 69062,
+        "p99": 105530
+      },
+      "measured": 10000,
+      "mode": "off",
+      "observations_consumed": 0,
+      "order": [
+        "off",
+        "healthy",
+        "stalled"
+      ],
+      "pair": 3,
+      "persisted": 0,
+      "receive_to_reconcile": {
+        "mean": 35387,
+        "p50": 27977,
+        "p95": 34629,
+        "p99": 72264
+      },
+      "risk_states": {
+        "HALTED": 28,
+        "RECOVERING": 1,
+        "SAFE": 11971
+      },
+      "rows_written": 0,
+      "sink_errors": 0,
+      "slug": "btc-updown-5m-1787647500",
+      "snapshots": 0,
+      "store_error_samples": [],
+      "transaction_ns": 0,
+      "worker_high_water": 0
+    },
+    {
+      "actions": {
+        "BLOCKED": 9161,
+        "CANCEL": 27,
+        "KEEP": 10272,
+        "NOTHING": 4422,
+        "PLACE": 73,
+        "REPLACE": 45
+      },
+      "batches": 96,
+      "bridge": {
+        "alive": false,
+        "available": false,
+        "deferred": 0,
+        "delivered": 0,
+        "errors": [],
+        "polls": 6,
+        "snapshot_errors": 0,
+        "snapshots_published": 0,
+        "unreadable": 0
+      },
+      "buffer_accepted": 12000,
+      "buffer_dropped": 0,
+      "consume_errors": 0,
+      "decide": {
+        "mean": 25378,
+        "p50": 23347,
+        "p95": 27596,
+        "p99": 70697
+      },
+      "error_samples": [],
+      "events": 12000,
+      "fills_seen": 0,
+      "full_cycle": {
+        "mean": 61924,
+        "p50": 52620,
+        "p95": 82629,
+        "p99": 117103
+      },
+      "measured": 10000,
+      "mode": "healthy",
+      "observations_consumed": 12000,
+      "order": [
+        "off",
+        "healthy",
+        "stalled"
+      ],
+      "pair": 3,
+      "persisted": 12000,
+      "receive_to_reconcile": {
+        "mean": 36545,
+        "p50": 28628,
+        "p95": 35945,
+        "p99": 77285
+      },
+      "risk_states": {
+        "HALTED": 28,
+        "RECOVERING": 1,
+        "SAFE": 11971
+      },
+      "rows_written": 48001,
+      "sink_errors": 0,
+      "slug": "btc-updown-5m-1787647500",
+      "snapshots": 6,
+      "store_error_samples": [],
+      "transaction_ns": 500852886,
+      "worker_high_water": 7904
+    },
+    {
+      "actions": {
+        "BLOCKED": 9161,
+        "CANCEL": 27,
+        "KEEP": 10272,
+        "NOTHING": 4422,
+        "PLACE": 73,
+        "REPLACE": 45
+      },
+      "batches": 96,
+      "bridge": {
+        "alive": false,
+        "available": false,
+        "deferred": 0,
+        "delivered": 0,
+        "errors": [],
+        "polls": 0,
+        "snapshot_errors": 0,
+        "snapshots_published": 0,
+        "unreadable": 0
+      },
+      "buffer_accepted": 12000,
+      "buffer_dropped": 0,
+      "consume_errors": 0,
+      "decide": {
+        "mean": 31683,
+        "p50": 23735,
+        "p95": 30084,
+        "p99": 70316
+      },
+      "error_samples": [],
+      "events": 12000,
+      "fills_seen": 0,
+      "full_cycle": {
+        "mean": 62648,
+        "p50": 53193,
+        "p95": 77474,
+        "p99": 106554
+      },
+      "measured": 10000,
+      "mode": "stalled",
+      "observations_consumed": 12000,
+      "order": [
+        "off",
+        "healthy",
+        "stalled"
+      ],
+      "pair": 3,
+      "persisted": 12000,
+      "receive_to_reconcile": {
+        "mean": 30965,
+        "p50": 29058,
+        "p95": 39426,
+        "p99": 75565
+      },
+      "risk_states": {
+        "HALTED": 28,
+        "RECOVERING": 1,
+        "SAFE": 11971
+      },
+      "rows_written": 48001,
+      "sink_errors": 0,
+      "slug": "btc-updown-5m-1787647500",
+      "snapshots": 6,
+      "store_error_samples": [],
+      "transaction_ns": 490035563,
+      "worker_high_water": 12000
+    }
+  ]
+}

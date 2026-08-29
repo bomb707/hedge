@@ -437,7 +437,27 @@ both earlier markets' stores remain valid.
 
 ---
 
-## P13 — Live shadow / paper mode
+## P13 — Live shadow / paper mode   ← CORPUS ACCEPTED (202), RESOURCE STABILITY NOT PASSED
+
+**Status:**
+
+| Gate | Status |
+|---|---|
+| Implementation | **PASSED** (P13F) — every audit read and write on a dedicated Plane-3 thread; qualification O(1) per market with full joined audits at startup and at the target; exactly one result per attempt and one per market |
+| Pilot | **PASSED** (P13F) — three consecutive real markets run with the audit path deliberately slowed by 500 ms per operation, all qualifying, zero drops, gaps or sink errors |
+| ≥200-market empirical corpus | **PASSED** — 202 qualifying real markets in `p13-corpus-6`, collected by `9a42031`; every duplicate, refusal and integrity category zero. Corpora 1-5 retained, superseded, excluded |
+| Long-run resource stability | **NOT PASSED** after two evidence-backed attempts. The original growth was free glibc heap created by the journal encoder; streaming it cut the all-run slope from +10.26 to +2.13 MB/market (`p13-resource-1`, after-warm-up +1.3607 [+1.169, +1.553]). Adding one guarded `malloc_trim` per rollover (`p13-resource-2`) returned 1,082 MB and made it **worse** — +2.7434 [+2.351, +3.136] on 11 % less work. The predeclared test (markets 11..end, ceiling +1.026, 95 % CI containing zero) is unchanged and unmet. See `docs/evidence/P13-RESOURCE-DIAGNOSIS.md` |
+| **Overall** | **NOT COMPLETE** — the dataset is accepted and ready for P15; the collector needs runtime engineering |
+
+Evidence: [`evidence/P13-CORPUS-ACCEPTANCE.md`](evidence/P13-CORPUS-ACCEPTANCE.md),
+[`evidence/P13F-AUDIT-ISOLATION.md`](evidence/P13F-AUDIT-ISOLATION.md),
+[`evidence/P13E-COUNTER-INTEGRITY.md`](evidence/P13E-COUNTER-INTEGRITY.md),
+[`evidence/P13D-EVIDENCE-BINDING.md`](evidence/P13D-EVIDENCE-BINDING.md),
+[`evidence/P13C-FINAL-CORPUS-FOUNDATION.md`](evidence/P13C-FINAL-CORPUS-FOUNDATION.md),
+then [`evidence/P13B-CORPUS-INTEGRITY.md`](evidence/P13B-CORPUS-INTEGRITY.md) and
+[`evidence/P13-PILOT.md`](evidence/P13-PILOT.md). All retained; each supersedes the one before it
+for the final gate.
+**No OPEN item closed, no strategy value changed, no order and no chain write.**
 
 - **Goal:** Canonical §34-L3. Run against the real live market with no real orders.
 - **Inputs:** all prior phases; Canonical §34-L3; Detailed §35.
@@ -453,7 +473,27 @@ both earlier markets' stores remain valid.
 
 ---
 
-## P14 — Minimum-size live validation
+## P14 — Minimum-size live validation   ← BLOCKED
+
+**Blocked before it starts.** P13's corpus is accepted, but the collector that produced it grew
+from 36 MB to 4,262 MB of resident memory across 202 markets with no plateau, and its worst
+`observe` cycle reached 1,056 ms. Neither is a strategy question.
+
+The memory blocker has since been diagnosed and largely removed on
+`fix/p13-runtime-resource-stability`: the growth was free glibc heap created by the journal
+encoder, and streaming it cut the all-run slope from +10.26 to +2.13 MB/market and ended a
+57-market run at 489.8 MB. It is **not cleared**. The predeclared regression target — no
+statistically supported trend after warm-up, point slope ≤ +1.026 MB/market — reads +1.3607
+[+1.1689, +1.5526], and no window of that run has an interval containing zero. A residual of
+about +0.5 MB/market remains, diffuse across every cold-path stage rather than attributable to
+one allocation.
+
+The GC tail is unchanged and is not claimed otherwise; what changed is that per-market
+attribution is now exact rather than a running maximum. No latency requirement for full-collection
+pauses has been established, so it stays a readiness **risk**, not a gate.
+
+Real capital waits on both, and on independent review.
+
 
 - **Goal:** Canonical §34-L4. One market at a time, minimum capital.
 - **Inputs:** the L4 preconditions in Canonical §34 and the full acceptance checklist in

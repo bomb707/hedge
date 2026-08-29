@@ -1,0 +1,103 @@
+{
+  "attempts_index_sha256": "09368147da72e70f379f0f71f24b108fb3ac302f042fb5c3f1633add0afd7cc8",
+  "config_sha256": "620dfefa91edd917e1385dd3a925226269bed06a841bf9a10cc69d40c4faa629",
+  "corpus_index_sha256": "265cf6be394e4c820b28ed3ad72a033b036c5e10d059e4f17876f02942027bd9",
+  "direct_evidence_of_the_defect": {
+    "corpus_rows": 4,
+    "reading": "Four durable rows, and the collector's own log counting to eight. The last pair is the same market logged twice: once at the corpus append and once after the terminal record.",
+    "runtime_counter_lines": [
+      "    btc-updown-5m-1787853900: COMPLETE replay=EXACT eligible=True appended=True (1 durable)",
+      "    btc-updown-5m-1787853900: COMPLETE replay=EXACT eligible=True appended=True terminal=True (2 durable)",
+      "    btc-updown-5m-1787854200: COMPLETE replay=EXACT eligible=True appended=True (3 durable)",
+      "    btc-updown-5m-1787854200: COMPLETE replay=EXACT eligible=True appended=True terminal=True (4 durable)",
+      "    btc-updown-5m-1787854500: COMPLETE replay=EXACT eligible=True appended=True (5 durable)",
+      "    btc-updown-5m-1787854500: COMPLETE replay=EXACT eligible=True appended=True terminal=True (6 durable)",
+      "    btc-updown-5m-1787854800: COMPLETE replay=EXACT eligible=True appended=True (7 durable)",
+      "    btc-updown-5m-1787854800: COMPLETE replay=EXACT eligible=True appended=True terminal=True (8 durable)"
+    ]
+  },
+  "epoch": "p13-corpus-4",
+  "kind": "P13_CORPUS_4_SUPERSEDED",
+  "markets": [
+    {
+      "attempt_id": "5b5d5a9b43b34397b302738431ff25e6",
+      "decisions": 195935,
+      "latency_sha256": "5b47db9f10e7295c62d173fdc0273d155f78efcf36e4a4bf21ee2fb79fda1d2b",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787853900",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "d0ffb5d91a7b44e89e0340815e11b4fa",
+      "decisions": 120652,
+      "latency_sha256": "2633d7923385bc5242570c9127a89dbd1eb8760681ea2297f2f2637db29e9399",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787854200",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "d40adf426b6b40a3955214cdb8ee6240",
+      "decisions": 145647,
+      "latency_sha256": "eaef480ecd6f70b475b49ea8c1e221d83c2e73fcae7453b25c72a32e6557bd85",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787854500",
+      "verification_status": "COMPLETE"
+    },
+    {
+      "attempt_id": "c1bec5a7e7ec43ab9cbefcfe7594f2dc",
+      "decisions": 231713,
+      "latency_sha256": "797c962a9c39560383714abb1bcf31fb913b79d62b70d10518ede9b69ae63597",
+      "replay": "EXACT",
+      "slug": "btc-updown-5m-1787854800",
+      "verification_status": "COMPLETE"
+    }
+  ],
+  "note": "Nothing deleted, rewritten or reclassified. Retained; excluded from the >=200 count.",
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "read_side_audit": {
+    "attempt_ids_started": 6,
+    "attempts_aborted": 0,
+    "attempts_failed": 0,
+    "attempts_finished": 4,
+    "attempts_started": 6,
+    "attempts_terminal": 4,
+    "corpus_rows": 4,
+    "duplicate_start_attempts": 0,
+    "duplicate_start_detail": {},
+    "duplicate_terminal_attempts": 0,
+    "duplicate_terminal_detail": {},
+    "every_row_joins_one_attempt": true,
+    "ledger": {
+      "attempts_started": 6,
+      "attempts_terminal": 4,
+      "by_event": {
+        "ATTEMPT_FINISHED": 4,
+        "ATTEMPT_STARTED": 6
+      },
+      "duplicate_terminals": {},
+      "events": 10,
+      "open_attempts": 2,
+      "path": "/home/hr/p13-corpus-4/attempts.jsonl",
+      "recovery_failures": [],
+      "write_errors": []
+    },
+    "ledger_consistent": true,
+    "note": "Every row for this epoch, judged by the same rule the collector counts with. A market with a start and no terminal record is one the collector was in the middle of; it counts toward nothing and its artifacts are inventoried, not deleted.",
+    "open_attempts": 2,
+    "qualifying_rows": 4,
+    "rows_refused_with_reasons": {},
+    "rows_without_attempt_id": [],
+    "rows_without_finished_terminal": [],
+    "rows_without_start": [],
+    "terminal_without_start": 0
+  },
+  "root": "/home/hr/p13-corpus-4",
+  "source_revision": "7e585b14b93224f6ba5120fecf8bae79fa661128",
+  "status": "SUPERSEDED_FOR_FINAL_P13_ACCEPTANCE",
+  "stopped_by": "SIGTERM to PID 350548, verified by ps, /proc/350548/cwd and /proc/350548/cmdline as this root's collector before signalling",
+  "stopped_utc": "2026-08-27T18:31:00Z",
+  "what_the_corrected_audit_says": "Re-read with the corrected verifier the durable material is sound: 4 rows, 4 joined-qualifying, 6 attempts started with 4 finished and 2 left open by the stop, no duplicate starts, no duplicate terminals, and 4 identity-valid latency artifacts. The defect was in the counting, not in what was collected \u2014 which is exactly why the counter had to be derived from the durable record rather than maintained beside it.",
+  "why_it_cannot_count": [
+    "The runtime completion counter incremented twice per qualifying market \u2014 once when the corpus row landed and again when the terminal attempt record landed \u2014 so a --markets 200 run would have stopped at roughly a hundred actual markets."
+  ]
+}

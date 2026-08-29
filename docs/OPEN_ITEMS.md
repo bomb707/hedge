@@ -833,6 +833,22 @@ P12E adds a fifth, and it is the same shape one layer down:
 
 ---
 
+## P13 opens no item and closes none
+
+P13 collects. Every OPEN item it touches, it touches as a *measurement*: the L3 distribution is
+evidence for the quote-centre and latency questions, not an answer to them, and the corpus records
+one frozen strategy configuration precisely so P15 can run controlled experiments against a
+dataset that did not move under it.
+
+* **O01, O08 and O09 in particular are untouched.** An `AT_FRONT` rate is not a queue threshold. A
+  spot-leading-CLOB statistic is not a centre decision. Reading either as a closure would be
+  closing an item by assumption, which is the one thing this project has never allowed itself.
+* **The OPERATIONAL thresholds in `bot.config` are not canonical.** They detect a broken
+  collector — no decisions, a market classified STALE throughout — and they were fixed before the
+  corpus run and are not tuned after seeing it. The empirical distributions are the result.
+
+---
+
 ## Summary table
 
 | ID | Item | Status | Blocking |

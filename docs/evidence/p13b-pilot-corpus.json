@@ -1,0 +1,294 @@
+{
+  "action_counts": {
+    "BLOCKED": 723964,
+    "CANCEL": 1772,
+    "KEEP": 784015,
+    "NOTHING": 114007,
+    "PLACE": 3779,
+    "REPLACE": 2007
+  },
+  "attempted": 4,
+  "config_identities": {
+    "a1da198cace09601dc0a91e1cf940099a5d77964dcc6d272157a727f0038fe71": 4
+  },
+  "epoch": "p13b-pilot-5",
+  "evidence_eligible": 4,
+  "first_slug": "btc-updown-5m-1787839200",
+  "kind": "P13_CORPUS_REPORT",
+  "l3": {
+    "by_outcome": {
+      "DOWN": {
+        "AT_FRONT": 276490,
+        "NOT_QUOTING": 425814,
+        "PRICE_OK_BUT_DEEP": 112455,
+        "STALE": 13
+      },
+      "UP": {
+        "AT_FRONT": 287112,
+        "NOT_QUOTING": 415910,
+        "PRICE_OK_BUT_DEEP": 111737,
+        "STALE": 13
+      }
+    },
+    "by_phase": {
+      "DONE": {
+        "NOT_QUOTING": 4088
+      },
+      "ENDGAME": {
+        "AT_FRONT": 4943,
+        "NOT_QUOTING": 58735,
+        "PRICE_OK_BUT_DEEP": 924
+      },
+      "PREARM": {
+        "NOT_QUOTING": 16022
+      },
+      "QUOTE": {
+        "AT_FRONT": 558659,
+        "NOT_QUOTING": 744383,
+        "PRICE_OK_BUT_DEEP": 223268,
+        "STALE": 26
+      },
+      "SETTLING": {
+        "NOT_QUOTING": 18496
+      }
+    },
+    "by_reason": {
+      "CENTRE_UNAVAILABLE": 65524,
+      "CONTINUITY_LOST": 26,
+      "ENDGAME_GATE": 9855,
+      "NO_LIVE_ORDER": 2007,
+      "PHASE_NOT_QUOTING": 38608,
+      "POST_ONLY_BLOCK": 725730,
+      "QUOTING": 787794
+    },
+    "by_time_bucket": {
+      "000s": {
+        "AT_FRONT": 73698,
+        "NOT_QUOTING": 116274,
+        "PRICE_OK_BUT_DEEP": 32976
+      },
+      "030s": {
+        "AT_FRONT": 75316,
+        "NOT_QUOTING": 104170,
+        "PRICE_OK_BUT_DEEP": 36166
+      },
+      "060s": {
+        "AT_FRONT": 89844,
+        "NOT_QUOTING": 110629,
+        "PRICE_OK_BUT_DEEP": 31181
+      },
+      "090s": {
+        "AT_FRONT": 81907,
+        "NOT_QUOTING": 103719,
+        "PRICE_OK_BUT_DEEP": 30088
+      },
+      "120s": {
+        "AT_FRONT": 79621,
+        "NOT_QUOTING": 102754,
+        "PRICE_OK_BUT_DEEP": 33319,
+        "STALE": 26
+      },
+      "150s": {
+        "AT_FRONT": 70070,
+        "NOT_QUOTING": 88584,
+        "PRICE_OK_BUT_DEEP": 25418
+      },
+      "180s": {
+        "AT_FRONT": 56734,
+        "NOT_QUOTING": 75989,
+        "PRICE_OK_BUT_DEEP": 22631
+      },
+      "210s": {
+        "AT_FRONT": 31469,
+        "NOT_QUOTING": 58286,
+        "PRICE_OK_BUT_DEEP": 11489
+      },
+      "240s": {
+        "AT_FRONT": 4943,
+        "NOT_QUOTING": 47979,
+        "PRICE_OK_BUT_DEEP": 924
+      },
+      "270s": {
+        "NOT_QUOTING": 29252
+      },
+      "300s": {
+        "NOT_QUOTING": 4088
+      }
+    },
+    "fractions": {
+      "AT_FRONT": 0.3458648554442224,
+      "NOT_QUOTING": 0.5165395963533357,
+      "OFF_PRICE": 0.0,
+      "PRICE_OK_BUT_DEEP": 0.13757959281860446,
+      "STALE": 1.595538383744164e-05
+    },
+    "note": "P8's classification, aggregated over **every** side of every decision \u2014 the denominator is `side_opportunities.expected`. Latency remains sampled, and is described as sampled wherever it appears. Queue figures are a shadow model, never a venue queue position, and STALE is P6's verdict carried through P8.",
+    "provenance": "SHADOW_ESTIMATE",
+    "total": {
+      "AT_FRONT": 563602,
+      "NOT_QUOTING": 841724,
+      "OFF_PRICE": 0,
+      "PRICE_OK_BUT_DEEP": 224192,
+      "STALE": 26
+    }
+  },
+  "last_slug": "btc-updown-5m-1787840100",
+  "not_claimed": "This is a measurement, not a strategy conclusion. No OPEN item is closed by it, no queue or stale threshold is proposed, and no parameter was tuned to produce it. P15 owns the experiments.",
+  "per_market_distributions": {
+    "at_front_fraction": {
+      "max": 0.36280539495769826,
+      "min": 0.31460515940069844,
+      "n": 4,
+      "p50": 0.344938,
+      "p90": 0.362805
+    },
+    "queue_ahead_p50_shadow_estimate": {
+      "max": 0.0,
+      "min": 0.0,
+      "n": 4,
+      "p50": 0.0,
+      "p90": 0.0
+    },
+    "queue_ahead_p95_shadow_estimate": {
+      "max": 400000000.0,
+      "min": 218500000.0,
+      "n": 4,
+      "p50": 305000000.0,
+      "p90": 400000000.0
+    },
+    "stale_fraction": {
+      "max": 5.927682276229994e-05,
+      "min": 0.0,
+      "n": 4,
+      "p50": 0.0,
+      "p90": 5.9e-05
+    }
+  },
+  "places_by_risk_state": {
+    "SAFE": 2733
+  },
+  "prearm": {
+    "clob_book_ready_lead_seconds": {
+      "max": 29.834,
+      "min": 29.697,
+      "n": 4,
+      "p50": 29.749,
+      "p90": 29.834
+    },
+    "discovery_lead_seconds": {
+      "max": 74.905,
+      "min": 74.867,
+      "n": 4,
+      "p50": 74.891,
+      "p90": 74.905
+    },
+    "feed_ready_before_t0": 4,
+    "feed_ready_lead_seconds": {
+      "max": 29.13,
+      "min": 28.9,
+      "n": 4,
+      "p50": 29.019,
+      "p90": 29.13
+    },
+    "note": "Discovery readiness is when the market's metadata resolved; feed readiness is when a usable book and a real BTC price both existed. Only the second one means a market was warm, and only it gates eligibility.",
+    "of": 4,
+    "spot_first_valid_lead_seconds": {
+      "max": 29.13,
+      "min": 28.9,
+      "n": 4,
+      "p50": 29.019,
+      "p90": 29.13
+    }
+  },
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "replay_status_counts": {
+    "EXACT": 4
+  },
+  "resources": {
+    "gc_full_collection_max_pause_ns": {
+      "max": 1212018005.0,
+      "min": 1036110478.0,
+      "n": 4,
+      "p50": 1139929841.0,
+      "p90": 1212018005.0
+    },
+    "live_sessions_post_release": [
+      3,
+      3,
+      2,
+      1
+    ],
+    "note": "Every figure but the first is taken **after** the market was released. RSS is the operating system's view and glibc does not return freed arenas promptly, so `live_sessions` is the number that says whether release works.",
+    "open_fds_post_release_spread": {
+      "max": 24.0,
+      "min": 16.0,
+      "n": 4,
+      "p50": 21.0,
+      "p90": 24.0
+    },
+    "rss_bytes_first_market_start": 37613568,
+    "rss_bytes_last_post_release": 2156507136,
+    "rss_bytes_post_release_spread": {
+      "max": 2193485824.0,
+      "min": 1549754368.0,
+      "n": 4,
+      "p50": 1576341504.0,
+      "p90": 2193485824.0
+    },
+    "threads_post_release_spread": {
+      "max": 8.0,
+      "min": 6.0,
+      "n": 4,
+      "p50": 7.0,
+      "p90": 8.0
+    }
+  },
+  "risk_states": {
+    "HALTED": 221,
+    "RECOVERING": 5,
+    "SAFE": 814547
+  },
+  "safety": {
+    "live_trading_enabled": false,
+    "orders_sent": 0,
+    "redemption_enabled": false,
+    "redemptions_sent": 0
+  },
+  "sampling": {
+    "classification": "EXHAUSTIVE \u2014 every side of every decision",
+    "latency": "SAMPLED \u2014 P8's accepted policy, unchanged",
+    "queue_estimate": "SHADOW_ESTIMATE \u2014 modelled, never a venue queue position"
+  },
+  "settlement_states": {
+    "RESOLVED": 4
+  },
+  "side_opportunities": {
+    "actions": 1629544,
+    "all_exhaustive": true,
+    "classified": 1629544,
+    "expected": 1629544,
+    "markets_exhaustive": 4,
+    "of_markets": 4,
+    "rule": "two per decision observation, UP and DOWN, on every decision"
+  },
+  "source_revisions": {
+    "66da7ca09ca05b55537afdffb8b87a9d0e4859b4": 4
+  },
+  "status_counts": {
+    "COMPLETE": 4
+  },
+  "totals": {
+    "clob_messages": 782635,
+    "decisions": 814772,
+    "dropped_records": 0,
+    "operator_commands": 0,
+    "risk_records": 814773,
+    "sequence_gaps": 0,
+    "sink_errors": 0,
+    "spot_messages": 46150
+  },
+  "winners": {
+    "DOWN": 2,
+    "UP": 2
+  }
+}

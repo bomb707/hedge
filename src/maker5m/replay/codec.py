@@ -32,7 +32,7 @@ would be worse than one that failed to decode.
 """
 
 import json
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from enum import Enum
 from typing import Any, Final
 
@@ -92,7 +92,7 @@ from maker5m.strategy.eligibility import EligibilityReason, EligibilityResult
 from maker5m.strategy.grid import GridPolicy, GridRounding
 from maker5m.strategy.quantization import TickRounding
 
-__all__ = ["decode_journal", "encode_journal", "encode_line"]
+__all__ = ["decode_journal", "encode_journal", "encode_line", "iter_encoded_journal"]
 
 _JSON: Final[dict[str, Any]] = {
     "sort_keys": True,
@@ -886,21 +886,41 @@ def encode_line(record: Json) -> bytes:
     return json.dumps(record, **_JSON).encode("utf-8")
 
 
-def encode_journal(journal: Journal) -> bytes:
-    """Canonical NDJSON bytes for a journal. Deterministic and byte-stable."""
-    lines = [encode_line(_enc_header(journal.header))]
-    lines.extend(
-        encode_line(
-            {
-                "record_type": RecordType.STEP.value,
-                "index": index,
-                "event": _enc_event(step.event),
-                "decision": _enc_decision(step.decision),
-            }
+def iter_encoded_journal(journal: Journal) -> Iterator[bytes]:
+    """The canonical journal, one complete line at a time, in order. Nothing accumulates.
+
+    Each yielded value is exactly ``encode_line(record) + b"\\n"`` — the same records, in the
+    same order, with the same JSON options — so a consumer that concatenates the whole iterator
+    gets precisely what `encode_journal` returns. That equality is a test, not a comment.
+
+    It exists because the alternative is measurable. A busy P13 market journal is 187 MB and a
+    large one 443 MB; building a list of every line and then joining it holds the line bytes, the
+    joined result and the recorded object graph at the same time. A writer that consumes this
+    holds one line.
+    """
+    yield encode_line(_enc_header(journal.header)) + b"\n"
+    for index, step in enumerate(journal.steps):
+        yield (
+            encode_line(
+                {
+                    "record_type": RecordType.STEP.value,
+                    "index": index,
+                    "event": _enc_event(step.event),
+                    "decision": _enc_decision(step.decision),
+                }
+            )
+            + b"\n"
         )
-        for index, step in enumerate(journal.steps)
-    )
-    return b"".join(line + b"\n" for line in lines)
+
+
+def encode_journal(journal: Journal) -> bytes:
+    """Canonical NDJSON bytes for a journal. Deterministic and byte-stable.
+
+    Unchanged contract, and deliberately still here: fixtures, replay round-trips and the cold
+    verifier all compare against these exact bytes. It is now the concatenation of
+    `iter_encoded_journal`, which is what makes the streaming writer's output provably identical.
+    """
+    return b"".join(iter_encoded_journal(journal))
 
 
 def _dec_step(data: Json, expected_index: int) -> ReplayStep:

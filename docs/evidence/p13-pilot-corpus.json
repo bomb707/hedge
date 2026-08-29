@@ -1,0 +1,232 @@
+{
+  "attempted": 3,
+  "config_identities": {
+    "86ecaad72e3e4a68d38d079f8aff13da1bdb86cc4ee9b29b1a5475bfb0f7ac93": 3
+  },
+  "epoch": "p13-pilot-1",
+  "evidence_eligible": 3,
+  "first_slug": "btc-updown-5m-1787826000",
+  "kind": "P13_CORPUS_REPORT",
+  "l3": {
+    "by_outcome": {
+      "DOWN": {
+        "AT_FRONT": 18052,
+        "NOT_QUOTING": 28394,
+        "PRICE_OK_BUT_DEEP": 7447
+      },
+      "UP": {
+        "AT_FRONT": 17794,
+        "NOT_QUOTING": 29936,
+        "PRICE_OK_BUT_DEEP": 6163
+      }
+    },
+    "by_phase": {
+      "DONE": {
+        "NOT_QUOTING": 316
+      },
+      "ENDGAME": {
+        "AT_FRONT": 592,
+        "NOT_QUOTING": 5150,
+        "PRICE_OK_BUT_DEEP": 522
+      },
+      "PREARM": {
+        "NOT_QUOTING": 1340
+      },
+      "QUOTE": {
+        "AT_FRONT": 35254,
+        "NOT_QUOTING": 50448,
+        "PRICE_OK_BUT_DEEP": 13088
+      },
+      "SETTLING": {
+        "NOT_QUOTING": 1076
+      }
+    },
+    "by_reason": {
+      "CENTRE_UNAVAILABLE": 5164,
+      "ENDGAME_GATE": 2272,
+      "NO_LIVE_ORDER": 1314,
+      "OFF_VENUE_TICK": 3653,
+      "PHASE_NOT_QUOTING": 2732,
+      "POST_ONLY_BLOCK": 43195,
+      "QUOTING": 49456
+    },
+    "by_time_bucket": {
+      "000s": {
+        "AT_FRONT": 5829,
+        "NOT_QUOTING": 8446,
+        "PRICE_OK_BUT_DEEP": 2135
+      },
+      "030s": {
+        "AT_FRONT": 5601,
+        "NOT_QUOTING": 6623,
+        "PRICE_OK_BUT_DEEP": 1522
+      },
+      "060s": {
+        "AT_FRONT": 6099,
+        "NOT_QUOTING": 7314,
+        "PRICE_OK_BUT_DEEP": 1883
+      },
+      "090s": {
+        "AT_FRONT": 3603,
+        "NOT_QUOTING": 7030,
+        "PRICE_OK_BUT_DEEP": 1311
+      },
+      "120s": {
+        "AT_FRONT": 2968,
+        "NOT_QUOTING": 5428,
+        "PRICE_OK_BUT_DEEP": 1292
+      },
+      "150s": {
+        "AT_FRONT": 4214,
+        "NOT_QUOTING": 6517,
+        "PRICE_OK_BUT_DEEP": 1763
+      },
+      "180s": {
+        "AT_FRONT": 4907,
+        "NOT_QUOTING": 6211,
+        "PRICE_OK_BUT_DEEP": 2048
+      },
+      "210s": {
+        "AT_FRONT": 2033,
+        "NOT_QUOTING": 4219,
+        "PRICE_OK_BUT_DEEP": 1134
+      },
+      "240s": {
+        "AT_FRONT": 592,
+        "NOT_QUOTING": 4488,
+        "PRICE_OK_BUT_DEEP": 488
+      },
+      "270s": {
+        "NOT_QUOTING": 1738,
+        "PRICE_OK_BUT_DEEP": 34
+      },
+      "300s": {
+        "NOT_QUOTING": 316
+      }
+    },
+    "fractions": {
+      "AT_FRONT": 0.3325663815337799,
+      "NOT_QUOTING": 0.5411649008219992,
+      "OFF_PRICE": 0.0,
+      "PRICE_OK_BUT_DEEP": 0.12626871764422096,
+      "STALE": 0.0
+    },
+    "note": "P8's classification, aggregated. Queue figures are a shadow model, never a venue queue position, and STALE is P6's verdict carried through P8.",
+    "provenance": "SHADOW_ESTIMATE",
+    "total": {
+      "AT_FRONT": 35846,
+      "NOT_QUOTING": 58330,
+      "OFF_PRICE": 0,
+      "PRICE_OK_BUT_DEEP": 13610,
+      "STALE": 0
+    }
+  },
+  "last_slug": "btc-updown-5m-1787826600",
+  "not_claimed": "This is a measurement, not a strategy conclusion. No OPEN item is closed by it, no queue or stale threshold is proposed, and no parameter was tuned to produce it. P15 owns the experiments.",
+  "per_market_distributions": {
+    "at_front_fraction": {
+      "max": 0.3680833636694576,
+      "min": 0.25658610271903326,
+      "n": 3,
+      "p50": 0.363604,
+      "p90": 0.368083
+    },
+    "queue_ahead_p50_shadow_estimate": {
+      "max": 0.0,
+      "min": 0.0,
+      "n": 3,
+      "p50": 0.0,
+      "p90": 0.0
+    },
+    "queue_ahead_p95_shadow_estimate": {
+      "max": 607990000.0,
+      "min": 166370000.0,
+      "n": 3,
+      "p50": 200000000.0,
+      "p90": 607990000.0
+    },
+    "stale_fraction": {
+      "max": 0.0,
+      "min": 0.0,
+      "n": 3,
+      "p50": 0.0,
+      "p90": 0.0
+    }
+  },
+  "places_by_risk_state": {
+    "SAFE": 1823
+  },
+  "prearm": {
+    "lead_seconds": {
+      "max": 74.901,
+      "min": 74.863,
+      "n": 3,
+      "p50": 74.889,
+      "p90": 74.901
+    },
+    "of": 3,
+    "ready_before_t0": 3
+  },
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "replay_status_counts": {
+    "EXACT": 3
+  },
+  "resources": {
+    "open_fds_end_spread": {
+      "max": 21.0,
+      "min": 16.0,
+      "n": 3,
+      "p50": 19.0,
+      "p90": 21.0
+    },
+    "rss_bytes_end_spread": {
+      "max": 1251471360.0,
+      "min": 413138944.0,
+      "n": 3,
+      "p50": 919040000.0,
+      "p90": 1251471360.0
+    },
+    "rss_bytes_first_market_start": 37539840,
+    "rss_bytes_last_market_end": 1251471360,
+    "threads_end_spread": {
+      "max": 7.0,
+      "min": 5.0,
+      "n": 3,
+      "p50": 6.0,
+      "p90": 7.0
+    }
+  },
+  "risk_states": {
+    "HALTED": 172,
+    "RECOVERING": 3,
+    "SAFE": 503882
+  },
+  "safety": {
+    "live_trading_enabled": false,
+    "orders_sent": 0,
+    "redemption_enabled": false,
+    "redemptions_sent": 0
+  },
+  "settlement_states": {
+    "RESOLVED": 3
+  },
+  "source_revisions": {
+    "307cdedfc46b6d79ba0e3fad2a8e701de86ccaf2": 3
+  },
+  "status_counts": {
+    "COMPLETE": 3
+  },
+  "totals": {
+    "clob_messages": 486028,
+    "decisions": 504056,
+    "dropped_records": 0,
+    "operator_commands": 0,
+    "risk_records": 504057,
+    "sequence_gaps": 0,
+    "sink_errors": 0,
+    "spot_messages": 26404
+  },
+  "winners": {
+    "DOWN": 3
+  }
+}

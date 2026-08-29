@@ -25,15 +25,16 @@ from that point. It is marked ``STALE`` rather than bridged. Trading was unaffec
 happened in observation, not execution — but the measurement must say so.
 """
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import Final
+from enum import Enum
+from typing import Any, Final, NamedTuple
 
 from maker5m.domain import Outcome
 from maker5m.execution.reconciler import ReconcileAction, ReconcilePlan, SideAction, SideReason
 from maker5m.numeric.units import ShareUnits
 from maker5m.strategy.eligibility import EligibilityResult
-from maker5m.telemetry.classifier import QualityReason, classify
+from maker5m.telemetry.classifier import QualityReason, QuoteClassification, classify
 from maker5m.telemetry.metrics import ActionCounters, Distribution
 from maker5m.telemetry.observation import (
     NOT_CAPTURED,
@@ -43,14 +44,17 @@ from maker5m.telemetry.observation import (
     OBS_DOWN_PLACED_ID,
     OBS_ELIGIBILITY,
     OBS_EVENT_KIND,
+    OBS_EVENT_TS,
     OBS_FILL,
     OBS_HEALTHY,
+    OBS_INGRESS_ORDINAL,
     OBS_PLAN,
     OBS_PREPARE_DONE_NS,
     OBS_RAW_RECEIVE_NS,
     OBS_RECONCILE_DONE_NS,
     OBS_REDUCE_STAGE_NS,
     OBS_SEQ,
+    OBS_TELEMETRY,
     OBS_UP_DEPTH,
     OBS_UP_PLACED_ID,
     Observation,
@@ -102,6 +106,27 @@ class LatencyBook:
     receive_to_reconcile: Distribution = field(
         default_factory=lambda: Distribution("receive_to_reconcile")
     )
+    """Every triggering kind together. Kept for continuity with the accepted P8 evidence."""
+
+    spot_receive_to_reconcile: Distribution = field(
+        default_factory=lambda: Distribution("spot_receive_to_reconcile")
+    )
+    clob_receive_to_reconcile: Distribution = field(
+        default_factory=lambda: Distribution("clob_receive_to_reconcile")
+    )
+    fill_receive_to_reconcile: Distribution = field(
+        default_factory=lambda: Distribution("fill_receive_to_reconcile")
+    )
+    phase_receive_to_reconcile: Distribution = field(
+        default_factory=lambda: Distribution("phase_receive_to_reconcile")
+    )
+    """Split by trigger, because a spot tick and a book update are not the same cycle.
+
+    Added downstream, from timestamps the observation already carries — no clock is read on
+    Plane 1 and the existing aggregate keeps its meaning. A merged CLOB-and-spot p99 answers a
+    question nobody asked: the two arrive at different rates, through different sockets, and
+    doing different work."""
+
     decide_duration: Distribution = field(default_factory=lambda: Distribution("decide_duration"))
     prepare_duration: Distribution = field(default_factory=lambda: Distribution("prepare_duration"))
     reconcile_duration: Distribution = field(
@@ -113,6 +138,8 @@ class LatencyBook:
 
     _by_kind: dict[str, Distribution] = field(default_factory=dict, repr=False)
 
+    _by_kind_reconcile: dict[str, Distribution] = field(default_factory=dict, repr=False)
+
     def by_kind(self, event_kind: str) -> Distribution:
         if not self._by_kind:
             self._by_kind = {
@@ -123,6 +150,16 @@ class LatencyBook:
             }
         return self._by_kind.get(event_kind, self.clob_receive_to_decide)
 
+    def by_kind_reconcile(self, event_kind: str) -> Distribution:
+        if not self._by_kind_reconcile:
+            self._by_kind_reconcile = {
+                "SpotTick": self.spot_receive_to_reconcile,
+                "BookUpdate": self.clob_receive_to_reconcile,
+                "OwnFill": self.fill_receive_to_reconcile,
+                "PhaseEvent": self.phase_receive_to_reconcile,
+            }
+        return self._by_kind_reconcile.get(event_kind, self.clob_receive_to_reconcile)
+
     def summary(self) -> dict[str, object]:
         return {
             d.label: d.summary()
@@ -132,6 +169,10 @@ class LatencyBook:
                 self.fill_receive_to_decide,
                 self.phase_receive_to_decide,
                 self.receive_to_reconcile,
+                self.spot_receive_to_reconcile,
+                self.clob_receive_to_reconcile,
+                self.fill_receive_to_reconcile,
+                self.phase_receive_to_reconcile,
                 self.decide_duration,
                 self.prepare_duration,
                 self.reconcile_duration,
@@ -140,6 +181,38 @@ class LatencyBook:
                 self.queue_ahead,
             )
         }
+
+
+class ClassificationMode(Enum):
+    """How much of the stream gets an L3 classification."""
+
+    SAMPLED_OR_ACTING = "SAMPLED_OR_ACTING"
+    """P8's accepted behaviour: cycles that acted or were latency-sampled."""
+
+    EVERY_DECISION = "EVERY_DECISION"
+    """Both sides of every decision observation. What Canonical §34-L3 asks for."""
+
+
+class QuoteEvent(NamedTuple):
+    """One side's classification, with the coordinates a corpus needs to bucket it.
+
+    A NamedTuple for the reason P8 already established for its hot types: construction is 76 ns
+    against 1,791 ns for a frozen dataclass, and this is built twice per classified cycle.
+    """
+
+    ingress_ordinal: Any
+    event_kind: Any
+    event_timestamp_ns: Any
+    phase: str | None
+    outcome: str
+    classification: QuoteClassification
+
+
+def _phase_of(observation: Observation) -> str | None:
+    """The phase the decision recorded, or ``None``. Never inferred from a clock."""
+    telemetry = observation[OBS_TELEMETRY]
+    phase = getattr(telemetry, "phase", None)
+    return None if phase is None else str(getattr(phase, "value", phase))
 
 
 @dataclass(slots=True)
@@ -157,6 +230,27 @@ class TelemetryAnalyzer:
     shadow: ShadowQueueTracker = field(default_factory=ShadowQueueTracker)
     counters: ActionCounters = field(default_factory=ActionCounters)
     latency: LatencyBook = field(default_factory=LatencyBook)
+
+    classification_mode: ClassificationMode = ClassificationMode.SAMPLED_OR_ACTING
+    """Which cycles get an L3 classification. Latency sampling is unaffected either way.
+
+    `SAMPLED_OR_ACTING` is P8's accepted behaviour and stays the default, so every existing
+    measurement means exactly what it meant. `EVERY_DECISION` is P13's: both sides of every
+    decision observation, so the L3 denominator is the market rather than a sample of it.
+
+    Classification happens **once** per observation in both modes. The shadow queue state
+    advances once per observation regardless, before either branch, because it is the model of
+    where our order sits and cannot be allowed to depend on who is counting.
+    """
+
+    on_quote: Callable[[QuoteEvent], None] | None = field(default=None, repr=False)
+    """Optional Plane-3 observer of every classification this analyzer makes.
+
+    Added for P13, which needs the L3 distribution broken down by side, phase and time rather
+    than as one market-wide total — and must not answer that with a second classifier. The
+    classification handed out here is the same object `count_quality` receives; nothing is
+    recomputed, and with no observer attached this costs one `is None` per side.
+    """
 
     processed: int = 0
     gaps: int = 0
@@ -219,11 +313,17 @@ class TelemetryAnalyzer:
         # never agreed. A full real market produced stage timings for 126 cycles instead of
         # ~15,400. There is now one source of truth and no second opinion.
         sampled = observation[OBS_DECIDE_DONE_NS] != NOT_CAPTURED
-        if not (acting or sampled):
-            return
-
-        self._record_latency(observation, event_kind, plan, acting)
-        self._classify(observation, plan, healthy)
+        if acting or sampled:
+            self._record_latency(observation, event_kind, plan, acting)
+            self._classify(observation, plan, healthy)
+        elif self.classification_mode is ClassificationMode.EVERY_DECISION:
+            # Classification is not a measurement of *this run's* clock, so it has no reason to
+            # follow the latency sampler. Canonical §34-L3 asks what fraction of quote
+            # opportunities sat at the front, and a fraction whose denominator is "every acting
+            # cycle plus one in ten of the others" answers a different question: acting cycles
+            # are exactly the ones where an order was being placed or replaced, so sampling that
+            # way over-weights the moments the queue position was worst.
+            self._classify(observation, plan, healthy)
 
     # -- queue state -----------------------------------------------------------------------
 
@@ -303,6 +403,7 @@ class TelemetryAnalyzer:
 
         self.latency.by_kind(event_kind).add(decide_done - raw)
         self.latency.receive_to_reconcile.add(reconcile_done - raw)
+        self.latency.by_kind_reconcile(event_kind).add(reconcile_done - raw)
         self.latency.prepare_duration.add(prepare_done - decide_done)
         self.latency.reconcile_duration.add(reconcile_done - prepare_done)
 
@@ -331,11 +432,23 @@ class TelemetryAnalyzer:
             self.counters.count_quality(classification.quality.value, classification.reason.value)
             if classification.queue_ahead is not None:
                 self.latency.queue_ahead.add(int(classification.queue_ahead))
+            if self.on_quote is not None:
+                self.on_quote(
+                    QuoteEvent(
+                        observation[OBS_INGRESS_ORDINAL],
+                        observation[OBS_EVENT_KIND],
+                        observation[OBS_EVENT_TS],
+                        _phase_of(observation),
+                        side.outcome.value,
+                        classification,
+                    )
+                )
 
     # -- results ---------------------------------------------------------------------------
 
     def summary(self) -> dict[str, object]:
         return {
+            "classification_mode": self.classification_mode.value,
             "observations_processed": self.processed,
             "observation_gaps": self.gaps,
             "observations_lost": self.lost_observations,

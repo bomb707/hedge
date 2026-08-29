@@ -1,0 +1,131 @@
+{
+  "additional_observation": "Thread count rose from a first-ten median of 8 to a last-ten median of 12, maximum 13. Bounded, but not flat, and worth a look alongside the memory question.",
+  "classification": "CONTINUED_PROCESS_RESIDENT_GROWTH",
+  "corpus_source_sha": "9a42031df1f46762a0a8ef958240342612586084",
+  "epoch": "p13-corpus-6",
+  "justification": "Quartile medians rise monotonically (2350.9, 2463.9, 2780.3, 3620.9 MB) and the run ends at its maximum. The last-50 slope is +31.5 MB/market, statistically indistinguishable from the first-50 slope of +32.2 and about seven times the middle-100 slope of +4.7, so growth did not decelerate \u2014 it resumed. No plateau is demonstrated at any point in the run.",
+  "kind": "P13_CORPUS_6_RESOURCE_ANALYSIS",
+  "markets": 202,
+  "object_level": {
+    "buffer_high_water": {
+      "capacity": 320000,
+      "max": 18665,
+      "median": 1181.5
+    },
+    "cold_backlog": {
+      "cap": 6,
+      "max": 1
+    },
+    "gc_tracked_objects": {
+      "first_10_median": 2793708.0,
+      "last_10_median": 2532808.0,
+      "max": 4827529,
+      "min": 39150,
+      "slope_per_market_all": 2071.0,
+      "slope_per_market_first_50": -37816.0,
+      "slope_per_market_last_50": -6643.0
+    },
+    "live_sessions": {
+      "first_10_median": 2.0,
+      "last_10_median": 2.0,
+      "max": 3,
+      "min": 1
+    },
+    "market_lifecycle_high_water": {
+      "cap": 6,
+      "max": 3
+    },
+    "open_fds": {
+      "first_10_median": 22.0,
+      "last_10_median": 21.5,
+      "max": 26,
+      "min": 16
+    },
+    "pending_tasks": {
+      "max": 17,
+      "min": 2
+    },
+    "threads": {
+      "first_10_median": 8.0,
+      "last_10_median": 12.0,
+      "max": 13,
+      "min": 8
+    }
+  },
+  "post_release_rss_mb": {
+    "delta_mb": 3603.4,
+    "first_10": {
+      "max_mb": 1853.9,
+      "median_mb": 1279.0,
+      "min_mb": 658.3,
+      "n": 10
+    },
+    "first_25": {
+      "max_mb": 2233.0,
+      "median_mb": 1833.4,
+      "min_mb": 658.3,
+      "n": 25
+    },
+    "first_market_start_of_market": 36.2,
+    "first_value": 658.3,
+    "last_10": {
+      "max_mb": 4262.7,
+      "median_mb": 4258.1,
+      "min_mb": 4173.2,
+      "n": 10
+    },
+    "last_25": {
+      "max_mb": 4262.7,
+      "median_mb": 4173.2,
+      "min_mb": 3665.5,
+      "n": 25
+    },
+    "last_value": 4261.7,
+    "quartile_101_to_150": {
+      "max_mb": 2804.1,
+      "median_mb": 2780.3,
+      "min_mb": 2718.2,
+      "n": 50
+    },
+    "quartile_151_to_202": {
+      "max_mb": 4262.7,
+      "median_mb": 3620.9,
+      "min_mb": 2806.5,
+      "n": 52
+    },
+    "quartile_1_to_50": {
+      "max_mb": 2489.1,
+      "median_mb": 2350.9,
+      "min_mb": 658.3,
+      "n": 50
+    },
+    "quartile_51_to_100": {
+      "max_mb": 2767.8,
+      "median_mb": 2463.9,
+      "min_mb": 2461.9,
+      "n": 50
+    }
+  },
+  "provenance": "REAL_PUBLIC_MARKET_DATA",
+  "run_hours": 16.97,
+  "sample_point": "post_release \u2014 taken after the market's session was released",
+  "slope": {
+    "all_202": {
+      "mb_per_hour": 122.1,
+      "mb_per_market": 10.26
+    },
+    "first_50": {
+      "mb_per_hour": 383.8,
+      "mb_per_market": 32.23
+    },
+    "last_50": {
+      "mb_per_hour": 374.6,
+      "mb_per_market": 31.46
+    },
+    "middle_100": {
+      "mb_per_hour": 55.5,
+      "mb_per_market": 4.66
+    }
+  },
+  "what_this_does_and_does_not_show": "Python-tracked object counts do not trend (all-run slope +2,071/market against a range of 39,150 to 4,827,529, with negative slopes over the first and last fifty), and live sessions, file descriptors, cold backlog and lifecycle high-water are all bounded. So the released market graphs really are released and this is not a retained-session leak. What grew is resident memory whose source this instrumentation does not identify: untracked allocations, native buffers held by SQLite or LZMA, thread stacks, or allocator fragmentation are all consistent with the data and none is established by it. Attributing it would need measurement this run did not take."
+}

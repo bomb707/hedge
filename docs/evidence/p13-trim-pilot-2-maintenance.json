@@ -1,0 +1,2008 @@
+{
+  "epoch": "p13-trim-pilot-2",
+  "run_mode": "ACCEPTANCE_CLEAN",
+  "label": "CONTROLLED_LOCAL_ALLOCATOR_MAINTENANCE_ON_REAL_MARKET_DATA",
+  "source_revision": "6af825bf3c33b41f8efc2a3cf2b2f5ca6036c933",
+  "source_tree_sha": "4d37b7f6302f5446e7d1d7c1c0d70e34f2ca5b56",
+  "config_sha256": "cdbe336429d59f0998a1910b8cc87d6708a9acb8c67422a59c90a3d7dba7042d",
+  "summary": {
+    "policy": {
+      "enabled": true,
+      "action": "malloc_trim(0)",
+      "per_rollover": 1,
+      "margin_s": 10.0,
+      "adaptive": false
+    },
+    "trims": 9,
+    "successful": 9,
+    "nothing_to_release": 0,
+    "unsupported": 0,
+    "errors": [],
+    "duration_ns": {
+      "n": 9,
+      "p50": 1588110,
+      "p95": 5610156,
+      "p99": 5610156,
+      "max": 5610156
+    },
+    "released_rss_bytes": {
+      "n": 9,
+      "total": 115142656,
+      "p50": 14807040,
+      "p95": 19222528,
+      "max": 19222528
+    },
+    "refusals": {
+      "live session(s) quoting: btc-updown-5m-1787995200": 276,
+      "live session(s) quoting: btc-updown-5m-1787995500": 277,
+      "live session(s) quoting: btc-updown-5m-1787995800": 276,
+      "live session(s) quoting: btc-updown-5m-1787996100": 277,
+      "live session(s) quoting: btc-updown-5m-1787996400": 276,
+      "live session(s) quoting: btc-updown-5m-1787996700": 277,
+      "live session(s) quoting: btc-updown-5m-1787997000": 277,
+      "live session(s) quoting: btc-updown-5m-1787997300": 277,
+      "the closing market is still quoting for another 0.1s": 1,
+      "the closing market is still quoting for another 1.1s": 1,
+      "the closing market is still quoting for another 10.1s": 1,
+      "the closing market is still quoting for another 11.1s": 1,
+      "the closing market is still quoting for another 12.1s": 1,
+      "the closing market is still quoting for another 13.1s": 1,
+      "the closing market is still quoting for another 14.1s": 1,
+      "the closing market is still quoting for another 15.1s": 1,
+      "the closing market is still quoting for another 16.1s": 1,
+      "the closing market is still quoting for another 17.1s": 1,
+      "the closing market is still quoting for another 18.2s": 1,
+      "the closing market is still quoting for another 19.2s": 1,
+      "the closing market is still quoting for another 2.1s": 1,
+      "the closing market is still quoting for another 20.2s": 1,
+      "the closing market is still quoting for another 21.2s": 1,
+      "the closing market is still quoting for another 22.2s": 1,
+      "the closing market is still quoting for another 23.2s": 1,
+      "the closing market is still quoting for another 24.2s": 1,
+      "the closing market is still quoting for another 25.2s": 1,
+      "the closing market is still quoting for another 26.2s": 1,
+      "the closing market is still quoting for another 267.7s": 1,
+      "the closing market is still quoting for another 268.7s": 1,
+      "the closing market is still quoting for another 269.7s": 1,
+      "the closing market is still quoting for another 27.2s": 1,
+      "the closing market is still quoting for another 270.7s": 1,
+      "the closing market is still quoting for another 271.7s": 1,
+      "the closing market is still quoting for another 272.7s": 1,
+      "the closing market is still quoting for another 273.7s": 1,
+      "the closing market is still quoting for another 274.7s": 1,
+      "the closing market is still quoting for another 275.7s": 1,
+      "the closing market is still quoting for another 276.7s": 1,
+      "the closing market is still quoting for another 277.1s": 1,
+      "the closing market is still quoting for another 277.2s": 1,
+      "the closing market is still quoting for another 277.3s": 1,
+      "the closing market is still quoting for another 277.4s": 1,
+      "the closing market is still quoting for another 277.7s": 2,
+      "the closing market is still quoting for another 277.8s": 2,
+      "the closing market is still quoting for another 278.0s": 1,
+      "the closing market is still quoting for another 278.1s": 1,
+      "the closing market is still quoting for another 278.2s": 1,
+      "the closing market is still quoting for another 278.3s": 1,
+      "the closing market is still quoting for another 278.4s": 1,
+      "the closing market is still quoting for another 278.7s": 2,
+      "the closing market is still quoting for another 278.8s": 2,
+      "the closing market is still quoting for another 279.0s": 1,
+      "the closing market is still quoting for another 279.1s": 1,
+      "the closing market is still quoting for another 279.2s": 1,
+      "the closing market is still quoting for another 279.3s": 1,
+      "the closing market is still quoting for another 279.4s": 1,
+      "the closing market is still quoting for another 279.7s": 2,
+      "the closing market is still quoting for another 279.8s": 2,
+      "the closing market is still quoting for another 28.2s": 1,
+      "the closing market is still quoting for another 280.0s": 1,
+      "the closing market is still quoting for another 29.2s": 1,
+      "the closing market is still quoting for another 3.1s": 1,
+      "the closing market is still quoting for another 30.2s": 1,
+      "the closing market is still quoting for another 31.2s": 1,
+      "the closing market is still quoting for another 32.2s": 1,
+      "the closing market is still quoting for another 33.2s": 1,
+      "the closing market is still quoting for another 34.2s": 1,
+      "the closing market is still quoting for another 35.2s": 1,
+      "the closing market is still quoting for another 36.2s": 1,
+      "the closing market is still quoting for another 37.2s": 1,
+      "the closing market is still quoting for another 38.2s": 1,
+      "the closing market is still quoting for another 39.2s": 1,
+      "the closing market is still quoting for another 4.1s": 1,
+      "the closing market is still quoting for another 40.2s": 1,
+      "the closing market is still quoting for another 41.2s": 1,
+      "the closing market is still quoting for another 42.2s": 1,
+      "the closing market is still quoting for another 43.2s": 1,
+      "the closing market is still quoting for another 44.2s": 1,
+      "the closing market is still quoting for another 45.2s": 1,
+      "the closing market is still quoting for another 46.2s": 1,
+      "the closing market is still quoting for another 47.2s": 1,
+      "the closing market is still quoting for another 48.2s": 1,
+      "the closing market is still quoting for another 49.2s": 1,
+      "the closing market is still quoting for another 5.1s": 1,
+      "the closing market is still quoting for another 50.2s": 1,
+      "the closing market is still quoting for another 51.2s": 1,
+      "the closing market is still quoting for another 52.2s": 1,
+      "the closing market is still quoting for another 53.2s": 1,
+      "the closing market is still quoting for another 54.2s": 1,
+      "the closing market is still quoting for another 55.2s": 1,
+      "the closing market is still quoting for another 56.2s": 1,
+      "the closing market is still quoting for another 57.2s": 1,
+      "the closing market is still quoting for another 58.2s": 1,
+      "the closing market is still quoting for another 59.2s": 1,
+      "the closing market is still quoting for another 6.1s": 1,
+      "the closing market is still quoting for another 60.2s": 1,
+      "the closing market is still quoting for another 7.1s": 1,
+      "the closing market is still quoting for another 8.1s": 1,
+      "the closing market is still quoting for another 9.1s": 1,
+      "this rollover has already been maintained": 62
+    }
+  },
+  "events": [
+    {
+      "rollover": 1787995200,
+      "started_ns": 1744282596289401,
+      "finished_ns": 1744282596551703,
+      "duration_ns": 262302,
+      "returned": true,
+      "error": null,
+      "released_rss_bytes": 147456,
+      "seconds_since_stop_quoting": 2.8705923557281494,
+      "seconds_to_quote_start": 20.12940764427185,
+      "phases": {
+        "btc-updown-5m-1787995200": "PREARM"
+      },
+      "before": {
+        "rss": 42291200,
+        "rss_anon": 27353088,
+        "arena": 10907648,
+        "uordblks": 9756000,
+        "fordblks": 1151648,
+        "hblkhd": 1085440
+      },
+      "after": {
+        "rss": 42143744,
+        "rss_anon": 27205632,
+        "arena": 10522624,
+        "uordblks": 9759552,
+        "fordblks": 763072,
+        "hblkhd": 1085440
+      },
+      "feed": {
+        "window_open": {
+          "label": "window_open",
+          "at_ns": 1787995180869425160,
+          "markets": {
+            "btc-updown-5m-1787995200": {
+              "ingress_ordinal": 0,
+              "clob_messages": 64,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "before_trim": {
+          "label": "before_trim",
+          "at_ns": 1787995182870587934,
+          "markets": {
+            "btc-updown-5m-1787995200": {
+              "ingress_ordinal": 0,
+              "clob_messages": 91,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "after_trim": {
+          "label": "after_trim",
+          "at_ns": 1787995182873015942,
+          "markets": {
+            "btc-updown-5m-1787995200": {
+              "ingress_ordinal": 0,
+              "clob_messages": 91,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "2s_after": {
+          "label": "2s_after",
+          "at_ns": 1787995184873933222,
+          "markets": {
+            "btc-updown-5m-1787995200": {
+              "ingress_ordinal": 0,
+              "clob_messages": 100,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "10s_after": {
+          "label": "10s_after",
+          "at_ns": 1787995192874894537,
+          "markets": {
+            "btc-updown-5m-1787995200": {
+              "ingress_ordinal": 0,
+              "clob_messages": 206,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "hot_path_max_ns": {
+          "2s_before": {},
+          "during_trim": {},
+          "2s_after": {},
+          "10s_after": {}
+        }
+      }
+    },
+    {
+      "rollover": 1787995500,
+      "started_ns": 1744582032903493,
+      "finished_ns": 1744582034517693,
+      "duration_ns": 1614200,
+      "returned": true,
+      "error": null,
+      "released_rss_bytes": 4554752,
+      "seconds_since_stop_quoting": 2.3071131706237793,
+      "seconds_to_quote_start": 20.69288682937622,
+      "phases": {
+        "btc-updown-5m-1787995500": "PREARM",
+        "btc-updown-5m-1787995200": "SETTLING"
+      },
+      "before": {
+        "rss": 196390912,
+        "rss_anon": 181420032,
+        "arena": 21458944,
+        "uordblks": 15569008,
+        "fordblks": 5889936,
+        "hblkhd": 3100672
+      },
+      "after": {
+        "rss": 191836160,
+        "rss_anon": 176865280,
+        "arena": 21164032,
+        "uordblks": 15571776,
+        "fordblks": 5592256,
+        "hblkhd": 3100672
+      },
+      "feed": {
+        "window_open": {
+          "label": "window_open",
+          "at_ns": 1787995480305863797,
+          "markets": {
+            "btc-updown-5m-1787995500": {
+              "ingress_ordinal": 0,
+              "clob_messages": 87,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            },
+            "btc-updown-5m-1787995200": {
+              "ingress_ordinal": 61877,
+              "clob_messages": 60157,
+              "spot_messages": 1079,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 1,
+              "buffer_accepted": 59877,
+              "buffer_dropped": 1,
+              "risk_dropped": 0,
+              "observations": 59877
+            }
+          }
+        },
+        "before_trim": {
+          "label": "before_trim",
+          "at_ns": 1787995482307107838,
+          "markets": {
+            "btc-updown-5m-1787995500": {
+              "ingress_ordinal": 0,
+              "clob_messages": 103,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            },
+            "btc-updown-5m-1787995200": {
+              "ingress_ordinal": 62059,
+              "clob_messages": 60329,
+              "spot_messages": 1089,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 0,
+              "buffer_accepted": 60059,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 60059
+            }
+          }
+        },
+        "after_trim": {
+          "label": "after_trim",
+          "at_ns": 1787995482311000443,
+          "markets": {
+            "btc-updown-5m-1787995500": {
+              "ingress_ordinal": 0,
+              "clob_messages": 103,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            },
+            "btc-updown-5m-1787995200": {
+              "ingress_ordinal": 62059,
+              "clob_messages": 60329,
+              "spot_messages": 1089,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 0,
+              "buffer_accepted": 60059,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 60059
+            }
+          }
+        },
+        "2s_after": {
+          "label": "2s_after",
+          "at_ns": 1787995484311995023,
+          "markets": {
+            "btc-updown-5m-1787995500": {
+              "ingress_ordinal": 0,
+              "clob_messages": 109,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            },
+            "btc-updown-5m-1787995200": {
+              "ingress_ordinal": 62240,
+              "clob_messages": 60500,
+              "spot_messages": 1099,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 0,
+              "buffer_accepted": 60240,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 60240
+            }
+          }
+        },
+        "10s_after": {
+          "label": "10s_after",
+          "at_ns": 1787995492312896074,
+          "markets": {
+            "btc-updown-5m-1787995500": {
+              "ingress_ordinal": 0,
+              "clob_messages": 475,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            },
+            "btc-updown-5m-1787995200": {
+              "ingress_ordinal": 63006,
+              "clob_messages": 61232,
+              "spot_messages": 1129,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 0,
+              "buffer_accepted": 60998,
+              "buffer_dropped": 1,
+              "risk_dropped": 0,
+              "observations": 60998
+            }
+          }
+        },
+        "hot_path_max_ns": {
+          "2s_before": {
+            "btc-updown-5m-1787995200": 123207
+          },
+          "during_trim": {},
+          "2s_after": {
+            "btc-updown-5m-1787995200": 953219
+          },
+          "10s_after": {
+            "btc-updown-5m-1787995200": 135110
+          }
+        }
+      }
+    },
+    {
+      "rollover": 1787995800,
+      "started_ns": 1744882472643880,
+      "finished_ns": 1744882474686915,
+      "duration_ns": 2043035,
+      "returned": true,
+      "error": null,
+      "released_rss_bytes": 11583488,
+      "seconds_since_stop_quoting": 2.7473390102386475,
+      "seconds_to_quote_start": 20.252660989761353,
+      "phases": {
+        "btc-updown-5m-1787995500": "SETTLING",
+        "btc-updown-5m-1787995800": "PREARM"
+      },
+      "before": {
+        "rss": 225558528,
+        "rss_anon": 210460672,
+        "arena": 55463936,
+        "uordblks": 17833296,
+        "fordblks": 37630640,
+        "hblkhd": 819200
+      },
+      "after": {
+        "rss": 213975040,
+        "rss_anon": 198877184,
+        "arena": 52436992,
+        "uordblks": 17834864,
+        "fordblks": 34602128,
+        "hblkhd": 819200
+      },
+      "feed": {
+        "window_open": {
+          "label": "window_open",
+          "at_ns": 1787995780745113290,
+          "markets": {
+            "btc-updown-5m-1787995500": {
+              "ingress_ordinal": 57054,
+              "clob_messages": 55751,
+              "spot_messages": 1050,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 0,
+              "buffer_accepted": 55088,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 55088
+            },
+            "btc-updown-5m-1787995800": {
+              "ingress_ordinal": 0,
+              "clob_messages": 87,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "before_trim": {
+          "label": "before_trim",
+          "at_ns": 1787995782747336623,
+          "markets": {
+            "btc-updown-5m-1787995500": {
+              "ingress_ordinal": 57261,
+              "clob_messages": 55946,
+              "spot_messages": 1060,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 0,
+              "buffer_accepted": 55291,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 55291
+            },
+            "btc-updown-5m-1787995800": {
+              "ingress_ordinal": 0,
+              "clob_messages": 123,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "after_trim": {
+          "label": "after_trim",
+          "at_ns": 1787995782750772490,
+          "markets": {
+            "btc-updown-5m-1787995500": {
+              "ingress_ordinal": 57261,
+              "clob_messages": 55946,
+              "spot_messages": 1060,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 0,
+              "buffer_accepted": 55291,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 55291
+            },
+            "btc-updown-5m-1787995800": {
+              "ingress_ordinal": 0,
+              "clob_messages": 123,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "2s_after": {
+          "label": "2s_after",
+          "at_ns": 1787995784752066963,
+          "markets": {
+            "btc-updown-5m-1787995500": {
+              "ingress_ordinal": 57447,
+              "clob_messages": 56129,
+              "spot_messages": 1063,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 1,
+              "buffer_accepted": 55477,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 55477
+            },
+            "btc-updown-5m-1787995800": {
+              "ingress_ordinal": 0,
+              "clob_messages": 164,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "10s_after": {
+          "label": "10s_after",
+          "at_ns": 1787995792752763197,
+          "markets": {
+            "btc-updown-5m-1787995500": {
+              "ingress_ordinal": 58057,
+              "clob_messages": 56710,
+              "spot_messages": 1089,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 0,
+              "buffer_accepted": 56081,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 56081
+            },
+            "btc-updown-5m-1787995800": {
+              "ingress_ordinal": 0,
+              "clob_messages": 333,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "hot_path_max_ns": {
+          "2s_before": {
+            "btc-updown-5m-1787995500": 285083
+          },
+          "during_trim": {},
+          "2s_after": {
+            "btc-updown-5m-1787995500": 127846
+          },
+          "10s_after": {
+            "btc-updown-5m-1787995500": 1140193
+          }
+        }
+      }
+    },
+    {
+      "rollover": 1787996100,
+      "started_ns": 1745181862658404,
+      "finished_ns": 1745181863680209,
+      "duration_ns": 1021805,
+      "returned": true,
+      "error": null,
+      "released_rss_bytes": 12406784,
+      "seconds_since_stop_quoting": 2.137807846069336,
+      "seconds_to_quote_start": 20.862192153930664,
+      "phases": {
+        "btc-updown-5m-1787996100": "PREARM",
+        "btc-updown-5m-1787995800": "SETTLING"
+      },
+      "before": {
+        "rss": 252092416,
+        "rss_anon": 236994560,
+        "arena": 94310400,
+        "uordblks": 21525968,
+        "fordblks": 72784432,
+        "hblkhd": 819200
+      },
+      "after": {
+        "rss": 239685632,
+        "rss_anon": 224587776,
+        "arena": 90738688,
+        "uordblks": 21530512,
+        "fordblks": 69208176,
+        "hblkhd": 819200
+      },
+      "feed": {
+        "window_open": {
+          "label": "window_open",
+          "at_ns": 1787996080137094925,
+          "markets": {
+            "btc-updown-5m-1787996100": {
+              "ingress_ordinal": 0,
+              "clob_messages": 199,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            },
+            "btc-updown-5m-1787995800": {
+              "ingress_ordinal": 67617,
+              "clob_messages": 65918,
+              "spot_messages": 1131,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 0,
+              "buffer_accepted": 65369,
+              "buffer_dropped": 1,
+              "risk_dropped": 0,
+              "observations": 65369
+            }
+          }
+        },
+        "before_trim": {
+          "label": "before_trim",
+          "at_ns": 1787996082137806706,
+          "markets": {
+            "btc-updown-5m-1787996100": {
+              "ingress_ordinal": 0,
+              "clob_messages": 257,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            },
+            "btc-updown-5m-1787995800": {
+              "ingress_ordinal": 67797,
+              "clob_messages": 66090,
+              "spot_messages": 1139,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 0,
+              "buffer_accepted": 65549,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 65549
+            }
+          }
+        },
+        "after_trim": {
+          "label": "after_trim",
+          "at_ns": 1787996082139313015,
+          "markets": {
+            "btc-updown-5m-1787996100": {
+              "ingress_ordinal": 0,
+              "clob_messages": 257,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            },
+            "btc-updown-5m-1787995800": {
+              "ingress_ordinal": 67797,
+              "clob_messages": 66090,
+              "spot_messages": 1139,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 0,
+              "buffer_accepted": 65549,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 65549
+            }
+          }
+        },
+        "2s_after": {
+          "label": "2s_after",
+          "at_ns": 1787996084140667889,
+          "markets": {
+            "btc-updown-5m-1787996100": {
+              "ingress_ordinal": 0,
+              "clob_messages": 286,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            },
+            "btc-updown-5m-1787995800": {
+              "ingress_ordinal": 67967,
+              "clob_messages": 66254,
+              "spot_messages": 1145,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 0,
+              "buffer_accepted": 65719,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 65719
+            }
+          }
+        },
+        "10s_after": {
+          "label": "10s_after",
+          "at_ns": 1787996092141989973,
+          "markets": {
+            "btc-updown-5m-1787996100": {
+              "ingress_ordinal": 0,
+              "clob_messages": 537,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            },
+            "btc-updown-5m-1787995800": {
+              "ingress_ordinal": 68674,
+              "clob_messages": 66932,
+              "spot_messages": 1174,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 2,
+              "buffer_accepted": 66426,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 66426
+            }
+          }
+        },
+        "hot_path_max_ns": {
+          "2s_before": {
+            "btc-updown-5m-1787995800": 126213
+          },
+          "during_trim": {},
+          "2s_after": {
+            "btc-updown-5m-1787995800": 155240
+          },
+          "10s_after": {
+            "btc-updown-5m-1787995800": 899185
+          }
+        }
+      }
+    },
+    {
+      "rollover": 1787996400,
+      "started_ns": 1745482383887038,
+      "finished_ns": 1745482385475148,
+      "duration_ns": 1588110,
+      "returned": true,
+      "error": null,
+      "released_rss_bytes": 18575360,
+      "seconds_since_stop_quoting": 2.659034490585327,
+      "seconds_to_quote_start": 20.340965509414673,
+      "phases": {
+        "btc-updown-5m-1787996100": "SETTLING",
+        "btc-updown-5m-1787996400": "PREARM"
+      },
+      "before": {
+        "rss": 290820096,
+        "rss_anon": 275722240,
+        "arena": 121397248,
+        "uordblks": 18037568,
+        "fordblks": 103359680,
+        "hblkhd": 819200
+      },
+      "after": {
+        "rss": 272244736,
+        "rss_anon": 257146880,
+        "arena": 115204096,
+        "uordblks": 18040336,
+        "fordblks": 97163760,
+        "hblkhd": 819200
+      },
+      "feed": {
+        "window_open": {
+          "label": "window_open",
+          "at_ns": 1787996380658735808,
+          "markets": {
+            "btc-updown-5m-1787996100": {
+              "ingress_ordinal": 58945,
+              "clob_messages": 57600,
+              "spot_messages": 1280,
+              "reconnects": 1,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 0,
+              "buffer_accepted": 57189,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 57189
+            },
+            "btc-updown-5m-1787996400": {
+              "ingress_ordinal": 0,
+              "clob_messages": 364,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "before_trim": {
+          "label": "before_trim",
+          "at_ns": 1787996382659033788,
+          "markets": {
+            "btc-updown-5m-1787996100": {
+              "ingress_ordinal": 59106,
+              "clob_messages": 57756,
+              "spot_messages": 1285,
+              "reconnects": 1,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 1,
+              "buffer_accepted": 57350,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 57350
+            },
+            "btc-updown-5m-1787996400": {
+              "ingress_ordinal": 0,
+              "clob_messages": 409,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "after_trim": {
+          "label": "after_trim",
+          "at_ns": 1787996382661140753,
+          "markets": {
+            "btc-updown-5m-1787996100": {
+              "ingress_ordinal": 59106,
+              "clob_messages": 57756,
+              "spot_messages": 1285,
+              "reconnects": 1,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 1,
+              "buffer_accepted": 57350,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 57350
+            },
+            "btc-updown-5m-1787996400": {
+              "ingress_ordinal": 0,
+              "clob_messages": 409,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "2s_after": {
+          "label": "2s_after",
+          "at_ns": 1787996384661625670,
+          "markets": {
+            "btc-updown-5m-1787996100": {
+              "ingress_ordinal": 59267,
+              "clob_messages": 57910,
+              "spot_messages": 1292,
+              "reconnects": 1,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 1,
+              "buffer_accepted": 57511,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 57511
+            },
+            "btc-updown-5m-1787996400": {
+              "ingress_ordinal": 0,
+              "clob_messages": 432,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "10s_after": {
+          "label": "10s_after",
+          "at_ns": 1787996392662036692,
+          "markets": {
+            "btc-updown-5m-1787996100": {
+              "ingress_ordinal": 59926,
+              "clob_messages": 58541,
+              "spot_messages": 1320,
+              "reconnects": 1,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 0,
+              "buffer_accepted": 58170,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 58170
+            },
+            "btc-updown-5m-1787996400": {
+              "ingress_ordinal": 0,
+              "clob_messages": 707,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "hot_path_max_ns": {
+          "2s_before": {
+            "btc-updown-5m-1787996100": 139308
+          },
+          "during_trim": {},
+          "2s_after": {
+            "btc-updown-5m-1787996100": 130108
+          },
+          "10s_after": {
+            "btc-updown-5m-1787996100": 158339
+          }
+        }
+      }
+    },
+    {
+      "rollover": 1787996700,
+      "started_ns": 1745781893444204,
+      "finished_ns": 1745781897917457,
+      "duration_ns": 4473253,
+      "returned": true,
+      "error": null,
+      "released_rss_bytes": 17313792,
+      "seconds_since_stop_quoting": 2.1674258708953857,
+      "seconds_to_quote_start": 20.832574129104614,
+      "phases": {
+        "btc-updown-5m-1787996700": "PREARM",
+        "btc-updown-5m-1787996400": "SETTLING"
+      },
+      "before": {
+        "rss": 325144576,
+        "rss_anon": 310046720,
+        "arena": 131170304,
+        "uordblks": 22666704,
+        "fordblks": 108503600,
+        "hblkhd": 819200
+      },
+      "after": {
+        "rss": 307830784,
+        "rss_anon": 292732928,
+        "arena": 118276096,
+        "uordblks": 22672544,
+        "fordblks": 95603552,
+        "hblkhd": 819200
+      },
+      "feed": {
+        "window_open": {
+          "label": "window_open",
+          "at_ns": 1787996680166935242,
+          "markets": {
+            "btc-updown-5m-1787996700": {
+              "ingress_ordinal": 0,
+              "clob_messages": 145,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            },
+            "btc-updown-5m-1787996400": {
+              "ingress_ordinal": 88058,
+              "clob_messages": 85628,
+              "spot_messages": 1920,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 3,
+              "buffer_accepted": 84898,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 84898
+            }
+          }
+        },
+        "before_trim": {
+          "label": "before_trim",
+          "at_ns": 1787996682167422250,
+          "markets": {
+            "btc-updown-5m-1787996700": {
+              "ingress_ordinal": 0,
+              "clob_messages": 205,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            },
+            "btc-updown-5m-1787996400": {
+              "ingress_ordinal": 88211,
+              "clob_messages": 85778,
+              "spot_messages": 1923,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 5,
+              "buffer_accepted": 85051,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 85051
+            }
+          }
+        },
+        "after_trim": {
+          "label": "after_trim",
+          "at_ns": 1787996682173772507,
+          "markets": {
+            "btc-updown-5m-1787996700": {
+              "ingress_ordinal": 0,
+              "clob_messages": 205,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            },
+            "btc-updown-5m-1787996400": {
+              "ingress_ordinal": 88211,
+              "clob_messages": 85778,
+              "spot_messages": 1923,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 0,
+              "buffer_accepted": 85051,
+              "buffer_dropped": 0,
+              "risk_dropped": 5,
+              "observations": 85051
+            }
+          }
+        },
+        "2s_after": {
+          "label": "2s_after",
+          "at_ns": 1787996684174463781,
+          "markets": {
+            "btc-updown-5m-1787996700": {
+              "ingress_ordinal": 0,
+              "clob_messages": 245,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            },
+            "btc-updown-5m-1787996400": {
+              "ingress_ordinal": 88353,
+              "clob_messages": 85915,
+              "spot_messages": 1928,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 0,
+              "buffer_accepted": 85193,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 85193
+            }
+          }
+        },
+        "10s_after": {
+          "label": "10s_after",
+          "at_ns": 1787996692175563389,
+          "markets": {
+            "btc-updown-5m-1787996700": {
+              "ingress_ordinal": 0,
+              "clob_messages": 400,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            },
+            "btc-updown-5m-1787996400": {
+              "ingress_ordinal": 88893,
+              "clob_messages": 86434,
+              "spot_messages": 1948,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 0,
+              "buffer_accepted": 85731,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 85731
+            }
+          }
+        },
+        "hot_path_max_ns": {
+          "2s_before": {
+            "btc-updown-5m-1787996400": 111347
+          },
+          "during_trim": {},
+          "2s_after": {
+            "btc-updown-5m-1787996400": 111714
+          },
+          "10s_after": {
+            "btc-updown-5m-1787996400": 452720
+          }
+        }
+      }
+    },
+    {
+      "rollover": 1787997000,
+      "started_ns": 1746082349946316,
+      "finished_ns": 1746082355556472,
+      "duration_ns": 5610156,
+      "returned": true,
+      "error": null,
+      "released_rss_bytes": 19222528,
+      "seconds_since_stop_quoting": 2.6241414546966553,
+      "seconds_to_quote_start": 20.375858545303345,
+      "phases": {
+        "btc-updown-5m-1787996700": "SETTLING",
+        "btc-updown-5m-1787997000": "PREARM"
+      },
+      "before": {
+        "rss": 341794816,
+        "rss_anon": 326696960,
+        "arena": 129486848,
+        "uordblks": 19009712,
+        "fordblks": 110477136,
+        "hblkhd": 819200
+      },
+      "after": {
+        "rss": 322572288,
+        "rss_anon": 307474432,
+        "arena": 118149120,
+        "uordblks": 19012480,
+        "fordblks": 99136640,
+        "hblkhd": 819200
+      },
+      "feed": {
+        "window_open": {
+          "label": "window_open",
+          "at_ns": 1787996980622723830,
+          "markets": {
+            "btc-updown-5m-1787996700": {
+              "ingress_ordinal": 53946,
+              "clob_messages": 53028,
+              "spot_messages": 999,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 0,
+              "buffer_accepted": 52240,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 52240
+            },
+            "btc-updown-5m-1787997000": {
+              "ingress_ordinal": 0,
+              "clob_messages": 133,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "before_trim": {
+          "label": "before_trim",
+          "at_ns": 1787996982624138527,
+          "markets": {
+            "btc-updown-5m-1787996700": {
+              "ingress_ordinal": 54082,
+              "clob_messages": 53160,
+              "spot_messages": 1003,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 0,
+              "buffer_accepted": 52376,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 52376
+            },
+            "btc-updown-5m-1787997000": {
+              "ingress_ordinal": 0,
+              "clob_messages": 155,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "after_trim": {
+          "label": "after_trim",
+          "at_ns": 1787996982632211555,
+          "markets": {
+            "btc-updown-5m-1787996700": {
+              "ingress_ordinal": 54082,
+              "clob_messages": 53160,
+              "spot_messages": 1003,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 0,
+              "buffer_accepted": 52376,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 52376
+            },
+            "btc-updown-5m-1787997000": {
+              "ingress_ordinal": 0,
+              "clob_messages": 155,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "2s_after": {
+          "label": "2s_after",
+          "at_ns": 1787996984633178952,
+          "markets": {
+            "btc-updown-5m-1787996700": {
+              "ingress_ordinal": 54254,
+              "clob_messages": 53327,
+              "spot_messages": 1008,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 0,
+              "buffer_accepted": 52548,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 52548
+            },
+            "btc-updown-5m-1787997000": {
+              "ingress_ordinal": 0,
+              "clob_messages": 171,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "10s_after": {
+          "label": "10s_after",
+          "at_ns": 1787996992633814212,
+          "markets": {
+            "btc-updown-5m-1787996700": {
+              "ingress_ordinal": 54873,
+              "clob_messages": 53920,
+              "spot_messages": 1032,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 2,
+              "buffer_accepted": 53163,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 53163
+            },
+            "btc-updown-5m-1787997000": {
+              "ingress_ordinal": 0,
+              "clob_messages": 671,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "hot_path_max_ns": {
+          "2s_before": {
+            "btc-updown-5m-1787996700": 1149876
+          },
+          "during_trim": {},
+          "2s_after": {
+            "btc-updown-5m-1787996700": 163340
+          },
+          "10s_after": {
+            "btc-updown-5m-1787996700": 424472
+          }
+        }
+      }
+    },
+    {
+      "rollover": 1787997300,
+      "started_ns": 1746382723729209,
+      "finished_ns": 1746382725127868,
+      "duration_ns": 1398659,
+      "returned": true,
+      "error": null,
+      "released_rss_bytes": 14807040,
+      "seconds_since_stop_quoting": 2.998685121536255,
+      "seconds_to_quote_start": 20.001314878463745,
+      "phases": {
+        "btc-updown-5m-1787997000": "SETTLING",
+        "btc-updown-5m-1787997300": "PREARM"
+      },
+      "before": {
+        "rss": 340406272,
+        "rss_anon": 325308416,
+        "arena": 126144512,
+        "uordblks": 18916672,
+        "fordblks": 107227840,
+        "hblkhd": 819200
+      },
+      "after": {
+        "rss": 325599232,
+        "rss_anon": 310501376,
+        "arena": 122703872,
+        "uordblks": 18920224,
+        "fordblks": 103783648,
+        "hblkhd": 819200
+      },
+      "feed": {
+        "window_open": {
+          "label": "window_open",
+          "at_ns": 1787997280998036607,
+          "markets": {
+            "btc-updown-5m-1787997000": {
+              "ingress_ordinal": 74787,
+              "clob_messages": 72842,
+              "spot_messages": 1249,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 2,
+              "buffer_accepted": 71729,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 71729
+            },
+            "btc-updown-5m-1787997300": {
+              "ingress_ordinal": 0,
+              "clob_messages": 216,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "before_trim": {
+          "label": "before_trim",
+          "at_ns": 1787997282998684072,
+          "markets": {
+            "btc-updown-5m-1787997000": {
+              "ingress_ordinal": 75019,
+              "clob_messages": 73068,
+              "spot_messages": 1253,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 3,
+              "buffer_accepted": 71957,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 71957
+            },
+            "btc-updown-5m-1787997300": {
+              "ingress_ordinal": 0,
+              "clob_messages": 267,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "after_trim": {
+          "label": "after_trim",
+          "at_ns": 1787997283000873340,
+          "markets": {
+            "btc-updown-5m-1787997000": {
+              "ingress_ordinal": 75019,
+              "clob_messages": 73068,
+              "spot_messages": 1253,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 3,
+              "buffer_accepted": 71957,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 71957
+            },
+            "btc-updown-5m-1787997300": {
+              "ingress_ordinal": 0,
+              "clob_messages": 267,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "2s_after": {
+          "label": "2s_after",
+          "at_ns": 1787997285001995086,
+          "markets": {
+            "btc-updown-5m-1787997000": {
+              "ingress_ordinal": 75240,
+              "clob_messages": 73283,
+              "spot_messages": 1259,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 3,
+              "buffer_accepted": 72178,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 72178
+            },
+            "btc-updown-5m-1787997300": {
+              "ingress_ordinal": 0,
+              "clob_messages": 288,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "10s_after": {
+          "label": "10s_after",
+          "at_ns": 1787997293002932386,
+          "markets": {
+            "btc-updown-5m-1787997000": {
+              "ingress_ordinal": 76027,
+              "clob_messages": 74049,
+              "spot_messages": 1280,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 2,
+              "buffer_accepted": 72965,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 72965
+            },
+            "btc-updown-5m-1787997300": {
+              "ingress_ordinal": 0,
+              "clob_messages": 507,
+              "spot_messages": 0,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "UNKNOWN",
+              "clob_awaiting_snapshot": true,
+              "spot_health": "UNKNOWN",
+              "buffer_depth": 0,
+              "buffer_accepted": 0,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 0
+            }
+          }
+        },
+        "hot_path_max_ns": {
+          "2s_before": {
+            "btc-updown-5m-1787997000": 468630
+          },
+          "during_trim": {},
+          "2s_after": {
+            "btc-updown-5m-1787997000": 179154
+          },
+          "10s_after": {
+            "btc-updown-5m-1787997000": 140112
+          }
+        }
+      }
+    },
+    {
+      "rollover": 1787997600,
+      "started_ns": 1746682053576571,
+      "finished_ns": 1746682054854465,
+      "duration_ns": 1277894,
+      "returned": true,
+      "error": null,
+      "released_rss_bytes": 16531456,
+      "seconds_since_stop_quoting": 2.328626871109009,
+      "seconds_to_quote_start": 20.67137312889099,
+      "phases": {
+        "btc-updown-5m-1787997300": "SETTLING"
+      },
+      "before": {
+        "rss": 344178688,
+        "rss_anon": 329113600,
+        "arena": 129826816,
+        "uordblks": 20725552,
+        "fordblks": 109101264,
+        "hblkhd": 401408
+      },
+      "after": {
+        "rss": 327647232,
+        "rss_anon": 312582144,
+        "arena": 123830272,
+        "uordblks": 20729104,
+        "fordblks": 103101168,
+        "hblkhd": 401408
+      },
+      "feed": {
+        "window_open": {
+          "label": "window_open",
+          "at_ns": 1787997580328408044,
+          "markets": {
+            "btc-updown-5m-1787997300": {
+              "ingress_ordinal": 74703,
+              "clob_messages": 73242,
+              "spot_messages": 944,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 0,
+              "buffer_accepted": 72233,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 72233
+            }
+          }
+        },
+        "before_trim": {
+          "label": "before_trim",
+          "at_ns": 1787997582328626135,
+          "markets": {
+            "btc-updown-5m-1787997300": {
+              "ingress_ordinal": 76285,
+              "clob_messages": 74671,
+              "spot_messages": 953,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 6,
+              "buffer_accepted": 73549,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 73549
+            }
+          }
+        },
+        "after_trim": {
+          "label": "after_trim",
+          "at_ns": 1787997582330618574,
+          "markets": {
+            "btc-updown-5m-1787997300": {
+              "ingress_ordinal": 76285,
+              "clob_messages": 74671,
+              "spot_messages": 953,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 6,
+              "buffer_accepted": 73549,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 73549
+            }
+          }
+        },
+        "2s_after": {
+          "label": "2s_after",
+          "at_ns": 1787997584331360068,
+          "markets": {
+            "btc-updown-5m-1787997300": {
+              "ingress_ordinal": 77097,
+              "clob_messages": 75407,
+              "spot_messages": 962,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 0,
+              "buffer_accepted": 74233,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 74233
+            }
+          }
+        },
+        "10s_after": {
+          "label": "10s_after",
+          "at_ns": 1787997592331504808,
+          "markets": {
+            "btc-updown-5m-1787997300": {
+              "ingress_ordinal": 78383,
+              "clob_messages": 76601,
+              "spot_messages": 994,
+              "reconnects": 0,
+              "malformed": 0,
+              "clob_health": "HEALTHY",
+              "clob_awaiting_snapshot": false,
+              "spot_health": "HEALTHY",
+              "buffer_depth": 1,
+              "buffer_accepted": 75401,
+              "buffer_dropped": 0,
+              "risk_dropped": 0,
+              "observations": 75401
+            }
+          }
+        },
+        "hot_path_max_ns": {
+          "2s_before": {
+            "btc-updown-5m-1787997300": 1145110
+          },
+          "during_trim": {},
+          "2s_after": {
+            "btc-updown-5m-1787997300": 238488
+          },
+          "10s_after": {
+            "btc-updown-5m-1787997300": 222503
+          }
+        }
+      }
+    }
+  ]
+}

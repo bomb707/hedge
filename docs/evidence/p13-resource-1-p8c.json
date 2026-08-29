@@ -1,0 +1,434 @@
+{
+  "note": "P8C instrumentation overhead on the frozen resource-stability source 376cfcd. Original limits: decide <= 3 %, full cycle <= 5 %. Machine carried an unrelated ~439 % CPU workload throughout; reported as measured.",
+  "result": {
+    "cycle_counts_by_tier": {
+      "always_traced_action": 800,
+      "sampled_ordinary": 472,
+      "unsampled_ordinary": 288
+    },
+    "cycle_ns": {
+      "delta": {
+        "p50": {
+          "absolute_ns": 1721,
+          "percent": 3.8
+        },
+        "p90": {
+          "absolute_ns": 2010,
+          "percent": 3.5
+        },
+        "p95": {
+          "absolute_ns": 1144,
+          "percent": 1.7
+        },
+        "p99": {
+          "absolute_ns": 25252,
+          "percent": 26.6
+        }
+      },
+      "off": {
+        "count": 12480,
+        "max": 244144,
+        "mean": 44753,
+        "p50": 45525,
+        "p90": 58160,
+        "p95": 67559,
+        "p99": 95056
+      },
+      "on": {
+        "count": 12480,
+        "max": 12382589,
+        "mean": 48994,
+        "p50": 47246,
+        "p90": 60170,
+        "p95": 68703,
+        "p99": 120308
+      }
+    },
+    "cycle_ns_by_tier_replay_corpus": {
+      "always_traced_action": {
+        "delta": {
+          "p50": {
+            "absolute_ns": 1841,
+            "percent": 3.7
+          },
+          "p90": {
+            "absolute_ns": 1400,
+            "percent": 2.2
+          },
+          "p95": {
+            "absolute_ns": 237,
+            "percent": 0.3
+          },
+          "p99": {
+            "absolute_ns": 23687,
+            "percent": 23.2
+          }
+        },
+        "off": {
+          "count": 6400,
+          "max": 244144,
+          "mean": 51794,
+          "p50": 49405,
+          "p90": 63251,
+          "p95": 75112,
+          "p99": 102172
+        },
+        "on": {
+          "count": 6400,
+          "max": 12382589,
+          "mean": 57219,
+          "p50": 51246,
+          "p90": 64651,
+          "p95": 75349,
+          "p99": 125859
+        }
+      },
+      "sampled_ordinary": {
+        "delta": {
+          "p50": {
+            "absolute_ns": 1562,
+            "percent": 3.7
+          },
+          "p90": {
+            "absolute_ns": 1587,
+            "percent": 3.1
+          },
+          "p95": {
+            "absolute_ns": 998,
+            "percent": 1.6
+          },
+          "p99": {
+            "absolute_ns": 25696,
+            "percent": 30.0
+          }
+        },
+        "off": {
+          "count": 3776,
+          "max": 146816,
+          "mean": 39940,
+          "p50": 42193,
+          "p90": 51686,
+          "p95": 60572,
+          "p99": 85746
+        },
+        "on": {
+          "count": 3776,
+          "max": 1126761,
+          "mean": 43263,
+          "p50": 43755,
+          "p90": 53273,
+          "p95": 61570,
+          "p99": 111442
+        }
+      },
+      "unsampled_ordinary": {
+        "delta": {
+          "p50": {
+            "absolute_ns": 1239,
+            "percent": 3.4
+          },
+          "p90": {
+            "absolute_ns": 2778,
+            "percent": 6.2
+          },
+          "p95": {
+            "absolute_ns": 2995,
+            "percent": 5.8
+          },
+          "p99": {
+            "absolute_ns": 14534,
+            "percent": 18.4
+          }
+        },
+        "off": {
+          "count": 2304,
+          "max": 125820,
+          "mean": 33081,
+          "p50": 36838,
+          "p90": 44805,
+          "p95": 51634,
+          "p99": 78892
+        },
+        "on": {
+          "count": 2304,
+          "max": 1079368,
+          "mean": 35539,
+          "p50": 38077,
+          "p90": 47583,
+          "p95": 54629,
+          "p99": 93426
+        }
+      }
+    },
+    "decide_ns": {
+      "delta": {
+        "p50": {
+          "absolute_ns": 68,
+          "percent": 0.2
+        },
+        "p90": {
+          "absolute_ns": 71,
+          "percent": 0.2
+        },
+        "p95": {
+          "absolute_ns": -717,
+          "percent": -1.6
+        },
+        "p99": {
+          "absolute_ns": 36175,
+          "percent": 62.5
+        }
+      },
+      "off": {
+        "count": 12480,
+        "max": 190546,
+        "mean": 27555,
+        "p50": 27872,
+        "p90": 34706,
+        "p95": 43634,
+        "p99": 57895
+      },
+      "on": {
+        "count": 12480,
+        "max": 12321679,
+        "mean": 30126,
+        "p50": 27940,
+        "p90": 34777,
+        "p95": 42917,
+        "p99": 94070
+      }
+    },
+    "method": {
+      "identical_simulated_work_both_sides": true,
+      "interleaved": true,
+      "passes_per_run": 40,
+      "repeats": 8,
+      "sample_every": 10,
+      "warmup_passes": 2
+    },
+    "per_repeat": [
+      {
+        "cycle_p50": {
+          "off": 44810,
+          "on": 46640
+        },
+        "decide_p50": {
+          "off": 27735,
+          "on": 27741
+        },
+        "order": "off_first",
+        "repeat": 0
+      },
+      {
+        "cycle_p50": {
+          "off": 50072,
+          "on": 48093
+        },
+        "decide_p50": {
+          "off": 30601,
+          "on": 28246
+        },
+        "order": "on_first",
+        "repeat": 1
+      },
+      {
+        "cycle_p50": {
+          "off": 46647,
+          "on": 48884
+        },
+        "decide_p50": {
+          "off": 28564,
+          "on": 29017
+        },
+        "order": "off_first",
+        "repeat": 2
+      },
+      {
+        "cycle_p50": {
+          "off": 43958,
+          "on": 48550
+        },
+        "decide_p50": {
+          "off": 27093,
+          "on": 28653
+        },
+        "order": "on_first",
+        "repeat": 3
+      },
+      {
+        "cycle_p50": {
+          "off": 43371,
+          "on": 45384
+        },
+        "decide_p50": {
+          "off": 27400,
+          "on": 27674
+        },
+        "order": "off_first",
+        "repeat": 4
+      },
+      {
+        "cycle_p50": {
+          "off": 45159,
+          "on": 46142
+        },
+        "decide_p50": {
+          "off": 27404,
+          "on": 27553
+        },
+        "order": "on_first",
+        "repeat": 5
+      },
+      {
+        "cycle_p50": {
+          "off": 46175,
+          "on": 47990
+        },
+        "decide_p50": {
+          "off": 28082,
+          "on": 28182
+        },
+        "order": "off_first",
+        "repeat": 6
+      },
+      {
+        "cycle_p50": {
+          "off": 44627,
+          "on": 46076
+        },
+        "decide_p50": {
+          "off": 27497,
+          "on": 27555
+        },
+        "order": "on_first",
+        "repeat": 7
+      }
+    ],
+    "steady_state": {
+      "cycle_counts_by_tier": {
+        "always_traced_action": 1,
+        "sampled_ordinary": 400,
+        "unsampled_ordinary": 3599
+      },
+      "cycle_ns_by_tier": {
+        "always_traced_action": {
+          "delta": {
+            "p50": {
+              "absolute_ns": -2113,
+              "percent": -2.6
+            },
+            "p90": {
+              "absolute_ns": -9633,
+              "percent": -8.3
+            },
+            "p95": {
+              "absolute_ns": -9633,
+              "percent": -8.3
+            },
+            "p99": {
+              "absolute_ns": -9633,
+              "percent": -8.3
+            }
+          },
+          "off": {
+            "count": 4,
+            "max": 116217,
+            "mean": 92080,
+            "p50": 82313,
+            "p90": 116217,
+            "p95": 116217,
+            "p99": 116217
+          },
+          "on": {
+            "count": 4,
+            "max": 106584,
+            "mean": 85335,
+            "p50": 80200,
+            "p90": 106584,
+            "p95": 106584,
+            "p99": 106584
+          }
+        },
+        "sampled_ordinary": {
+          "delta": {
+            "p50": {
+              "absolute_ns": -113,
+              "percent": -0.3
+            },
+            "p90": {
+              "absolute_ns": -1337,
+              "percent": -3.0
+            },
+            "p95": {
+              "absolute_ns": -3235,
+              "percent": -6.0
+            },
+            "p99": {
+              "absolute_ns": 11143,
+              "percent": 15.7
+            }
+          },
+          "off": {
+            "count": 1600,
+            "max": 88217,
+            "mean": 39005,
+            "p50": 37143,
+            "p90": 44979,
+            "p95": 53934,
+            "p99": 70756
+          },
+          "on": {
+            "count": 1600,
+            "max": 722885,
+            "mean": 39463,
+            "p50": 37030,
+            "p90": 43642,
+            "p95": 50699,
+            "p99": 81899
+          }
+        },
+        "unsampled_ordinary": {
+          "delta": {
+            "p50": {
+              "absolute_ns": -494,
+              "percent": -1.3
+            },
+            "p90": {
+              "absolute_ns": -871,
+              "percent": -1.9
+            },
+            "p95": {
+              "absolute_ns": -2555,
+              "percent": -4.7
+            },
+            "p99": {
+              "absolute_ns": 19541,
+              "percent": 27.3
+            }
+          },
+          "off": {
+            "count": 14396,
+            "max": 107646,
+            "mean": 38966,
+            "p50": 37057,
+            "p90": 44712,
+            "p95": 54434,
+            "p99": 71710
+          },
+          "on": {
+            "count": 14396,
+            "max": 13633832,
+            "mean": 41613,
+            "p50": 36563,
+            "p90": 43841,
+            "p95": 51879,
+            "p99": 91251
+          }
+        }
+      },
+      "cycles_per_pass": 4000,
+      "note": "One order resting per side, desired price unchanged, depth churning. This is the production-shaped stream; the P8 performance limit is read here.",
+      "repeats": 4
+    }
+  }
+}

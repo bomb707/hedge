@@ -446,7 +446,7 @@ both earlier markets' stores remain valid.
 | Implementation | **PASSED** (P13F) — every audit read and write on a dedicated Plane-3 thread; qualification O(1) per market with full joined audits at startup and at the target; exactly one result per attempt and one per market |
 | Pilot | **PASSED** (P13F) — three consecutive real markets run with the audit path deliberately slowed by 500 ms per operation, all qualifying, zero drops, gaps or sink errors |
 | ≥200-market empirical corpus | **PASSED** — 202 qualifying real markets in `p13-corpus-6`, collected by `9a42031`; every duplicate, refusal and integrity category zero. Corpora 1-5 retained, superseded, excluded |
-| Long-run resource stability | **NOT PASSED** — post-release RSS 36 MB → 4,262 MB over 202 markets with no plateau. Object counts bounded and Python tracked objects not trending, so the growth is resident memory rather than a retained-session leak; its source is not identified by this instrumentation |
+| Long-run resource stability | **NOT PASSED** — source now identified and removed, bar still not met. The growth was free glibc heap created by `encode_journal` building every journal line as a separate arena allocation; streaming the writer cut the all-run slope from +10.26 to +2.13 MB/market and the late-window slope from +31.46 to +0.48, ending at 489.8 MB after 57 markets. The predeclared test (markets 11..end, ceiling +1.026, 95 % CI containing zero) reads **+1.3607 [+1.1689, +1.5526]**, and no window contains zero. Residual ≈ +0.5 MB/market is diffuse allocator high-water creep with no single source. See `docs/evidence/P13-RESOURCE-DIAGNOSIS.md` |
 | **Overall** | **NOT COMPLETE** — the dataset is accepted and ready for P15; the collector needs runtime engineering |
 
 Evidence: [`evidence/P13-CORPUS-ACCEPTANCE.md`](evidence/P13-CORPUS-ACCEPTANCE.md),
@@ -477,8 +477,22 @@ for the final gate.
 
 **Blocked before it starts.** P13's corpus is accepted, but the collector that produced it grew
 from 36 MB to 4,262 MB of resident memory across 202 markets with no plateau, and its worst
-`observe` cycle reached 1,056 ms. Neither is a strategy question and neither was fixed in the
-acceptance task. Real capital waits on a runtime-engineering phase and independent review.
+`observe` cycle reached 1,056 ms. Neither is a strategy question.
+
+The memory blocker has since been diagnosed and largely removed on
+`fix/p13-runtime-resource-stability`: the growth was free glibc heap created by the journal
+encoder, and streaming it cut the all-run slope from +10.26 to +2.13 MB/market and ended a
+57-market run at 489.8 MB. It is **not cleared**. The predeclared regression target — no
+statistically supported trend after warm-up, point slope ≤ +1.026 MB/market — reads +1.3607
+[+1.1689, +1.5526], and no window of that run has an interval containing zero. A residual of
+about +0.5 MB/market remains, diffuse across every cold-path stage rather than attributable to
+one allocation.
+
+The GC tail is unchanged and is not claimed otherwise; what changed is that per-market
+attribution is now exact rather than a running maximum. No latency requirement for full-collection
+pauses has been established, so it stays a readiness **risk**, not a gate.
+
+Real capital waits on both, and on independent review.
 
 
 - **Goal:** Canonical §34-L4. One market at a time, minimum capital.

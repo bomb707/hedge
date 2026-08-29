@@ -310,3 +310,116 @@ rather than a gate anyone can pass or fail.
 `gc.collect` is not called on any ingress path — not in the observer, the tick, the strategy, the
 risk overlay, the reconciler or a feed callback — and the thresholds remain `(700, 10, 400)`,
 unchanged.
+
+---
+
+## 8. Resource validation — `p13-resource-1`
+
+**57 consecutive real paper markets, one process, no restart, 4 h 48 m.** Frozen candidate:
+source `376cfcdd4a72f8909bd44598f1d8e43c988c3da6`, tree
+`a9a19a07c8b640a225620230fda9c21ee8a88cb9`, config
+`b0d94e5927bbd574a2e55d8a491e79054998b68f295962d0632a19d08f9a135c`, tree clean,
+`ACCEPTANCE_CLEAN`, `LIVE_TRADING_ENABLED` and `REDEMPTION_ENABLED` false, 0 orders sent, 0
+redemptions sent, 0 chain writes.
+
+The target was 55; markets 56 and 57 were already in flight and were finished rather than
+abandoned. This is a **resource** validation corpus. It does not replace `p13-corpus-6`, which
+remains the accepted 202-market empirical dataset.
+
+57 of 57 COMPLETE · 57 of 57 replay EXACT · 57 of 57 evidence-eligible · 0 incomplete · 0 corrupt
+· 0 drops · 0 gaps · 0 sink errors · 0 corpus append failures · 0 truncated lines · **0
+journal-digest disagreements between the writer and the cold child**.
+
+### The predeclared test
+
+Declared in the brief before the run existed: first ten markets are warm-up; over markets 11..end
+the OLS slope of post-release RSS against market index must have a 95 % interval containing zero
+and a point slope no greater than **+1.026 MB/market**, a tenth of the measured +10.26 all-run
+failure slope.
+
+| | post-release RSS | settled RSS |
+|---|---:|---:|
+| markets | 57 | 57 |
+| first → last | 278.6 → 489.8 MB | 278.9 → 489.8 MB |
+| all-run slope | +2.129 [+1.751, +2.506] | +2.132 [+1.756, +2.509] |
+| **after warm-up, n = 47** | **+1.3607 MB/market** | **+1.3607** |
+| **95 % CI** | **[+1.1689, +1.5526]** | **[+1.1689, +1.5526]** |
+| CI contains zero | **no** | **no** |
+| within +1.026 ceiling | **no** | **no** |
+| window medians | 432.0 / 463.8 / 480.6 / 485.0 | same |
+| **verdict** | **NOT PASSED** | **NOT PASSED** |
+
+Both metrics give the same answer, so no choice of series changes it.
+
+### The warm-up is not the reason
+
+The staircase in this run ran to about market 33, past the predeclared ten-market warm-up, and a
+longer warm-up would have flattered the slope. Moving it after seeing the numbers is precisely
+what the brief forbids, so it was not moved — and it would not have mattered, because **no
+window contains zero**:
+
+| window | n | slope | 95 % CI | contains zero |
+|---|---:|---:|---|---|
+| **11..57 — the gate** | 47 | **+1.3607** | [+1.1689, +1.5526] | no |
+| 21..57 | 37 | +0.9824 | [+0.7939, +1.1709] | no |
+| 31..57 | 27 | +0.4775 | [+0.4276, +0.5274] | no |
+| last 20 | 20 | +0.4819 | [+0.3919, +0.5720] | no |
+| last 10 | 10 | +0.5656 | [+0.3913, +0.7399] | no |
+
+The process is much flatter than before and it is **not flat**: a small, statistically supported
+trend of about +0.5 MB/market persists to the end, and the last-ten median (486.7 MB) sits above
+the markets-38-to-47 median (481.9 MB).
+
+### What the fix did achieve
+
+| | `p13-corpus-6` (failed) | `p13-resource-1` |
+|---|---:|---:|
+| all-run slope | +10.26 MB/market | **+2.13** |
+| late-window slope | +31.46 (last 50) | **+0.48** (last 20) |
+| RSS at end | 4,261.7 MB after 202 markets | **489.8 MB after 57** |
+| `malloc_trim` at end of run | — | 63.0 MB (`p13-diag-1`: 576.3 MB) |
+| journal encode step | +142.4 MB median | **0.00 MB median** |
+
+An eight-fold reduction in all-run slope and a sixty-fold reduction in the late-window slope,
+with the identified mechanism removed. It is a large, real, measured improvement that does not
+meet the bar set in advance.
+
+### Why there is no second fix of the same shape
+
+Step attribution over the 57 markets shows the residue is **diffuse**, not concentrated:
+
+| transition | median | total over 57 |
+|---|---:|---:|
+| `market_start → capture_end` | +0.59 MB | +539.4 (the market's own graph, released after) |
+| `before_journal_encode → after_journal_write` | **0.00** | **+21.2** |
+| `after_step_release → after_latency_write` | 0.00 | +17.5 |
+| `after_settlement → after_store_close` | 0.00 | +13.2 |
+| `after_store_close → after_cold_result` | 0.00 | +15.4 |
+| `after_cold_result → after_release` | 0.00 | +15.6 |
+
+The cold-path stages together contribute about +83 MB over 57 markets — roughly +1.4 MB/market,
+which is the measured slope. Each stage contributes two or three tenths of a megabyte of arena
+high-water and none dominates. There is no single remaining allocation to stream.
+
+The end-of-run probe still reads `NATIVE_FREE_HEAP_RETAINED` — a full collection released
+**0.0 MB**, `malloc_trim` released **63.0 MB**, and `fordblks` (169.5 MB) is 90 % of `arena`
+(188.0 MB). The residue is the same kind of thing as before, at a tenth of the size: glibc heap
+high-water creep across many small transient peaks.
+
+**No mitigation for that is applied here, and the reasons are stated rather than assumed.** A
+periodic `malloc_trim` is the obvious candidate and the brief forbids calling it while a market
+is trading — correctly, since it takes the allocator lock and would stall the ingress owner. In a
+continuous collector, live sessions are never zero between markets, so there is no safe point for
+it inside a run. Allocator tuning (`M_MMAP_THRESHOLD`, `M_TRIM_THRESHOLD`) is explicitly out of
+scope as a fix at this stage. Both remain open, measured options; neither is taken on a guess.
+
+### Bounded, as required
+
+Live sessions ≤ 3 · file descriptors ≤ 24 · threads ≤ 10 · pending tasks ≤ 11 · cold backlog ≤ 1
+of 6 · market lifecycles ≤ 3 of 6. Nothing accumulated except resident bytes.
+
+### P8C, on the frozen source
+
+decide p50 **+68 ns (+0.24 %)** against a 3 % limit; full cycle p50 **+1,721 ns (+3.78 %)**
+against a 5 % limit. Both met, neither limit moved, no hot-path clock added. The machine carried
+an unrelated 439 %-CPU workload throughout and the figure is reported as measured.

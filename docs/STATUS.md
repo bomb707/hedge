@@ -132,6 +132,67 @@ second readiness risk. O01-O09 remain OPEN — P13 produced the evidence, P15 ow
 
 ---
 
+## P13 resource stability — diagnosed, fixed, still short of the bar
+
+`fix/p13-runtime-resource-stability`, from `2eb7d9a`. `p13-corpus-6` is untouched and revalidates
+to the figure in every table above. Full detail: `docs/evidence/P13-RESOURCE-DIAGNOSIS.md`.
+
+**The cause, measured rather than guessed.** The resident bytes were free glibc heap. Across ten
+real markets `uordblks` — memory actually in use — never left 13.3–20.3 MB while `arena` went 246
+to 589 MB, and the end-of-run probe released 3.1 MB to a full collection against **576.3 MB to
+`malloc_trim`**. Of eleven per-market memory checkpoints, exactly one transition carried the
+growth: the journal encode, +1,897.8 MB over ten markets against nothing measurable from the
+latency artifacts, settlement, store close, cold child or release. `encode_journal` built every
+line as a separate ~1.6 KB `bytes` object — above CPython's small-object threshold, below glibc's
+mmap threshold — so they came from the main arena and freeing them reached `fordblks` and stopped.
+The joined journal object was mmap'd and *was* returned, which is why a `statm`-only view read
+this as ordinary churn.
+
+**The fix.** `iter_encoded_journal` plus `write_journal_stream`: one line resident at a time,
+hashed as it is written. `encode_journal` is now its concatenation and keeps its name, signature
+and output. Byte identity proved on every codec fixture and on three **real** corpus journals of
+35.4, 167.8 and 423.1 MB — same SHA-256, same size, originals unchanged. Nothing else was
+touched, because the checkpoints showed nothing else contributed.
+
+**The result.** `p13-resource-1`, 57 consecutive real markets in one process over 4 h 48 m:
+57 COMPLETE, 57 replay EXACT, 57 eligible, 0 drops, 0 gaps, 0 sink errors, 0 append failures, 0
+writer/child digest disagreements, bounded resources throughout.
+
+| | failed corpus | after the fix |
+|---|---:|---:|
+| all-run slope | +10.26 MB/market | **+2.13** |
+| late-window slope | +31.46 (last 50) | **+0.48** (last 20) |
+| RSS at end of run | 4,261.7 MB / 202 markets | **489.8 MB / 57 markets** |
+| journal encode step | +142.4 MB median | **0.00 MB median** |
+| `malloc_trim` at end | — | 63.0 MB (was 576.3 MB) |
+
+**And it does not pass.** The predeclared test — markets 11..end, ceiling +1.026 MB/market, 95 %
+interval containing zero — reads **+1.3607 [+1.1689, +1.5526]**. The ceiling was not moved after
+the fact and the warm-up was not extended, which would have flattered it: **no** window contains
+zero, including the last ten (+0.5656 [+0.3913, +0.7399]). A small, statistically real trend of
+about +0.5 MB/market persists to the end of the run.
+
+**Why no second fix.** The residue is diffuse. Every cold-path stage contributes two or three
+tenths of a megabyte of arena high-water and none dominates — about +1.4 MB/market in total,
+which is the measured slope. There is no remaining allocation of the journal's shape to stream. A
+periodic `malloc_trim` is the obvious candidate and takes the allocator lock, so it may not run
+while a market is trading; live sessions are never zero inside a continuous run. Allocator tuning
+is out of scope at this stage. Both remain open, measured options, and neither is taken on a
+guess.
+
+**The collector's pauses are not fixed and are not claimed to be.** Generation-2 collections
+continued throughout the post-fix runs on a much smaller heap. What did change is that they can
+now be attributed: `GcObserver` kept a *running* maximum, and the corpus report read it as each
+market's own — 40 markets credited with a pause only one had caused. `GcEventLog` keeps each
+collection's generation, start and end, so a market with no full collection says so, and a
+collection spanning two markets is recorded against both. No latency requirement for those pauses
+exists, so **GC tail remains an open P14 readiness risk**, not a gate.
+
+P8C on the frozen source: decide **+0.24 %** (3 % limit), full cycle **+3.78 %** (5 % limit).
+Both met, neither limit moved.
+
+---
+
 ## P13F: Plane-3 audit isolation and result uniqueness
 
 Full evidence in [`evidence/P13F-AUDIT-ISOLATION.md`](evidence/P13F-AUDIT-ISOLATION.md).
@@ -1789,9 +1850,9 @@ orders, which P8 does not place. Both stay OPEN.
 | P13 implementation gate | **PASSED** (P13F) — every audit read and write on a dedicated thread, O(1) qualification per market with full audits at the boundaries, one result per attempt and per market |
 | P13 pilot gate | **PASSED** (P13F) — three consecutive real markets with the audit path deliberately slowed by 500 ms, all qualifying, zero drops. Earlier pilots retained and superseded |
 | P13 ≥200-market empirical corpus gate | **PASSED** — 202 qualifying markets, epoch `p13-corpus-6`, collected by `9a42031` |
-| P13 long-run resource stability gate | **NOT PASSED** — post-release RSS 36 MB → 4,262 MB with no plateau (`CONTINUED_PROCESS_RESIDENT_GROWTH`) |
+| P13 long-run resource stability gate | **NOT PASSED** — cause found and fixed, bar not met. `p13-resource-1`: 57 markets, one process, after-warm-up slope **+1.3607 MB/market**, 95 % CI **[+1.169, +1.553]**, against a predeclared ceiling of +1.026 with a CI that must contain zero. Against the 4,262 MB failure: all-run slope +10.26 → **+2.13**, late-window +31.46 → **+0.48**, end RSS **489.8 MB after 57 markets** |
 | **P13 overall** | **NOT COMPLETE** — corpus accepted, collector runtime not |
-| P14 | **BLOCKED** — resident-memory growth; GC tail latency (observe max 1,056 ms) a second readiness risk |
+| P14 | **BLOCKED** — residual resident-memory growth of ~+0.5 MB/market with no window whose 95 % interval contains zero; GC tail latency a second readiness risk, unchanged by the memory fix |
 | P12 implementation gate | **PASSED** — Plane-3 UI, immutable snapshot, ordered control, no trading reference |
 | P12 real-market gate | **PASSED** — UI killed mid-market, trading continued |
 | P12 Plane-3 isolation gate | **PASSED** (P12C) — no synchronous I/O of any kind on the ingress path, stdout included |

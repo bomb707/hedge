@@ -28,6 +28,7 @@ corpus line per attempt.
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 from collections.abc import Callable
 from concurrent.futures import ProcessPoolExecutor
@@ -397,6 +398,7 @@ class Supervisor:
             with suppress(asyncio.CancelledError):
                 await maintenance
             await self._drain_cold()
+            self._write_maintenance_artifact()
             await self._quiescent_probe()
             self.ui.stop()
             self.gc_observer.remove()
@@ -537,6 +539,35 @@ class Supervisor:
             f"fordblks {int(record['before']['fordblks'] or 0) / 1e6:.1f} -> "
             f"{int(record['after']['fordblks'] or 0) / 1e6:.1f} MB"
         )
+
+    def _write_maintenance_artifact(self) -> None:
+        """Put every trim's readings on disk before the process that holds them exits.
+
+        The corpus row carries the aggregate — how many trims, how long, how much came back. The
+        per-trim record is what answers whether ingress noticed, and it is far too large to repeat
+        in every market's row, so it is written once beside the corpus. Nothing else reads it; it
+        is evidence.
+        """
+        if not self.maintenance.events and not self.maintenance.refusals:
+            return
+        path = self.config.corpus_path.with_name("maintenance.json")
+        payload = {
+            "epoch": self.config.epoch,
+            "run_mode": self.run_mode,
+            "label": "CONTROLLED_LOCAL_ALLOCATOR_MAINTENANCE_ON_REAL_MARKET_DATA",
+            "source_revision": self.identity.get("source_revision"),
+            "source_tree_sha": self.identity.get("source_tree_sha"),
+            "config_sha256": self.identity.get("config_sha256"),
+            "summary": self.maintenance.summary(),
+            "events": self.maintenance.events,
+        }
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(payload, indent=2), "utf-8")
+        except OSError as error:  # pragma: no cover - a diagnostic never ends a run badly
+            self.log(f"    maintenance artifact not written: {type(error).__name__}: {error}")
+            return
+        self.log(f"    maintenance artifact: {path} ({len(self.maintenance.events)} trims)")
 
     async def _quiescent_probe(self) -> None:
         """The one moment in a collection run when nothing is trading. Measure it there.

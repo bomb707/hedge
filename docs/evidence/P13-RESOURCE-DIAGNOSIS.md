@@ -423,3 +423,104 @@ of 6 · market lifecycles ≤ 3 of 6. Nothing accumulated except resident bytes.
 decide p50 **+68 ns (+0.24 %)** against a 3 % limit; full cycle p50 **+1,721 ns (+3.78 %)**
 against a 5 % limit. Both met, neither limit moved, no hot-path clock added. The machine carried
 an unrelated 439 %-CPU workload throughout and the figure is reported as measured.
+
+---
+
+## 9. Allocator maintenance — the smallest evidence-backed mechanism
+
+`p13-resource-1` removed the dominant cause and missed the bar: after-warm-up slope
+**+1.3607 MB/market, 95 % CI [+1.1689, +1.5526]** against a predeclared ceiling of +1.026 with a
+CI required to contain zero. What it also established is that the residue is the *same kind of
+thing* at a tenth of the size — a full collection released 0.0 MB where `malloc_trim` released
+63.0 MB, and `fordblks` (169.5 MB) was 90 % of `arena` (188.0 MB).
+
+Nothing about that is a Python problem, so nothing in Python fixes it. The memory is free and
+glibc is holding it; `malloc_trim` gives it back. The reason that was not simply done during the
+diagnostic work is that the call takes the allocator's locks for the whole process.
+
+### The window is the market clock's
+
+Canonical timing stops quoting at `T0+280`; the next market does not quote until its own `T0+3`,
+which is `T0+303` on the closing market's clock. In that 23-second gap the closing market is
+`SETTLING` and the opening one is `PREARM` — **no market is legitimately in `QUOTE` or
+`ENDGAME`.** Ten seconds are reserved, so maintenance may begin no later than `T0+293` however
+long the call takes, and a window already missed is skipped rather than run late.
+
+Six conditions, evaluated together, with phases derived from each live session's own `t0_ns`
+through P2's phase machine rather than read from whatever a market last observed: no session in
+`QUOTE`; none in `ENDGAME`; past the stop-quoting boundary; at least the margin before the next
+quote start; this rollover not already maintained; not shutting down.
+
+One `malloc_trim(0)` per rollover, **not adaptive** — it does not consult resident memory,
+`fordblks`, market activity or journal size, because a policy that responded to any of those
+would turn one experiment into a search over policies. A test reads the decision's own source to
+keep it that way.
+
+**The thread is not the safety property.** The call runs off the event loop, and a feed thread
+allocating a book update waits on the allocator lock wherever the call was made from. What
+confines it is the window. The loop-isolation test is named for what it proves.
+
+### Controlled real pilot — `p13-trim-pilot-2`
+
+**`CONTROLLED_LOCAL_ALLOCATOR_MAINTENANCE_ON_REAL_MARKET_DATA`** — a local action taken
+deliberately against real market data. Not a venue incident.
+
+Eight consecutive real markets, one process, 44 minutes, source
+`6af825bf3c33b41f8efc2a3cf2b2f5ca6036c933`, tree clean, `ACCEPTANCE_CLEAN`, 0 orders, 0
+redemptions. Eight of eight COMPLETE, replay EXACT, eligible; 0 drops, 0 gaps, 0 sink errors, 0
+lost observations; both feeds ready at every T0; `classified == actions == 2 × decisions`; PLACE
+only under SAFE.
+
+Nine trims, every one with phases `{SETTLING, PREARM}` and **none in `QUOTE` or `ENDGAME`**:
+
+| rollover | duration | released | `fordblks` before → after | since stop-quote | to quote start |
+|---|---:|---:|---|---:|---:|
+| 1787995200 | 0.26 ms | 0.1 MB | 1.1 → 0.7 | 2.9 s | 20.1 s |
+| 1787995500 | 1.61 ms | 4.3 MB | 5.6 → 5.3 | 2.3 s | 20.7 s |
+| 1787995800 | 2.04 ms | 11.0 MB | 35.9 → 33.0 | 2.7 s | 20.3 s |
+| 1787996100 | 1.02 ms | 11.8 MB | 69.4 → 66.0 | 2.1 s | 20.9 s |
+| 1787996400 | 1.59 ms | 17.7 MB | 98.6 → 92.7 | 2.7 s | 20.3 s |
+| 1787996700 | 4.47 ms | 16.5 MB | 103.5 → 91.2 | 2.2 s | 20.8 s |
+| 1787997000 | 5.61 ms | 18.3 MB | 105.4 → 94.5 | 2.6 s | 20.4 s |
+| 1787997300 | 1.40 ms | 14.1 MB | 102.3 → 99.0 | 3.0 s | 20.0 s |
+| 1787997600 | 1.28 ms | 15.8 MB | 104.0 → 98.3 | 2.3 s | 20.7 s |
+
+p50 **1.59 ms**, p95 and max **5.61 ms**; **109.8 MB** returned in total. Nine successful, none
+unsupported, no errors. The guard refused roughly 277 times per market while that market quoted.
+
+Hot-path `observe` maxima, two seconds before against two seconds after each trim: median
+0.212 → 0.159 ms, max 1.150 → 0.953 ms. No elevation follows a trim. **No latency threshold is
+proposed.**
+
+### Two things that looked like failures, resolved against readings
+
+**A reconnect.** Market `btc-updown-5m-1787996100` recorded `reconnects=1`. Its own prearm trim
+(rollover 1787996100) shows `reconnects=0` across all five snapshots; the next trim (rollover
+1787996400, at its stop-quoting boundary) shows `reconnects=1` **already at `window_open`, before
+the trim ran**. Between those points the market was in `QUOTE`/`ENDGAME`, where the contract
+refused every instant. **No trim ran while that reconnect happened.** For scale, `p13-corpus-6`
+recorded 13 reconnects across 202 markets.
+
+**Apparent buffer drops in the probe.** The around-trim readings showed transient values of 1 and
+5. `ObservationBuffer.dropped` is *derived* — `accepted − drained − len(records)` — and `drain()`
+clears the deque before incrementing `drained`, so a reader on another thread sees a positive
+value that is not a drop. The authoritative per-market accounting reports `dropped_records=0`,
+`lost_observations=0` and `observations_consumed == decisions_written` on all eight markets.
+Recorded here because the probe's number is misleading and someone will read it again.
+
+### A limitation that is not argued away
+
+`during_trim` recorded **no observations at all** — n=0 across all nine trims. Ingress advanced
+about 1,000 ordinals over each ~12-second probe, roughly one every 12 ms, against trims of 0.26
+to 5.61 ms. Zero events is exactly what a no-impact trim predicts, and the measurement **cannot
+distinguish "no event was due" from "an event was delayed by up to 5.6 ms".** What the pilot
+establishes is that no market suffered a feed-integrity or trading-state failure; it does not
+establish that no individual message was delayed by single-digit milliseconds.
+
+### First pilot, retained
+
+`p13-trim-pilot` (source `18108ef`, eight markets, also 8/8 clean) is kept rather than deleted.
+Its per-trim ingress readings were held in memory and lost when the process exited, so it
+supports the market-level claim and not the finer one. That is why the pilot was re-run, and
+saying "no market broke" where "ingress did not pause" was required is the substitution this
+phase exists to refuse.

@@ -82,6 +82,17 @@ class PaperConfig:
     130 GB raw and 2.4 GB archived, and the archive is proved to restore before the raw file is
     even considered removable."""
 
+    allocator_maintenance: bool = True
+    """Whether one `malloc_trim(0)` runs per rollover, in the non-quoting window. OPERATIONAL.
+
+    Off means the process behaves exactly as `p13-resource-1` did. On is the candidate under
+    test: the residual growth there was free glibc heap that a trim gives back, and the only
+    place a trim may happen is the gap between one market's stop-quoting boundary and the next
+    market's quote start."""
+
+    maintenance_margin_s: float = 10.0
+    """Seconds of the rollover gap left untouched before the next market may quote. OPERATIONAL."""
+
     epoch: str = "p13-corpus-1"
     """Which corpus epoch these markets belong to. A configuration change starts a new one."""
 
@@ -172,6 +183,15 @@ def config_identity(config: PaperConfig) -> dict[str, Any]:
         "settle_poll_s": _plain(config.settle_poll_s),
         "keep_raw_store": config.keep_raw_store,
         "gc_full_collection_every": GEN2_EVERY,
+        # Which allocator-maintenance policy produced this run. A corpus collected with the trim
+        # and one collected without it are not the same experiment, and the identity says so.
+        "allocator_maintenance": {
+            "enabled": config.allocator_maintenance,
+            "action": "malloc_trim(0)",
+            "per_rollover": 1,
+            "margin_s": _plain(config.maintenance_margin_s),
+            "adaptive": False,
+        },
         "thresholds": {"OPERATIONAL": _plain(asdict(config.thresholds))},
         "live_trading_enabled": LIVE_TRADING_ENABLED,
         "redemption_enabled": REDEMPTION_ENABLED,

@@ -31,6 +31,7 @@ import asyncio
 import time
 from collections.abc import Callable
 from concurrent.futures import ProcessPoolExecutor
+from contextlib import suppress
 from dataclasses import dataclass, field
 from multiprocessing import get_context
 from pathlib import Path
@@ -42,8 +43,9 @@ from maker5m.bot.audit import AuditIO
 from maker5m.bot.cold import ColdRequest, cold_finalize
 from maker5m.bot.config import PaperConfig, config_identity
 from maker5m.bot.corpus import CorpusIndex
+from maker5m.bot.maintenance import AllocatorMaintenance, MaintenanceWindow, maintenance_window
 from maker5m.bot.qualify import qualify_all
-from maker5m.bot.resources import GcObserver, pace_full_collections
+from maker5m.bot.resources import LIVE_SESSIONS, GcObserver, pace_full_collections
 from maker5m.bot.session import MarketSession, PrearmRecord
 from maker5m.bot.settle import settle_market
 from maker5m.feeds.discovery import discover_market, slug_for, t0_of_slug
@@ -66,6 +68,21 @@ and five other markets may be running — but the reading it separates does matt
 are still finishing at the instant `release` returns, and a number taken then describes a market
 that is still shutting down rather than one that is gone.
 """
+
+
+MAINTENANCE_POLL_S: Final[float] = 1.0
+"""How often the maintenance owner asks whether the rollover window is open. OPERATIONAL.
+
+The window is thirteen seconds wide, so one second is plenty and the check itself is arithmetic
+over the live sessions' `t0_ns` — no `/proc`, no allocator call, nothing that costs anything to
+ask.
+"""
+
+MAINTENANCE_LEAD_S: Final[float] = 2.0
+"""The interval either side of a trim over which ingress is compared against itself."""
+
+MAINTENANCE_TAIL_S: Final[float] = 10.0
+"""How long after a trim ingress is still watched. Observation only; it may run past the margin."""
 
 __all__ = ["Supervisor", "UiPlane"]
 
@@ -223,6 +240,8 @@ class Supervisor:
     last_durable_count: int = 0
     """The joined qualifying count as of the last full audit."""
     gc_observer: GcObserver = field(default_factory=GcObserver)
+    maintenance: AllocatorMaintenance = field(init=False)
+    """Allocator maintenance, and the rollover window it is confined to. OPERATIONAL, Plane 3."""
     quiescent: dict[str, Any] | None = None
     """What a full collection and a heap trim released once every market had drained."""
     allow_dirty_requested: bool = False
@@ -243,6 +262,12 @@ class Supervisor:
             ledger=AttemptLedger(path=self.config.corpus_path.with_name("attempts.jsonl")),
         )
         self.identity = config_identity(self.config)
+        # The policy the identity above has already committed to, made real. One object, so a
+        # run cannot claim one maintenance policy in its corpus rows and perform another.
+        self.maintenance = AllocatorMaintenance(
+            enabled=self.config.allocator_maintenance,
+            margin_s=self.config.maintenance_margin_s,
+        )
         # What kind of run this is, decided once and recorded on everything it produces. A run
         # against modified tracked source can collect, persist, replay and verify — it simply
         # cannot be final empirical evidence, and the row has to say so itself rather than
@@ -363,9 +388,14 @@ class Supervisor:
                 f"more than one result and {len(baseline.duplicate_market_slugs)} market(s) with "
                 "more than one qualifying result"
             )
+        maintenance = asyncio.create_task(self._maintain(), name="allocator-maintenance")
         try:
             await self._loop(already)
         finally:
+            self.maintenance.shutting_down = True
+            maintenance.cancel()
+            with suppress(asyncio.CancelledError):
+                await maintenance
             await self._drain_cold()
             await self._quiescent_probe()
             self.ui.stop()
@@ -374,6 +404,139 @@ class Supervisor:
             if self.pool is not None:
                 self.pool.shutdown(wait=True)
             self.pool = None
+
+    # -- allocator maintenance ---------------------------------------------------------------
+
+    def _feed_state(self, label: str) -> dict[str, Any]:
+        """What every live market's ingress has done, at one instant. Integers only.
+
+        Cheap on purpose: attribute reads off objects that already exist, no `/proc`, no
+        allocation of consequence. It runs on the event loop between maintenance steps, so it has
+        to cost nothing — the memory readings are taken in the worker thread beside the trim.
+        """
+        markets: dict[str, Any] = {}
+        for session in list(LIVE_SESSIONS):
+            runs = getattr(session, "runs", None)
+            if not runs:
+                continue
+            pipeline = runs[0].pipeline
+            markets[str(session.slug)] = {
+                "ingress_ordinal": pipeline.merger.ordinal,
+                "clob_messages": pipeline.counters.clob_messages,
+                "spot_messages": pipeline.counters.spot_messages,
+                "reconnects": pipeline.counters.reconnects,
+                "malformed": pipeline.counters.malformed,
+                "clob_health": pipeline.clob_health.status.value,
+                "clob_awaiting_snapshot": pipeline.clob_health.awaiting_snapshot,
+                "spot_health": pipeline.spot_health.status.value,
+                "buffer_depth": len(session.buffer),
+                "buffer_accepted": session.buffer.accepted,
+                "buffer_dropped": session.buffer.dropped,
+                "risk_dropped": session.risk_channel.dropped,
+                "observations": len(session.hot_path_ns),
+            }
+        return {"label": label, "at_ns": time.time_ns(), "markets": markets}
+
+    @staticmethod
+    def _hot_path_span(session: Any, start: int, end: int) -> int | None:
+        """The largest `observe` in a slice of a live market's samples. Absent if empty."""
+        samples = getattr(session, "hot_path_ns", None)
+        if not samples:
+            return None
+        window = samples[start:end]
+        return max(window) if window else None
+
+    def _hot_path_between(self, before: dict[str, Any], after: dict[str, Any]) -> dict[str, int]:
+        """Per market, the worst observation recorded between two feed states."""
+        worst: dict[str, int] = {}
+        by_slug = {str(session.slug): session for session in LIVE_SESSIONS}
+        for slug, start in before["markets"].items():
+            end = after["markets"].get(slug)
+            if end is None or slug not in by_slug:
+                continue
+            largest = self._hot_path_span(
+                by_slug[slug], int(start["observations"]), int(end["observations"])
+            )
+            if largest is not None:
+                worst[slug] = largest
+        return worst
+
+    async def _maintain(self) -> None:
+        """Own the rollover maintenance window. One `malloc_trim` per rollover, measured.
+
+        The trim runs in a thread, and that is **not** claimed to isolate it: `malloc_trim` takes
+        the allocator's locks process-wide, so a feed thread trying to allocate a book update
+        waits on it wherever the call is made from. What confines the damage is the window, not
+        the thread — no market is in `QUOTE` or `ENDGAME` while this runs, and the contract is
+        re-checked immediately before the call so a window that has closed is skipped rather than
+        entered late.
+
+        The readings either side answer the question the pilot exists to ask: did any market's
+        ingress notice.
+        """
+        if not self.maintenance.enabled:
+            return
+        while True:
+            await asyncio.sleep(MAINTENANCE_POLL_S)
+            window = self.maintenance.consider(time.time_ns(), list(LIVE_SESSIONS))
+            if not window.allowed or not self.maintenance.claim(window):
+                continue
+            try:
+                await self._maintain_once(window)
+            except asyncio.CancelledError:
+                raise
+            except Exception as error:  # pragma: no cover - a diagnostic never ends a run badly
+                self.log(f"    allocator maintenance failed: {type(error).__name__}: {error}")
+
+    async def _maintain_once(self, window: MaintenanceWindow) -> None:
+        opened = self._feed_state("window_open")
+        await asyncio.sleep(MAINTENANCE_LEAD_S)
+        before = self._feed_state("before_trim")
+
+        # The contract again, at the instant of the call rather than at the instant it was
+        # noticed. Two seconds passed while the "before" readings were taken, and a window that
+        # has closed in the meantime is skipped: never run late.
+        recheck = maintenance_window(
+            time.time_ns(),
+            list(LIVE_SESSIONS),
+            margin_s=self.maintenance.margin_s,
+            shutting_down=self.maintenance.shutting_down,
+        )
+        if not recheck.allowed:
+            self.log(f"    allocator maintenance skipped at the boundary: {recheck.reason}")
+            self.maintenance.refusals["skipped at the boundary"] = (
+                self.maintenance.refusals.get("skipped at the boundary", 0) + 1
+            )
+            return
+
+        record = await asyncio.to_thread(self.maintenance.trim, recheck)
+        during = self._feed_state("after_trim")
+        await asyncio.sleep(MAINTENANCE_LEAD_S)
+        after_2s = self._feed_state("2s_after")
+        await asyncio.sleep(MAINTENANCE_TAIL_S - MAINTENANCE_LEAD_S)
+        after_10s = self._feed_state("10s_after")
+
+        record["feed"] = {
+            "window_open": opened,
+            "before_trim": before,
+            "after_trim": during,
+            "2s_after": after_2s,
+            "10s_after": after_10s,
+            "hot_path_max_ns": {
+                "2s_before": self._hot_path_between(opened, before),
+                "during_trim": self._hot_path_between(before, during),
+                "2s_after": self._hot_path_between(during, after_2s),
+                "10s_after": self._hot_path_between(after_2s, after_10s),
+            },
+        }
+        released = record["released_rss_bytes"]
+        self.log(
+            f"    allocator maintenance at rollover {record['rollover']}: "
+            f"malloc_trim {record['duration_ns'] / 1e6:.1f} ms, "
+            f"released {0.0 if released is None else released / 1e6:.1f} MB, "
+            f"fordblks {int(record['before']['fordblks'] or 0) / 1e6:.1f} -> "
+            f"{int(record['after']['fordblks'] or 0) / 1e6:.1f} MB"
+        )
 
     async def _quiescent_probe(self) -> None:
         """The one moment in a collection run when nothing is trading. Measure it there.
@@ -1076,6 +1239,7 @@ class Supervisor:
                 "market_lifecycle_high_water": self.lifecycle_high_water,
                 "market_lifecycle_cap": MAX_MARKET_LIFECYCLES,
                 "gc": self.gc_observer.summary(),
+                "allocator_maintenance": self.maintenance.summary(),
                 "quiescent": self.quiescent,
                 "audit_io": self.audit.summary(),
             },

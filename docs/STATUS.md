@@ -193,6 +193,45 @@ Both met, neither limit moved.
 
 ---
 
+## P13 allocator maintenance — the mechanism works, the result is negative
+
+`fix/p13-resource-stability-closure`, from `1344e7f`. `p13-corpus-6` untouched and revalidating
+identically. Full detail: `docs/evidence/P13-RESOURCE-DIAGNOSIS.md` §9-10.
+
+`p13-resource-1` left the residual identified as free glibc heap that a `malloc_trim` gives back.
+The smallest evidence-backed mechanism was tried: **one `malloc_trim(0)` per rollover**, confined
+to the gap between one market's stop-quoting boundary at `T0+280` and the next market's quote
+start at `T0+303`, with ten of those twenty-three seconds reserved, phases derived from P2's
+phase machine, and a missed window skipped rather than run late.
+
+**The contract works.** Across two pilots and a 57-market validation, 68 trims: every one with
+phases `{SETTLING, PREARM}`, **none** with any market in `QUOTE` or `ENDGAME`, each beginning
+within 3.0 s of the boundary with at least 20.0 s to spare. p50 1.6 ms, max 13.4 ms. The pilot's
+one reconnect was shown by its own five-snapshot record to have happened while the market was
+quoting, where the contract refuses every instant — no trim was running. Apparent buffer "drops"
+in the probe were a cross-thread read of a derived quantity; the authoritative accounting is zero
+on every market.
+
+**And it makes resident memory worse.** `p13-resource-2` returned **1,082.6 MB** to the kernel
+across 59 trims and finished at **534.2 MB** against `p13-resource-1`'s 489.8, with an
+after-warm-up slope of **+2.7434 [+2.3512, +3.1357]** against +1.3607 — while doing **11 % less
+work** (6,140 MB of journals against 6,905; 4.17 M decisions against 4.71 M). The late windows get
+steeper, not flatter: last ten **+12.8126**. A flat band across markets 34-44 did not hold.
+
+The gate was not changed: markets 11..end, ceiling +1.026, 95 % interval containing zero. It reads
+NOT PASSED on both metrics and no window contains zero.
+
+Nothing was retimed or retuned in response. The machinery and its 45 tests stay for the next
+predeclared experiment; the **default is off**, because a runtime should not ship an action that
+measurement says makes the thing it targets worse. `MALLOC_ARENA_MAX`, `MALLOC_TRIM_THRESHOLD_`,
+jemalloc, mimalloc and process recycling are the next candidate families, each needing its own
+experiment.
+
+P8C on this source: decide **+1.48 %** (3 % limit), full cycle **+3.90 %** (5 % limit). Both met,
+neither limit moved.
+
+---
+
 ## P13F: Plane-3 audit isolation and result uniqueness
 
 Full evidence in [`evidence/P13F-AUDIT-ISOLATION.md`](evidence/P13F-AUDIT-ISOLATION.md).
@@ -1850,9 +1889,9 @@ orders, which P8 does not place. Both stay OPEN.
 | P13 implementation gate | **PASSED** (P13F) — every audit read and write on a dedicated thread, O(1) qualification per market with full audits at the boundaries, one result per attempt and per market |
 | P13 pilot gate | **PASSED** (P13F) — three consecutive real markets with the audit path deliberately slowed by 500 ms, all qualifying, zero drops. Earlier pilots retained and superseded |
 | P13 ≥200-market empirical corpus gate | **PASSED** — 202 qualifying markets, epoch `p13-corpus-6`, collected by `9a42031` |
-| P13 long-run resource stability gate | **NOT PASSED** — cause found and fixed, bar not met. `p13-resource-1`: 57 markets, one process, after-warm-up slope **+1.3607 MB/market**, 95 % CI **[+1.169, +1.553]**, against a predeclared ceiling of +1.026 with a CI that must contain zero. Against the 4,262 MB failure: all-run slope +10.26 → **+2.13**, late-window +31.46 → **+0.48**, end RSS **489.8 MB after 57 markets** |
+| P13 long-run resource stability gate | **NOT PASSED** — two evidence-backed attempts, neither meeting the bar. `p13-resource-1` (journal streaming): after-warm-up **+1.3607** [+1.169, +1.553]. `p13-resource-2` (adds one `malloc_trim` per rollover): **+2.7434** [+2.351, +3.136] — worse, on 11 % less work, despite returning 1,082 MB. Ceiling +1.026 with a CI containing zero, unchanged. Against the original 4,262 MB failure the streaming fix still stands: all-run +10.26 → +2.13, end RSS 489.8 MB after 57 markets |
 | **P13 overall** | **NOT COMPLETE** — corpus accepted, collector runtime not |
-| P14 | **BLOCKED** — residual resident-memory growth of ~+0.5 MB/market with no window whose 95 % interval contains zero; GC tail latency a second readiness risk, unchanged by the memory fix |
+| P14 | **BLOCKED** — residual resident-memory growth with no window whose 95 % interval contains zero, and the first mitigation made it worse; GC tail latency a second readiness risk, unchanged by either attempt |
 | P12 implementation gate | **PASSED** — Plane-3 UI, immutable snapshot, ordered control, no trading reference |
 | P12 real-market gate | **PASSED** — UI killed mid-market, trading continued |
 | P12 Plane-3 isolation gate | **PASSED** (P12C) — no synchronous I/O of any kind on the ingress path, stdout included |

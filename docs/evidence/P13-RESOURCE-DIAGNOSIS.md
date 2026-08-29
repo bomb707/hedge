@@ -524,3 +524,89 @@ Its per-trim ingress readings were held in memory and lost when the process exit
 supports the market-level claim and not the finer one. That is why the pilot was re-run, and
 saying "no market broke" where "ingress did not pause" was required is the substitution this
 phase exists to refuse.
+
+---
+
+## 10. Resource validation with allocator maintenance — `p13-resource-2`
+
+**57 consecutive real paper markets, one process, no restart, 4 h 54 m.** Frozen candidate:
+source `6af825bf3c33b41f8efc2a3cf2b2f5ca6036c933`, tree
+`4d37b7f6302f5446e7d1d7c1c0d70e34f2ca5b56`, config
+`f414c11999e2b6b879dc389ac926567c72e44ccd8f35fc899ed78d7f005b93a0`, `ACCEPTANCE_CLEAN`, tree
+clean, `LIVE_TRADING_ENABLED` and `REDEMPTION_ENABLED` false, 0 orders, 0 redemptions, 0 chain
+writes. Maintenance policy: one `malloc_trim(0)` per rollover, non-adaptive, 10-second margin.
+
+57 of 57 COMPLETE · 57 of 57 replay EXACT · 57 of 57 eligible · 0 incomplete · 0 corrupt · 0
+append failures · 0 writer/child journal-digest disagreements. Live sessions ≤ 2, file
+descriptors ≤ 22, threads ≤ 12, pending tasks ≤ 10, cold backlog ≤ 1 of 6, lifecycles ≤ 2 of 6.
+
+### The contract held completely
+
+59 trims, 59 successful, 0 unsupported, 0 errors. **Zero ran with any market in `QUOTE` or
+`ENDGAME`.** Every one began within 3.0 s of the stop-quoting boundary with at least 20.0 s
+before the next quote start, against a 10-second margin. Duration p50 **1.599 ms**, p95 8.16,
+p99 and max **13.408 ms**. Total returned to the kernel: **1,082.6 MB** (p50 18.4, p95 26.6, max
+34.6 MB per trim).
+
+### And the gate fails — worse than without it
+
+Unchanged: markets 11..end, point slope ≤ +1.026 MB/market **and** a 95 % interval containing
+zero.
+
+| | `p13-resource-1` (no maintenance) | `p13-resource-2` (maintenance) |
+|---|---:|---:|
+| after-warm-up slope | +1.3607 | **+2.7434** |
+| 95 % CI | [+1.1689, +1.5526] | **[+2.3512, +3.1357]** |
+| all-run slope | +2.129 | +3.206 |
+| RSS first → last | 278.6 → 489.8 MB | 212.9 → **534.2 MB** |
+| window medians | 432.0 / 463.8 / 480.6 / 485.0 | 371.3 / 385.8 / 412.1 / 429.3 |
+| **verdict** | **NOT PASSED** | **NOT PASSED** |
+
+Both metrics agree (`settled_rss` gives +2.7363 [+2.3484, +3.1243]).
+
+Late windows, for diagnosis only — the acceptance window is 11..57 and no other was substituted:
+
+| window | n | slope | 95 % CI | contains zero |
+|---|---:|---:|---|:--:|
+| **11..57 — the gate** | 47 | **+2.7434** | [+2.3512, +3.1357] | no |
+| 21..57 | 37 | +2.8991 | [+2.2903, +3.5079] | no |
+| 31..57 | 27 | +3.5999 | [+2.5060, +4.6938] | no |
+| last 20 | 20 | +5.5929 | [+3.9807, +7.2051] | no |
+| last 10 | 10 | **+12.8126** | [+10.6201, +15.0051] | no |
+
+The late windows get **steeper**, not flatter. A flat band did appear across markets 34–44
+(around 412 MB, with the last-10 window briefly reading −0.1395 [−0.9197, +0.6407]) and it did
+not hold: the final ten markets read 408.6, 427.5, 434.7, 453.9, 457.2, 471.1, 471.7, 487.5,
+520.7, 534.2.
+
+### The confound points the wrong way for the fix
+
+`p13-resource-2` did **less work** than the run it is compared against — 6,140 MB of journals
+against 6,905, and 4.17 M decisions against 4.71 M, about 11 % less of each — and still finished
+44 MB higher with roughly double the slope. The result cannot be explained by a busier market
+period, because the period was quieter.
+
+**Returning 1,082 MB to the kernel across 59 trims left the process resident-larger than not
+returning it at all.** That is the finding. Why is not established: `malloc_trim` releases pages
+with `MADV_DONTNEED` and the process faults them back on the next allocation, and repeated
+release-and-refault cycles plausibly leave the heap in a worse arrangement than leaving the free
+list alone — plausibly, and not measured here. The end-of-run probe read `MIXED` (26.1 MB to a
+full collection, 24.5 MB to a trim) rather than the `NATIVE_FREE_HEAP_RETAINED` of both earlier
+runs, which is consistent with a differently-shaped heap and is not an explanation.
+
+### What was not done in response
+
+No retiming, no margin adjustment, no change to trim cadence, no second policy. Tuning the
+experiment after seeing it fail is how a policy search gets mistaken for a result.
+`MALLOC_ARENA_MAX`, `MALLOC_TRIM_THRESHOLD_`, jemalloc, mimalloc and process recycling are the
+next candidate families and each needs its own predeclared experiment.
+
+The maintenance machinery, its contract and its 45 tests stay in the tree — the next allocator
+experiment will want them, and a negative result is worth being able to reproduce. **The default
+is now off**, because a runtime should not ship an action that measurement says makes the thing
+it targets worse.
+
+### P8C, on the frozen source
+
+decide p50 **+378 ns (+1.48 %)** against a 3 % limit; full cycle p50 **+1,588 ns (+3.90 %)**
+against a 5 % limit. Both met, neither limit moved, no hot-path clock added.

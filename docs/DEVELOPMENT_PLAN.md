@@ -437,7 +437,7 @@ both earlier markets' stores remain valid.
 
 ---
 
-## P13 — Live shadow / paper mode   ← IMPLEMENTED, CORPUS IN PROGRESS
+## P13 — Live shadow / paper mode   ← CORPUS ACCEPTED (202), RESOURCE STABILITY NOT PASSED
 
 **Status:**
 
@@ -446,7 +446,7 @@ both earlier markets' stores remain valid.
 | Implementation | **PASSED** (P13F) — every audit read and write on a dedicated Plane-3 thread; qualification O(1) per market with full joined audits at startup and at the target; exactly one result per attempt and one per market |
 | Pilot | **PASSED** (P13F) — three consecutive real markets run with the audit path deliberately slowed by 500 ms per operation, all qualifying, zero drops, gaps or sink errors |
 | ≥200-market empirical corpus | **PASSED** — 202 qualifying real markets in `p13-corpus-6`, collected by `9a42031`; every duplicate, refusal and integrity category zero. Corpora 1-5 retained, superseded, excluded |
-| Long-run resource stability | **NOT PASSED** — source now identified and removed, bar still not met. The growth was free glibc heap created by `encode_journal` building every journal line as a separate arena allocation; streaming the writer cut the all-run slope from +10.26 to +2.13 MB/market and the late-window slope from +31.46 to +0.48, ending at 489.8 MB after 57 markets. The predeclared test (markets 11..end, ceiling +1.026, 95 % CI containing zero) reads **+1.3607 [+1.1689, +1.5526]**, and no window contains zero. Residual ≈ +0.5 MB/market is diffuse allocator high-water creep with no single source. See `docs/evidence/P13-RESOURCE-DIAGNOSIS.md` |
+| Long-run resource stability | **NOT PASSED** after two evidence-backed attempts. The original growth was free glibc heap created by the journal encoder; streaming it cut the all-run slope from +10.26 to +2.13 MB/market (`p13-resource-1`, after-warm-up +1.3607 [+1.169, +1.553]). Adding one guarded `malloc_trim` per rollover (`p13-resource-2`) returned 1,082 MB and made it **worse** — +2.7434 [+2.351, +3.136] on 11 % less work. The predeclared test (markets 11..end, ceiling +1.026, 95 % CI containing zero) is unchanged and unmet. See `docs/evidence/P13-RESOURCE-DIAGNOSIS.md` |
 | **Overall** | **NOT COMPLETE** — the dataset is accepted and ready for P15; the collector needs runtime engineering |
 
 Evidence: [`evidence/P13-CORPUS-ACCEPTANCE.md`](evidence/P13-CORPUS-ACCEPTANCE.md),

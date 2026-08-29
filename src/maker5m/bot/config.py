@@ -82,13 +82,19 @@ class PaperConfig:
     130 GB raw and 2.4 GB archived, and the archive is proved to restore before the raw file is
     even considered removable."""
 
-    allocator_maintenance: bool = True
+    allocator_maintenance: bool = False
     """Whether one `malloc_trim(0)` runs per rollover, in the non-quoting window. OPERATIONAL.
 
-    Off means the process behaves exactly as `p13-resource-1` did. On is the candidate under
-    test: the residual growth there was free glibc heap that a trim gives back, and the only
-    place a trim may happen is the gap between one market's stop-quoting boundary and the next
-    market's quote start."""
+    **Off, because the experiment that turned it on failed.** `p13-resource-2` ran 57 markets with
+    it enabled: 59 trims, every one inside the window, none with any market in QUOTE or ENDGAME,
+    1,082.6 MB returned to the kernel. The process still finished at 534.2 MB against
+    `p13-resource-1`'s 489.8 — with an after-warm-up slope of +2.7434 MB/market against +1.3607,
+    and 11 % *less* work done (6,140 MB of journals against 6,905, 4.17 M decisions against
+    4.71 M). Giving the pages back left the process resident-larger than keeping them.
+
+    The machinery and its contract stay, because the next allocator experiment will want both and
+    because the negative result is worth being able to reproduce. The default does not, because a
+    runtime should not ship an action that measurement says makes the thing it targets worse."""
 
     maintenance_margin_s: float = 10.0
     """Seconds of the rollover gap left untouched before the next market may quote. OPERATIONAL."""
